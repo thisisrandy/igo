@@ -208,7 +208,7 @@ async def responddead(request):
 
 
 @app.route("/")
-def form(request):
+def root(request):
     response_headers = get_cors_header(request)
     return HTMLResponse(
         """
@@ -228,9 +228,9 @@ def form(request):
                 <li>POST /move: key, i, j</li>
                 <li>POST /pass: key</li>
                 <li>POST /requestdraw: key</li>
-                <li>POST /responddraw: key, response (True | False)</li>
+                <li>POST /responddraw: key, response ("True" | "False")</li>
                 <li>POST /markdead: key, i, j</li>
-                <li>POST /responddead: key, i, j, response</li>
+                <li>POST /responddead: key, i, j, response ("True" | "False")</li>
             </ol>
         </body>
         </html>
