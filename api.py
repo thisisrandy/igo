@@ -204,8 +204,6 @@ async def responddead(request):
     response_headers = get_cors_header(request)
     try:
         key = request.query_params["key"]
-        i = int(request.query_params["i"])
-        j = int(request.query_params["j"])
         response = request.query_params["response"].lower() == "true"
     except KeyError as ke:
         return PlainTextResponse(
@@ -213,14 +211,8 @@ async def responddead(request):
             status_code=400,
             headers=response_headers,
         )
-    except ValueError as ve:
-        return PlainTextResponse(
-            f"Params 'i' and 'j' must be valid integer values",
-            status_code=400,
-            headers=response_headers,
-        )
     return JSONResponse(
-        {"route": "responddead", "key": key, "i": i, "j": j, "response": response},
+        {"route": "responddead", "key": key, "response": response},
         headers=response_headers,
     )
 
@@ -284,7 +276,7 @@ def root(request):
                 <li>POST /requestdraw: key</li>
                 <li>POST /responddraw: key, response ("True" | "False")</li>
                 <li>POST /markdead: key, i, j</li>
-                <li>POST /responddead: key, i, j, response ("True" | "False")</li>
+                <li>POST /responddead: key, response ("True" | "False")</li>
                 <li>POST /endgame: key</li>
                 <li>POST /respondendgame: key, response ("True" | "False")</li>
             </ol>
