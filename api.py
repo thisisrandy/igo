@@ -62,6 +62,24 @@ async def joingame(request):
     )
 
 
+@app.route("/aheadof", methods=["GET"])
+async def aheadof(request):
+    response_headers = get_cors_header(request)
+    try:
+        key = request.query_params["key"]
+        timestamp = request.query_params["timestamp"]
+    except KeyError as ke:
+        return PlainTextResponse(
+            f"Required param {ke} missing in request",
+            status_code=400,
+            headers=response_headers,
+        )
+    return JSONResponse(
+        {"route": "aheadof", "key": key, "timestamp": timestamp},
+        headers=response_headers,
+    )
+
+
 @app.route("/status", methods=["GET"])
 async def status(request):
     response_headers = get_cors_header(request)
@@ -224,6 +242,7 @@ def root(request):
             <ol>
                 <li>GET /newgame: vs ("human" | "computer"), color ("black" | "white")[, komi=6.5]</li>
                 <li>GET /joingame: key</li>
+                <li>GET /aheadof key, timestamp</li>
                 <li>GET /status: key</li>
                 <li>POST /move: key, i, j</li>
                 <li>POST /pass: key</li>
