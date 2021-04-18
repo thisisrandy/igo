@@ -131,3 +131,6 @@ class Game:
         self.status: GameStatus = GameStatus.play
         self.action_stack: List[Action] = []
         self.board: Board = Board(size)
+
+    def __repr__(self) -> str:
+        return f"Game(keys={self.keys}, status={self.status}, action_stack={self.action_stack}, board={self.board})"
