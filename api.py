@@ -225,6 +225,41 @@ async def responddead(request):
     )
 
 
+@app.route("/endgame", methods=["GET"])
+async def endgame(request):
+    response_headers = get_cors_header(request)
+    try:
+        key = request.query_params["key"]
+    except KeyError as ke:
+        return PlainTextResponse(
+            f"Required param {ke} missing in request",
+            status_code=400,
+            headers=response_headers,
+        )
+    return JSONResponse(
+        {"route": "endgame", "key": key},
+        headers=response_headers,
+    )
+
+
+@app.route("/respondendgame", methods=["GET"])
+async def respondendgame(request):
+    response_headers = get_cors_header(request)
+    try:
+        key = request.query_params["key"]
+        response = request.query_params["response"].lower() == "true"
+    except KeyError as ke:
+        return PlainTextResponse(
+            f"Required param {ke} missing in request",
+            status_code=400,
+            headers=response_headers,
+        )
+    return JSONResponse(
+        {"route": "respondendgame", "key": key, "response": response},
+        headers=response_headers,
+    )
+
+
 @app.route("/")
 def root(request):
     response_headers = get_cors_header(request)
@@ -250,6 +285,8 @@ def root(request):
                 <li>POST /responddraw: key, response ("True" | "False")</li>
                 <li>POST /markdead: key, i, j</li>
                 <li>POST /responddead: key, i, j, response ("True" | "False")</li>
+                <li>POST /endgame: key</li>
+                <li>POST /respondendgame: key, response ("True" | "False")</li>
             </ol>
         </body>
         </html>
