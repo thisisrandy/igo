@@ -71,7 +71,7 @@ class Point:
 
 class Board:
     """
-    Subscriptable container class for the full board
+    Subscriptable 2d container class for the full board. `Board()[i][j] -> Point`
 
     Attributes:
 
