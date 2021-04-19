@@ -78,6 +78,13 @@ class Point:
             "d" if self.marked_dead else ""
         )
 
+    def __eq__(self, o: object) -> bool:
+        """Color equality only, as this is only for the purpose of detecting ko"""
+
+        if not isinstance(o, Point):
+            return False
+        return self.color is o.color
+
     def jsonifyable(self) -> str:
         """Return a representation which can be readily JSONified"""
 
@@ -103,6 +110,11 @@ class Board:
         def __repr__(self) -> str:
             return str(self._row)
 
+        def __eq__(self, other: object) -> bool:
+            if not isinstance(other, Board._BoardRow):
+                return False
+            return self._row == other._row
+
         def jsonifyable(self) -> str:
             """Return a representation which can be readily JSONified"""
 
@@ -120,6 +132,13 @@ class Board:
 
     def __repr__(self) -> str:
         return str(self._rows)
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Board):
+            return False
+        return self.size == other.size and all(
+            r == o for r, o in zip(self.rows, other._rows)
+        )
 
     def jsonifyable(self) -> str:
         """Return a representation which can be readily JSONified"""
