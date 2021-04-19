@@ -73,6 +73,10 @@ class Point:
             "d" if self.marked_dead else ""
         )
 
+    def jsonifyable(self) -> str:
+        """Return a representation which can be readily JSONified"""
+        return str(self)
+
 
 class Board:
     """
@@ -110,6 +114,10 @@ class Board:
     def __repr__(self) -> str:
         return str(self._rows)
 
+    def jsonifyable(self) -> str:
+        """Return a representation which can be readily JSONified"""
+        return [r.jsonifyable() for r in self._rows]
+
 
 class Game:
     """
@@ -143,3 +151,33 @@ class Game:
 
     def __repr__(self) -> str:
         return f"Game(keys={self.keys}, status={self.status}, action_stack={self.action_stack}, board={self.board})"
+
+    def _turn(self) -> Color:
+        return (
+            Color.white
+            if not self.action_stack or self.action_stack[-1].color == Color.black
+            else Color.black
+        )
+
+    def take_action(self, action: Action) -> bool:
+        """Attempt to take an action. Return True if that action was valid
+        and False otherwise"""
+        # TODO: stub
+        # TODO: need a lock for async access. possibly we don't worry about it at this level
+        return False
+
+    def ahead_of(self, timestamp: float) -> bool:
+        """If the last successful action was after timestamp, return True
+        and False if this is a new game or otherwise"""
+        return self.action_stack and self.action_stack[-1].timestamp > timestamp
+
+    def jsonifyable(self) -> str:
+        """Return a representation which can be readily JSONified. In
+        particular, return a dictionary with the board, game status, and
+        whose turn it is, noting that the last datum is meaningless if the
+        game is over"""
+        return {
+            "board": self.board.jsonifyable(),
+            "status": self.status.name,
+            "turn": self._turn().name,
+        }
