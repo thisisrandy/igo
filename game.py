@@ -131,10 +131,11 @@ class Game:
 
         status: GameStatus - indicator of the status of the game
 
+        turn: Color - during play, indicator of whose turn it is (meaningless
+        otherwise)
+
         action_stack: List[Action] - the complete list of valid actions taken
-        throughout the game. also an indicator of whose turn it is during
-        play (white if the stack is empty, otherwise the color not at the top
-        of the stack)
+        throughout the game
 
         board: Board - the game board
 
@@ -146,18 +147,12 @@ class Game:
             Color.black: uuid4().hex[-10:],
         }
         self.status: GameStatus = GameStatus.play
+        self.turn: Color = Color.white
         self.action_stack: List[Action] = []
         self.board: Board = Board(size)
 
     def __repr__(self) -> str:
         return f"Game(keys={self.keys}, status={self.status}, action_stack={self.action_stack}, board={self.board})"
-
-    def _turn(self) -> Color:
-        return (
-            Color.white
-            if not self.action_stack or self.action_stack[-1].color == Color.black
-            else Color.black
-        )
 
     def take_action(self, action: Action) -> bool:
         """Attempt to take an action. Return True if that action was valid
@@ -179,5 +174,5 @@ class Game:
         return {
             "board": self.board.jsonifyable(),
             "status": self.status.name,
-            "turn": self._turn().name,
+            "turn": self.turn.name,
         }
