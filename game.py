@@ -167,9 +167,11 @@ class Game:
 
         board: Board - the game board
 
+        prisoners: Dict[Color] - the number of prisoners taken by each player
+
     """
 
-    def __init__(self, size: int = 19) -> None:
+    def __init__(self, size: int = 19, komi: float = 6.5) -> None:
         self.keys: Dict[Color] = {
             Color.white: uuid4().hex[-10:],
             Color.black: uuid4().hex[-10:],
@@ -178,6 +180,8 @@ class Game:
         self.turn: Color = Color.white
         self.action_stack: List[Action] = []
         self.board: Board = Board(size)
+        self.komi: float = komi
+        self.prisoners: Dict[Color] = {Color.white: 0, Color.black: 0}
 
     def __repr__(self) -> str:
         return f"Game(keys={self.keys}, status={self.status}, action_stack={self.action_stack}, board={self.board})"
