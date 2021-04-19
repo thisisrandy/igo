@@ -16,6 +16,8 @@ class ActionType(Enum):
     mark_dead = auto()
     draw_game = auto()
     end_game = auto()
+    accept = auto()
+    reject = auto()
 
 
 class GameStatus(Enum):
