@@ -69,7 +69,7 @@ class Point:
         return repr(str(self))
 
     def __str__(self) -> str:
-        return ("" if not self.color else "w" if self.color == Color.white else "b") + (
+        return ("" if not self.color else "w" if self.color is Color.white else "b") + (
             "d" if self.marked_dead else ""
         )
 
