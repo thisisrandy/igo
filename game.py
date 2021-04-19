@@ -75,6 +75,7 @@ class Point:
 
     def jsonifyable(self) -> str:
         """Return a representation which can be readily JSONified"""
+
         return str(self)
 
 
@@ -99,6 +100,7 @@ class Board:
 
         def jsonifyable(self) -> str:
             """Return a representation which can be readily JSONified"""
+
             return [p.jsonifyable() for p in self._row]
 
     def __init__(self, size: int = 19) -> None:
@@ -116,6 +118,7 @@ class Board:
 
     def jsonifyable(self) -> str:
         """Return a representation which can be readily JSONified"""
+
         return [r.jsonifyable() for r in self._rows]
 
 
@@ -157,6 +160,7 @@ class Game:
     def take_action(self, action: Action) -> bool:
         """Attempt to take an action. Return True if that action was valid
         and False otherwise"""
+
         # TODO: stub
         # TODO: need a lock for async access. possibly we don't worry about it at this level
         return False
@@ -164,6 +168,7 @@ class Game:
     def ahead_of(self, timestamp: float) -> bool:
         """If the last successful action was after timestamp, return True
         and False if this is a new game or otherwise"""
+
         return self.action_stack and self.action_stack[-1].timestamp > timestamp
 
     def jsonifyable(self) -> str:
@@ -171,6 +176,7 @@ class Game:
         particular, return a dictionary with the board, game status, and
         whose turn it is, noting that the last datum is meaningless if the
         game is over"""
+
         return {
             "board": self.board.jsonifyable(),
             "status": self.status.name,
