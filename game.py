@@ -66,8 +66,11 @@ class Point:
     marked_dead: bool = False
 
     def __repr__(self) -> str:
-        return ("" if not self.color else "w" if self.color == Color.white else "b") + (
-            "d" if self.marked_dead else ""
+        return (
+            "'"
+            + ("" if not self.color else "w" if self.color == Color.white else "b")
+            + ("d" if self.marked_dead else "")
+            + "'"
         )
 
 
