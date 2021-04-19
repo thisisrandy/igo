@@ -128,9 +128,10 @@ class Game:
 
     Attributes:
 
-        keys: Dict[Color] - truncated (10 char) UUIDs for black and white players.
-        the creating player is informed of both keys upon game creation,
-        and all subsequent actions from either player require their key
+        keys: Dict[Color] - truncated (10 char) UUIDs for black and white
+        players. the creating player is informed of both keys upon game
+        creation, and all subsequent actions from either player require their
+        key
 
         status: GameStatus - indicator of the status of the game
 
