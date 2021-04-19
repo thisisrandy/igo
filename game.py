@@ -202,12 +202,17 @@ class Game:
 
     def jsonifyable(self) -> str:
         """Return a representation which can be readily JSONified. In
-        particular, return a dictionary with the board, game status, and
-        whose turn it is, noting that the last datum is meaningless if the
-        game is over"""
+        particular, return a dictionary with the board, game status, komi,
+        prisoner counts, and whose turn it is, noting that the last datum is
+        meaningless if the game is over"""
 
         return {
             "board": self.board.jsonifyable(),
             "status": self.status.name,
+            "komi": self.komi,
+            "prisoners": {
+                Color.white.name: self.prisoners[Color.white],
+                Color.black.name: self.prisoners[Color.black],
+            },
             "turn": self.turn.name,
         }
