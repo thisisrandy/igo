@@ -115,7 +115,7 @@ class Board:
                 return False
             return self._row == other._row
 
-        def jsonifyable(self) -> str:
+        def jsonifyable(self) -> List[str]:
             """Return a representation which can be readily JSONified"""
 
             return [p.jsonifyable() for p in self._row]
@@ -140,7 +140,7 @@ class Board:
             r == o for r, o in zip(self.rows, other._rows)
         )
 
-    def jsonifyable(self) -> str:
+    def jsonifyable(self) -> List[List[str]]:
         """Return a representation which can be readily JSONified"""
 
         return [r.jsonifyable() for r in self._rows]
@@ -200,7 +200,7 @@ class Game:
 
         return self.action_stack and self.action_stack[-1].timestamp > timestamp
 
-    def jsonifyable(self) -> str:
+    def jsonifyable(self) -> Dict:
         """Return a representation which can be readily JSONified. In
         particular, return a dictionary with the board, game status, komi,
         prisoner counts, and whose turn it is, noting that the last datum is
