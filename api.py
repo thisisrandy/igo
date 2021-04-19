@@ -97,7 +97,7 @@ async def status(request):
     )
 
 
-@app.route("/move", methods=["GET"])
+@app.route("/move", methods=["POST"])
 async def move(request):
     response_headers = get_cors_header(request)
     try:
@@ -122,7 +122,7 @@ async def move(request):
     )
 
 
-@app.route("/pass", methods=["GET"])
+@app.route("/pass", methods=["POST"])
 async def pass_move(request):
     response_headers = get_cors_header(request)
     try:
@@ -139,7 +139,7 @@ async def pass_move(request):
     )
 
 
-@app.route("/requestdraw", methods=["GET"])
+@app.route("/requestdraw", methods=["POST"])
 async def requestdraw(request):
     response_headers = get_cors_header(request)
     try:
@@ -156,7 +156,7 @@ async def requestdraw(request):
     )
 
 
-@app.route("/responddraw", methods=["GET"])
+@app.route("/responddraw", methods=["POST"])
 async def responddraw(request):
     response_headers = get_cors_header(request)
     try:
@@ -174,7 +174,7 @@ async def responddraw(request):
     )
 
 
-@app.route("/markdead", methods=["GET"])
+@app.route("/markdead", methods=["POST"])
 async def markdead(request):
     response_headers = get_cors_header(request)
     try:
@@ -199,7 +199,7 @@ async def markdead(request):
     )
 
 
-@app.route("/responddead", methods=["GET"])
+@app.route("/responddead", methods=["POST"])
 async def responddead(request):
     response_headers = get_cors_header(request)
     try:
@@ -217,7 +217,7 @@ async def responddead(request):
     )
 
 
-@app.route("/endgame", methods=["GET"])
+@app.route("/endgame", methods=["POST"])
 async def endgame(request):
     response_headers = get_cors_header(request)
     try:
@@ -234,7 +234,7 @@ async def endgame(request):
     )
 
 
-@app.route("/respondendgame", methods=["GET"])
+@app.route("/respondendgame", methods=["POST"])
 async def respondendgame(request):
     response_headers = get_cors_header(request)
     try:
