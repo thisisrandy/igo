@@ -85,13 +85,17 @@ class Board:
 
     class _BoardRow:
         def __init__(self, size: int) -> None:
-            self.row = [Point() for _ in range(size)]
+            self._row = [Point() for _ in range(size)]
 
         def __getitem__(self, key: int) -> Point:
-            return self.row[key]
+            return self._row[key]
 
         def __repr__(self) -> str:
-            return str(self.row)
+            return str(self._row)
+
+        def jsonifyable(self) -> str:
+            """Return a representation which can be readily JSONified"""
+            return [p.jsonifyable() for p in self._row]
 
     def __init__(self, size: int = 19) -> None:
         self.size = size
