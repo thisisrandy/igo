@@ -9,6 +9,11 @@ class Color(Enum):
     white = auto()
     black = auto()
 
+    def inverse(self) -> Color:
+        """Return white if black and black if white"""
+
+        return Color.black if self is Color.white else Color.white
+
 
 class ActionType(Enum):
     placement = auto()
