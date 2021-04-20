@@ -137,7 +137,7 @@ class Board:
         if not isinstance(other, Board):
             return False
         return self.size == other.size and all(
-            r == o for r, o in zip(self.rows, other._rows)
+            r == o for r, o in zip(self._rows, other._rows)
         )
 
     def jsonifyable(self) -> List[List[str]]:
