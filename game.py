@@ -152,8 +152,8 @@ class Game:
 
     Attributes:
 
-        keys: Dict[Color] - truncated (10 char) UUIDs for black and white
-        players. the creating player is informed of both keys upon game
+        keys: Dict[Color, str] - truncated (10 char) UUIDs for black and
+        white players. the creating player is informed of both keys upon game
         creation, and all subsequent actions from either player require their
         key
 
@@ -167,12 +167,12 @@ class Game:
 
         board: Board - the game board
 
-        prisoners: Dict[Color] - the number of prisoners taken by each player
+        prisoners: Dict[Color, int] - the number of prisoners taken by each player
 
     """
 
     def __init__(self, size: int = 19, komi: float = 6.5) -> None:
-        self.keys: Dict[Color] = {
+        self.keys: Dict[Color, str] = {
             Color.white: uuid4().hex[-10:],
             Color.black: uuid4().hex[-10:],
         }
@@ -181,7 +181,7 @@ class Game:
         self.action_stack: List[Action] = []
         self.board: Board = Board(size)
         self.komi: float = komi
-        self.prisoners: Dict[Color] = {Color.white: 0, Color.black: 0}
+        self.prisoners: Dict[Color, int] = {Color.white: 0, Color.black: 0}
 
     def __repr__(self) -> str:
         return f"Game(keys={self.keys}, status={self.status}, action_stack={self.action_stack}, board={self.board})"
