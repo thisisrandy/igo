@@ -118,3 +118,24 @@ class GameTestCase(unittest.TestCase):
             success, msg = g.take_action(a)
         self.assertFalse(success)
         self.assertEqual(msg, "Playing at (2, 1) violates the simple ko rule")
+
+    def test_capture(self):
+        g = Game(5)
+        ts = datetime.now().timestamp()
+        actions = [
+            Action(ActionType.placement, Color.white, (0, 0), ts),
+            Action(ActionType.placement, Color.black, (1, 0), ts),
+            Action(ActionType.placement, Color.white, (0, 1), ts),
+            Action(ActionType.placement, Color.black, (1, 1), ts),
+            Action(ActionType.placement, Color.white, (0, 2), ts),
+            Action(ActionType.placement, Color.black, (2, 2), ts),
+            Action(ActionType.placement, Color.white, (1, 2), ts),
+            Action(ActionType.placement, Color.black, (1, 3), ts),
+            Action(ActionType.placement, Color.white, (0, 3), ts),
+            Action(ActionType.placement, Color.black, (0, 4), ts),
+        ]
+        for a in actions:
+            success, msg = g.take_action(a)
+        self.assertEqual(len(g.action_stack), len(actions))
+        self.assertEqual(g.prisoners[Color.white], 0)
+        self.assertEqual(g.prisoners[Color.black], 5)
