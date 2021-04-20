@@ -56,7 +56,7 @@ class GameTestCase(unittest.TestCase):
         )
         self.assertFalse(success)
         self.assertEqual(msg, "It isn't black's turn")
-        success, msg = g.take_action(
+        g.take_action(
             Action(
                 ActionType.placement, Color.white, (0, 0), datetime.now().timestamp()
             )
@@ -86,35 +86,16 @@ class GameTestCase(unittest.TestCase):
 
     def test_suicide(self):
         g = Game(3)
-        g.take_action(
-            Action(
-                ActionType.placement, Color.white, (1, 0), datetime.now().timestamp()
-            )
-        )
-        g.take_action(
-            Action(
-                ActionType.placement, Color.black, (0, 0), datetime.now().timestamp()
-            )
-        )
-        g.take_action(
-            Action(
-                ActionType.placement, Color.white, (1, 1), datetime.now().timestamp()
-            )
-        )
-        g.take_action(
-            Action(
-                ActionType.placement, Color.black, (0, 1), datetime.now().timestamp()
-            )
-        )
-        g.take_action(
-            Action(
-                ActionType.placement, Color.white, (1, 2), datetime.now().timestamp()
-            )
-        )
-        success, msg = g.take_action(
-            Action(
-                ActionType.placement, Color.black, (0, 2), datetime.now().timestamp()
-            )
-        )
+        ts = datetime.now().timestamp()
+        actions = [
+            Action(ActionType.placement, Color.white, (1, 0), ts),
+            Action(ActionType.placement, Color.black, (0, 0), ts),
+            Action(ActionType.placement, Color.white, (1, 1), ts),
+            Action(ActionType.placement, Color.black, (0, 1), ts),
+            Action(ActionType.placement, Color.white, (1, 2), ts),
+            Action(ActionType.placement, Color.black, (0, 2), ts),
+        ]
+        for a in actions:
+            success, msg = g.take_action(a)
         self.assertFalse(success)
         self.assertEqual(msg, "Playing at (0, 2) is suicide")
