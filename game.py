@@ -184,7 +184,7 @@ class Game:
         self.prisoners: Dict[Color, int] = {Color.white: 0, Color.black: 0}
 
     def __repr__(self) -> str:
-        return f"Game(keys={self.keys}, status={self.status}, action_stack={self.action_stack}, board={self.board})"
+        return f"Game(keys={self.keys}, status={self.status}, turn={self.turn}, action_stack={self.action_stack}, board={self.board}, komi={self.komi}, prisoners={self.prisoners})"
 
     def take_action(self, action: Action) -> bool:
         """Attempt to take an action. Return True if that action was valid
