@@ -186,7 +186,16 @@ class Game:
         self._prev_board: Board = None
 
     def __repr__(self) -> str:
-        return f"Game(keys={self.keys}, status={self.status}, turn={self.turn}, action_stack={self.action_stack}, board={self.board}, komi={self.komi}, prisoners={self.prisoners}, _prev_board={self._prev_board})"
+        return (
+            f"Game(keys={self.keys}"
+            f", status={self.status}"
+            f", turn={self.turn}"
+            f", action_stack={self.action_stack}"
+            f", board={self.board}"
+            f", komi={self.komi}"
+            f", prisoners={self.prisoners}"
+            f", _prev_board={self._prev_board})"
+        )
 
     def take_action(self, action: Action) -> Tuple[bool, str]:
         """Attempt to take an action. Return True if that action was valid
