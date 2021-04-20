@@ -201,8 +201,11 @@ class Game:
         """Attempt to take an action. Return True if that action was valid
         and False otherwise"""
 
+        # TODO: remove this once all action types are handled
+        success, msg = False, ""
+
         if action.action_type == ActionType.placement:
-            return self._place_stone(action)
+            success, msg = self._place_stone(action)
         elif action.action_type == ActionType.pass_move:
             pass
         elif action.action_type == ActionType.mark_dead:
@@ -215,7 +218,10 @@ class Game:
             pass
         elif action.action_type == ActionType.reject:
             pass
-        return (False, "")
+
+        if success:
+            self.action_stack.append(action)
+        return success, msg
 
     def _place_stone(self, action: Action) -> Tuple[bool, str]:
         assert action.action_type == ActionType.placement
