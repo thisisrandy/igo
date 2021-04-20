@@ -222,7 +222,7 @@ class Game:
         assert self.status == GameStatus.play
 
         if action.color is not self.turn:
-            return (False, f"It isn't {action.color}'s turn'")
+            return (False, f"It isn't {action.color.name}'s turn'")
 
         i, j = action.coords
         if self.board[i][j].color:
