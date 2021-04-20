@@ -1,8 +1,9 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum, auto
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Set, Tuple, Union
 from uuid import uuid4
+from copy import deepcopy
 
 
 class Color(Enum):
@@ -182,17 +183,113 @@ class Game:
         self.board: Board = Board(size)
         self.komi: float = komi
         self.prisoners: Dict[Color, int] = {Color.white: 0, Color.black: 0}
+        self._prev_board: Board = None
 
     def __repr__(self) -> str:
-        return f"Game(keys={self.keys}, status={self.status}, turn={self.turn}, action_stack={self.action_stack}, board={self.board}, komi={self.komi}, prisoners={self.prisoners})"
+        return f"Game(keys={self.keys}, status={self.status}, turn={self.turn}, action_stack={self.action_stack}, board={self.board}, komi={self.komi}, prisoners={self.prisoners}, _prev_board={self._prev_board})"
 
-    def take_action(self, action: Action) -> bool:
+    def take_action(self, action: Action) -> Tuple[bool, str]:
         """Attempt to take an action. Return True if that action was valid
         and False otherwise"""
 
-        # TODO: stub
-        # TODO: need a lock for async access. possibly we don't worry about it at this level
-        return False
+        if action.action_type == ActionType.placement:
+            return self._place_stone(action)
+        elif action.action_type == ActionType.pass_move:
+            pass
+        elif action.action_type == ActionType.mark_dead:
+            pass
+        elif action.action_type == ActionType.draw_game:
+            pass
+        elif action.action_type == ActionType.end_game:
+            pass
+        elif action.action_type == ActionType.accept:
+            pass
+        elif action.action_type == ActionType.reject:
+            pass
+        return (False, "")
+
+    def _place_stone(self, action: Action) -> Tuple[bool, str]:
+        assert action.action_type == ActionType.placement
+        assert self.status == GameStatus.play
+
+        if action.color is not self.turn:
+            return (False, f"It isn't {action.color}'s turn'")
+
+        i, j = action.coords
+        if self.board[i][j].color:
+            return (False, f"Point {action.coords} is occupied")
+
+        # we will proceed by copying the board and then placing this stone.
+        # first, we remove any captured stones. if we don't remove anything in
+        # this way, we check if the group that the placed stone is part of is
+        # not surrounded (no suicide rule). finally, we check that the board
+        # has not returned to the last previous board position (simple ko). if
+        # the move is in fact legal, we cycle in the new board position, update
+        # prisoner counts if any stones were captured, and cycle the turn
+        # attribute
+
+        new_board: Board = deepcopy(self.board)
+        new_board[i][j].color = action.color
+        opponent = action.color.inverse()
+        captured = 0
+
+        for ii, jj in self._adjacencies(i, j):
+            if new_board[ii][jj].color is opponent:
+                group = self._gather(new_board, ii, jj)
+                if group:
+                    for iii, jjj in group:
+                        new_board[iii][jjj].color = None
+                    captured += len(group)
+
+        if not captured and self._gather(new_board, i, j):
+            return (False, f"Playing at {action.coords} is suicide")
+
+        if new_board == self._prev_board:
+            return (False, f"Playing at {action.coords} violates the simple ko rule")
+
+        self._prev_board, self.board = self.board, new_board
+        self.prisoners[action.color] += captured
+        self.turn = self.turn.inverse()
+
+        return (
+            True,
+            f"Successfully placed a {action.color.name} stone at {action.coords}",
+        )
+
+    def _adjacencies(self, i: int, j: int) -> Set[Tuple[int, int]]:
+        """Utility to return the set of in bounds points adjacent to (i, j)
+        given self.board"""
+
+        return {
+            (ii, jj)
+            for ii, jj in ((i - 1, j), (i + 1, j), (i, j - 1), (i, j + 1))
+            if 0 <= ii < self.board.size and 0 <= jj < self.board.size
+        }
+
+    def _gather(
+        self, board: Board, i: int, j: int
+    ) -> Union[Set[Tuple[int, int]], bool]:
+        """Gather all of the stone in the same group as board[i][j]. If they are
+        dead, return them, and return False otherwise"""
+
+        assert board[i][j].color
+
+        color = board[i][j].color
+        group = {(i, j)}
+        stack = [(i, j)]
+
+        while stack:
+            adjacencies = self._adjacencies(*stack.pop()) - group
+            # it lives!
+            if any(board[ii][jj].color is None for ii, jj in adjacencies):
+                return False
+            to_add = [
+                (ii, jj) for ii, jj in adjacencies if board[ii][jj].color is color
+            ]
+            group.update(to_add)
+            stack.extend(to_add)
+
+        return group
 
     def ahead_of(self, timestamp: float) -> bool:
         """If the last successful action was after timestamp, return True
