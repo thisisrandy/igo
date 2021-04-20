@@ -244,13 +244,13 @@ class Game:
 
         for ii, jj in self._adjacencies(i, j):
             if new_board[ii][jj].color is opponent:
-                group = self._gather(new_board, ii, jj)
-                if group:
+                (group, alive) = self._gather(new_board, ii, jj)
+                if not alive:
                     for iii, jjj in group:
                         new_board[iii][jjj].color = None
                     captured += len(group)
 
-        if not captured and self._gather(new_board, i, j):
+        if not captured and not self._gather(new_board, i, j)[1]:
             return (False, f"Playing at {action.coords} is suicide")
 
         if new_board == self._prev_board:
@@ -277,28 +277,28 @@ class Game:
 
     def _gather(
         self, board: Board, i: int, j: int
-    ) -> Union[Set[Tuple[int, int]], bool]:
-        """Gather all of the stone in the same group as board[i][j]. If they are
-        dead, return them, and return False otherwise"""
+    ) -> Tuple[Set[Tuple[int, int]], bool]:
+        """Gather all of the stones in the same group as board[i][j] and
+        return their coordinates in a set along with an indicator of whether
+        or not they are alive"""
 
         assert board[i][j].color
 
         color = board[i][j].color
         group = {(i, j)}
         stack = [(i, j)]
+        alive = False
 
         while stack:
             adjacencies = self._adjacencies(*stack.pop()) - group
-            # it lives!
-            if any(board[ii][jj].color is None for ii, jj in adjacencies):
-                return False
+            alive = alive or any(board[ii][jj].color is None for ii, jj in adjacencies)
             to_add = [
                 (ii, jj) for ii, jj in adjacencies if board[ii][jj].color is color
             ]
             group.update(to_add)
             stack.extend(to_add)
 
-        return group
+        return (group, alive)
 
     def ahead_of(self, timestamp: float) -> bool:
         """If the last successful action was after timestamp, return True
