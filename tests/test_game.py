@@ -99,3 +99,22 @@ class GameTestCase(unittest.TestCase):
             success, msg = g.take_action(a)
         self.assertFalse(success)
         self.assertEqual(msg, "Playing at (0, 2) is suicide")
+
+    def test_ko(self):
+        g = Game(4)
+        ts = datetime.now().timestamp()
+        actions = [
+            Action(ActionType.placement, Color.white, (1, 0), ts),
+            Action(ActionType.placement, Color.black, (2, 0), ts),
+            Action(ActionType.placement, Color.white, (0, 1), ts),
+            Action(ActionType.placement, Color.black, (3, 1), ts),
+            Action(ActionType.placement, Color.white, (1, 2), ts),
+            Action(ActionType.placement, Color.black, (2, 2), ts),
+            Action(ActionType.placement, Color.white, (2, 1), ts),
+            Action(ActionType.placement, Color.black, (1, 1), ts),
+            Action(ActionType.placement, Color.white, (2, 1), ts),
+        ]
+        for a in actions:
+            success, msg = g.take_action(a)
+        self.assertFalse(success)
+        self.assertEqual(msg, "Playing at (2, 1) violates the simple ko rule")
