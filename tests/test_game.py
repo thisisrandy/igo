@@ -1,4 +1,5 @@
-from game import Board, Color, Point
+from datetime import datetime
+from game import Action, ActionType, Board, Color, Game, Point
 import unittest
 
 
@@ -31,3 +32,55 @@ class BoardTestCase(unittest.TestCase):
         self.assertEqual(b1, b2)
         b1[0][1].color = Color.white
         self.assertNotEqual(b1, b2)
+
+
+class GameTestCase(unittest.TestCase):
+    def test_placement(self):
+        g = Game(3)
+        b = Board(3)
+        success, _ = g.take_action(
+            Action(
+                ActionType.placement, Color.white, (0, 0), datetime.now().timestamp()
+            )
+        )
+        self.assertTrue(success)
+        b[0][0].color = Color.white
+        self.assertEqual(g.board, b)
+
+    def test_turn(self):
+        g = Game(3)
+        success, msg = g.take_action(
+            Action(
+                ActionType.placement, Color.black, (0, 0), datetime.now().timestamp()
+            )
+        )
+        self.assertFalse(success)
+        self.assertEqual(msg, "It isn't black's turn")
+        success, msg = g.take_action(
+            Action(
+                ActionType.placement, Color.white, (0, 0), datetime.now().timestamp()
+            )
+        )
+        success, msg = g.take_action(
+            Action(
+                ActionType.placement, Color.white, (0, 1), datetime.now().timestamp()
+            )
+        )
+        self.assertFalse(success)
+        self.assertEqual(msg, "It isn't white's turn")
+
+    def test_occupied(self):
+        g = Game(3)
+        g.take_action(
+            Action(
+                ActionType.placement, Color.white, (0, 0), datetime.now().timestamp()
+            )
+        )
+        success, msg = g.take_action(
+            Action(
+                ActionType.placement, Color.black, (0, 0), datetime.now().timestamp()
+            )
+        )
+        self.assertFalse(success)
+        self.assertEqual(msg, "Point (0, 0) is occupied")
+
