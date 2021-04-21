@@ -274,7 +274,24 @@ class Game:
         )
 
     def _pass_turn(self, action: Action) -> Tuple[bool, str]:
-        return False, "Unimplemented"
+        assert action.action_type is ActionType.pass_turn
+        assert self.status is GameStatus.play
+
+        if action.color is not self.turn:
+            return (False, f"It isn't {action.color.name}'s turn")
+
+        # if both players pass in succession, the endgame commences. otherwise,
+        # pass simply flips the turn and goes on the stack
+
+        if (
+            self.action_stack
+            and self.action_stack[-1].action_type is ActionType.pass_turn
+        ):
+            self.status = GameStatus.endgame
+
+        self.turn = self.turn.inverse()
+
+        return True, f"{action.color.name.capitalize()} passed on their turn"
 
     def _resign(self, action: Action) -> Tuple[bool, str]:
         return False, "Unimplemented"

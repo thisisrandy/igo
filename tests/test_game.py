@@ -164,3 +164,17 @@ class GameTestCase(unittest.TestCase):
         self.assertEqual(len(g.action_stack), len(actions))
         self.assertEqual(g.prisoners[Color.white], 0)
         self.assertEqual(g.prisoners[Color.black], 5)
+
+    def test_pass_turn(self):
+        g = Game(1)
+        ts = datetime.now().timestamp()
+        success, msg = g.take_action(Action(ActionType.pass_turn, Color.white, ts))
+        self.assertTrue(success)
+        self.assertEqual(msg, "White passed on their turn")
+        self.assertTrue(g.turn is Color.black)
+        self.assertTrue(g.status is GameStatus.play)
+        success, msg = g.take_action(Action(ActionType.pass_turn, Color.black, ts))
+        self.assertTrue(success)
+        self.assertEqual(msg, "Black passed on their turn")
+        self.assertTrue(g.turn is Color.white)
+        self.assertTrue(g.status is GameStatus.endgame)
