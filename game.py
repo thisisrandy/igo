@@ -228,6 +228,9 @@ class Game:
         was valid and False otherwise, and an explanatory message in either
         case"""
 
+        if self.action_stack:
+            assert self.action_stack[-1].timestamp <= action.timestamp
+
         if action.action_type is ActionType.place_stone:
             success, msg = self._place_stone(action)
         elif action.action_type is ActionType.pass_turn:
