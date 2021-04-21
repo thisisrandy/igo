@@ -275,6 +275,8 @@ class Game:
             success, msg = self._respond(action)
         elif action.action_type is ActionType.reject:
             success, msg = self._respond(action)
+        else:
+            raise RuntimeError(f"Unknown ActionType encountered: {action.action_type}")
 
         if success:
             self.action_stack.append(action)
