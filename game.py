@@ -359,6 +359,9 @@ class Game:
         assert action.action_type is ActionType.request_draw
         assert self.status in (GameStatus.play, GameStatus.request_pending)
 
+        if action.color is not self.turn:
+            return (False, f"It isn't {action.color.name}'s turn")
+
         if self.status is GameStatus.request_pending:
             return False, "Cannot request draw while a previous request is pending"
 

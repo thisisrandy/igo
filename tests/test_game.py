@@ -327,3 +327,9 @@ class GameTestCase(unittest.TestCase):
         success, msg = g.take_action(a)
         self.assertFalse(success)
         self.assertEqual(msg, "Cannot request draw while a previous request is pending")
+
+        # test that requesting a draw outside of one's turn fails
+        g = Game(1)
+        a.color = Color.black
+        self.assertFalse(success)
+        self.assertEqual(msg, "It isn't black's turn")
