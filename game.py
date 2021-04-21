@@ -356,7 +356,19 @@ class Game:
         return True, f"{len(group)} stones marked as dead. Awaiting response..."
 
     def _request_draw(self, action: Action) -> Tuple[bool, str]:
-        return False, "Unimplemented"
+        assert action.action_type is ActionType.request_draw
+        assert self.status is GameStatus.play
+
+        if (
+            self.action_stack
+            and self.action_stack[-1].action_type is ActionType.request_draw
+        ):
+            return False, "Cannot request draw while a previous request is pending"
+
+        return (
+            True,
+            f"{action.color.name.capitalize()} requested a draw. Awaiting response...",
+        )
 
     def _request_tally_score(self, action: Action) -> Tuple[bool, str]:
         return False, "Unimplemented"

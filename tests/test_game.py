@@ -294,3 +294,34 @@ class GameTestCase(unittest.TestCase):
         success, msg = g.take_action(a)
         self.assertFalse(success)
         self.assertEqual(msg, "There is no group at (2, 2) to mark dead")
+
+    def test_request_draw_assertions(self):
+        g = Game(1)
+        a = Action(ActionType.request_draw, Color.white, datetime.now().timestamp())
+
+        # wrong status
+        g.status = GameStatus.endgame
+        with self.assertRaises(AssertionError):
+            g.take_action(a)
+        g.status = GameStatus.play
+
+        # wrong type. Game.take_action should route this (correctly) to the
+        # mark dead method, so we have to explicitly call the "private" method
+        # to test the behavior
+        a.action_type = ActionType.mark_dead
+        with self.assertRaises(AssertionError):
+            g._request_draw(a)
+
+    def test_request_draw(self):
+        g = Game(1)
+        a = Action(ActionType.request_draw, Color.white, datetime.now().timestamp())
+
+        # test that we can request a draw
+        success, msg = g.take_action(a)
+        self.assertTrue(success)
+        self.assertEqual(msg, "White requested a draw. Awaiting response...")
+
+        # test that two requests without a response fail
+        success, msg = g.take_action(a)
+        self.assertFalse(success)
+        self.assertEqual(msg, "Cannot request draw while a previous request is pending")
