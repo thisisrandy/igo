@@ -33,6 +33,12 @@ class GameStatus(Enum):
     complete = auto()
 
 
+class ResultType(Enum):
+    standard_win = auto()
+    draw = auto()
+    resignation = auto()
+
+
 @dataclass
 class Action:
     """
@@ -54,6 +60,22 @@ class Action:
     color: Color
     timestamp: float
     coords: Optional[Tuple[int, int]] = None
+
+
+@dataclass
+class Result:
+    """
+    Container class for the final result of the game
+
+    Attributes:
+
+        result_type: ResultType - the way in which the game ended
+
+        winner: Optional[Color] - the player who won, if anyone
+    """
+
+    result_type: ResultType
+    winner: Optional[Color] = None
 
 
 @dataclass
@@ -171,6 +193,8 @@ class Game:
 
         prisoners: Dict[Color, int] - the number of prisoners taken by each player
 
+        result: Optional[Result] - the result of the game, set only once it
+        has been resolved
     """
 
     def __init__(self, size: int = 19, komi: float = 6.5) -> None:
@@ -184,6 +208,7 @@ class Game:
         self.board: Board = Board(size)
         self.komi: float = komi
         self.prisoners: Dict[Color, int] = {Color.white: 0, Color.black: 0}
+        self.result: Optional[Result] = None
         self._prev_board: Board = None
 
     def __repr__(self) -> str:
