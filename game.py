@@ -44,16 +44,16 @@ class Action:
 
         color: Color - which player took the action
 
+        timestamp: float - server time at which this action was created
+
         coords: Optional[Tuple[int, int]] - if relevant given action_type,
         the coordinates of the point on which the action was taken
-
-        timestamp: float - server time at which this action was created
     """
 
     action_type: ActionType
     color: Color
-    coords: Optional[Tuple[int, int]]
     timestamp: float
+    coords: Optional[Tuple[int, int]] = None
 
 
 @dataclass
