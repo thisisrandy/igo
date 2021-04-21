@@ -328,7 +328,29 @@ class Game:
         return True, f"{action.color.name.capitalize()} resigned"
 
     def _mark_dead(self, action: Action) -> Tuple[bool, str]:
-        return False, "Unimplemented"
+        assert action.action_type is ActionType.mark_dead
+        assert self.status is GameStatus.endgame
+        assert action.coords
+
+        if (
+            self.action_stack
+            and self.action_stack[-1].action_type is ActionType.mark_dead
+        ):
+            return False, (
+                "Cannot mark stones as dead while a previous mark dead"
+                " request is pending"
+            )
+
+        i, j = action.coords
+        if not self.board[i][j].color:
+            return False, (f"There is no group at {action.coords} to mark dead")
+
+        group, _ = self._gather(i, j)
+        for ii, jj in group:
+            assert not self.board[ii][jj].marked_dead
+            self.board[ii][jj].marked_dead = True
+
+        return True, f"{len(group)} stones marked as dead. Awaiting response..."
 
     def _request_draw(self, action: Action) -> Tuple[bool, str]:
         return False, "Unimplemented"

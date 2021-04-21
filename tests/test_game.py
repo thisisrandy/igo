@@ -232,3 +232,65 @@ class GameTestCase(unittest.TestCase):
         success, msg = g.take_action(a)
         self.assertTrue(success)
         self.assertEqual(msg, "Black resigned")
+
+    def test_mark_dead_assertions(self):
+        g = Game(1)
+
+        # no coords
+        a = Action(ActionType.mark_dead, Color.white, datetime.now().timestamp())
+        with self.assertRaises(AssertionError):
+            g.take_action(a)
+        a.coords = (0, 0)
+
+        # wrong status
+        g.status = GameStatus.play
+        with self.assertRaises(AssertionError):
+            g.take_action(a)
+        g.status = GameStatus.endgame
+
+        # wrong type. Game.take_action should route this (correctly) to the
+        # place stone method, so we have to explicitly call the "private"
+        # method to test the behavior
+        a.action_type = ActionType.place_stone
+        with self.assertRaises(AssertionError):
+            g._mark_dead(a)
+        a.action_type = ActionType.mark_dead
+
+        # already marked dead
+        g.board[0][0].color = Color.white
+        g.board[0][0].marked_dead = True
+        with self.assertRaises(AssertionError):
+            g._mark_dead(a)
+
+    def test_mark_dead(self):
+        def fresh_game():
+            g = Game(3)
+            for i in range(2):
+                for j in range(2):
+                    g.board[i][j].color = Color.white
+            g.status = GameStatus.endgame
+            return g
+
+        # test that we can mark the group
+        g = fresh_game()
+        a = Action(
+            ActionType.mark_dead, Color.white, datetime.now().timestamp(), (0, 0)
+        )
+        success, msg = g.take_action(a)
+        self.assertTrue(success)
+        self.assertEqual(msg, "4 stones marked as dead. Awaiting response...")
+        self.assertTrue(
+            all(g.board[i][j].marked_dead for i in range(2) for j in range(2))
+        )
+
+        # test that two consecutive mark dead operations fail
+        success, msg = g.take_action(a)
+        self.assertFalse(success)
+        self.assertEqual(msg[:32], "Cannot mark stones as dead while")
+
+        # test that mark dead on an empty point fails
+        g = fresh_game()
+        a.coords = (2, 2)
+        success, msg = g.take_action(a)
+        self.assertFalse(success)
+        self.assertEqual(msg, "There is no group at (2, 2) to mark dead")
