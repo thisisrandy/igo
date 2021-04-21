@@ -22,7 +22,7 @@ class ActionType(Enum):
     mark_dead = auto()
     request_draw = auto()
     resign = auto()
-    request_end_game = auto()
+    request_tally_score = auto()
     accept = auto()
     reject = auto()
 
@@ -238,8 +238,8 @@ class Game:
             success, msg = self._mark_dead(action)
         elif action.action_type is ActionType.request_draw:
             success, msg = self._request_draw(action)
-        elif action.action_type is ActionType.request_end_game:
-            success, msg = self._request_end_game(action)
+        elif action.action_type is ActionType.request_tally_score:
+            success, msg = self._request_tally_score(action)
         elif action.action_type is ActionType.accept:
             success, msg = self._respond(action)
         elif action.action_type is ActionType.reject:
@@ -333,7 +333,7 @@ class Game:
     def _request_draw(self, action: Action) -> Tuple[bool, str]:
         return False, "Unimplemented"
 
-    def _request_end_game(self, action: Action) -> Tuple[bool, str]:
+    def _request_tally_score(self, action: Action) -> Tuple[bool, str]:
         return False, "Unimplemented"
 
     def _respond(self, action: Action) -> Tuple[bool, str]:
