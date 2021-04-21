@@ -277,13 +277,13 @@ class Game:
 
         for ii, jj in self._adjacencies(i, j):
             if new_board[ii][jj].color is opponent:
-                (group, alive) = self._gather(new_board, ii, jj)
+                (group, alive) = self._gather(ii, jj, new_board)
                 if not alive:
                     for iii, jjj in group:
                         new_board[iii][jjj].color = None
                     captured += len(group)
 
-        if not captured and not self._gather(new_board, i, j)[1]:
+        if not captured and not self._gather(i, j, new_board)[1]:
             return (False, f"Playing at {action.coords} is suicide")
 
         if new_board == self._prev_board:
@@ -350,11 +350,15 @@ class Game:
         }
 
     def _gather(
-        self, board: Board, i: int, j: int
+        self, i: int, j: int, board: Board = None
     ) -> Tuple[Set[Tuple[int, int]], bool]:
         """Gather all of the stones in the same group as board[i][j] and
         return their coordinates in a set along with an indicator of whether
-        or not they are alive"""
+        or not they are alive. Note that board is set to self.board if
+        unspecified"""
+
+        if not board:
+            board = self.board
 
         assert board[i][j].color
 
