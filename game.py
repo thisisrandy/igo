@@ -202,25 +202,22 @@ class Game:
         """Attempt to take an action. Return True if that action was valid
         and False otherwise"""
 
-        # TODO: remove this once all action types are handled
-        success, msg = False, ""
-
         if action.action_type == ActionType.place_stone:
             success, msg = self._place_stone(action)
         elif action.action_type == ActionType.pass_turn:
-            pass
+            success, msg = self._pass_turn(action)
         elif action.action_type == ActionType.resign:
-            pass
+            success, msg = self._resign(action)
         elif action.action_type == ActionType.mark_dead:
-            pass
+            success, msg = self._mark_dead(action)
         elif action.action_type == ActionType.request_draw:
-            pass
+            success, msg = self._request_draw(action)
         elif action.action_type == ActionType.request_end_game:
-            pass
+            success, msg = self._request_end_game(action)
         elif action.action_type == ActionType.accept:
-            pass
+            success, msg = self._respond(action)
         elif action.action_type == ActionType.reject:
-            pass
+            success, msg = self._respond(action)
 
         if success:
             self.action_stack.append(action)
@@ -273,6 +270,24 @@ class Game:
             True,
             f"Successfully placed a {action.color.name} stone at {action.coords}",
         )
+
+    def _pass_turn(self, action: Action) -> Tuple[bool, str]:
+        return False, "Unimplemented"
+
+    def _resign(self, action: Action) -> Tuple[bool, str]:
+        return False, "Unimplemented"
+
+    def _mark_dead(self, action: Action) -> Tuple[bool, str]:
+        return False, "Unimplemented"
+
+    def _request_draw(self, action: Action) -> Tuple[bool, str]:
+        return False, "Unimplemented"
+
+    def _request_end_game(self, action: Action) -> Tuple[bool, str]:
+        return False, "Unimplemented"
+
+    def _respond(self, action: Action) -> Tuple[bool, str]:
+        return False, "Unimplemented"
 
     def _adjacencies(self, i: int, j: int) -> Set[Tuple[int, int]]:
         """Utility to return the set of in bounds points adjacent to (i, j)
