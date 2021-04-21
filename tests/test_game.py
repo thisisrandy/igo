@@ -1,5 +1,15 @@
 from datetime import datetime
-from game import Action, ActionType, Board, Color, Game, GameStatus, Point, ResultType
+from game import (
+    Action,
+    ActionType,
+    Board,
+    Color,
+    Game,
+    GameStatus,
+    Point,
+    RequestType,
+    ResultType,
+)
 import unittest
 
 
@@ -283,6 +293,9 @@ class GameTestCase(unittest.TestCase):
             all(g.board[i][j].marked_dead for i in range(2) for j in range(2))
         )
         self.assertIs(g.status, GameStatus.request_pending)
+        self.assertIsNotNone(g.pending_request)
+        self.assertIs(g.pending_request.request_type, RequestType.draw)
+        self.assertIs(g.pending_request.initiator, Color.white)
 
         # test that two consecutive mark dead operations fail
         success, msg = g.take_action(a)
@@ -322,6 +335,9 @@ class GameTestCase(unittest.TestCase):
         self.assertTrue(success)
         self.assertEqual(msg, "White requested a draw. Awaiting response...")
         self.assertIs(g.status, GameStatus.request_pending)
+        self.assertIsNotNone(g.pending_request)
+        self.assertIs(g.pending_request.request_type, RequestType.draw)
+        self.assertIs(g.pending_request.initiator, Color.white)
 
         # test that two requests without a response fail
         success, msg = g.take_action(a)

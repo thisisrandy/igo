@@ -34,6 +34,12 @@ class GameStatus(Enum):
     request_pending = auto()
 
 
+class RequestType(Enum):
+    mark_dead = auto()
+    draw = auto()
+    tally_score = auto()
+
+
 class ResultType(Enum):
     standard_win = auto()
     draw = auto()
@@ -61,6 +67,23 @@ class Action:
     color: Color
     timestamp: float
     coords: Optional[Tuple[int, int]] = None
+
+
+@dataclass
+class Request:
+    """
+    Container class for requests that are pending response
+
+    Attributes:
+
+        request_type: RequestType - the type of this request
+
+        initiator: Color - the initiating player, i.e. initiator is waiting
+        for initiator.inverse() to respond
+    """
+
+    request_type: RequestType
+    initiator: Color
 
 
 @dataclass
@@ -194,6 +217,9 @@ class Game:
 
         prisoners: Dict[Color, int] - the number of prisoners taken by each player
 
+        pending_request: Optional[Request] - if there is a pending request in
+        need of response, it is stored here
+
         result: Optional[Result] - the result of the game, set only once it
         has been resolved
     """
@@ -209,6 +235,7 @@ class Game:
         self.board: Board = Board(size)
         self.komi: float = komi
         self.prisoners: Dict[Color, int] = {Color.white: 0, Color.black: 0}
+        self.pending_request: Optional[Request] = None
         self.result: Optional[Result] = None
         self._prev_board: Board = None
 
@@ -352,6 +379,7 @@ class Game:
             self.board[ii][jj].marked_dead = True
 
         self.status = GameStatus.request_pending
+        self.pending_request = Request(RequestType.mark_dead, action.color)
 
         return True, f"{len(group)} stones marked as dead. Awaiting response..."
 
@@ -366,6 +394,7 @@ class Game:
             return False, "Cannot request draw while a previous request is pending"
 
         self.status = GameStatus.request_pending
+        self.pending_request = Request(RequestType.draw, action.color)
 
         return (
             True,
