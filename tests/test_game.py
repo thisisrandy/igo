@@ -1,5 +1,5 @@
 from datetime import datetime
-from game import Action, ActionType, Board, Color, Game, GameStatus, Point
+from game import Action, ActionType, Board, Color, Game, GameStatus, Point, ResultType
 import unittest
 
 
@@ -195,3 +195,40 @@ class GameTestCase(unittest.TestCase):
         self.assertEqual(msg, "Black passed on their turn")
         self.assertTrue(g.turn is Color.white)
         self.assertTrue(g.status is GameStatus.endgame)
+
+    def test_resign_assertions(self):
+        g = Game(1)
+        a = Action(ActionType.resign, Color.white, datetime.now().timestamp())
+
+        # wrong status
+        g.status = GameStatus.endgame
+        with self.assertRaises(AssertionError):
+            g.take_action(a)
+        g.status = GameStatus.play
+
+        # wrong type. Game.take_action should route this (correctly) to the
+        # mark dead method, so we have to explicitly call the "private" method
+        # to test the behavior
+        a.action_type = ActionType.mark_dead
+        with self.assertRaises(AssertionError):
+            g._resign(a)
+
+    def test_resign(self):
+        # test the basics
+        g = Game(1)
+        self.assertIsNone(g.result)
+        a = Action(ActionType.resign, Color.white, datetime.now().timestamp())
+        success, msg = g.take_action(a)
+        self.assertTrue(success)
+        self.assertEqual(msg, "White resigned")
+        self.assertEqual(g.status, GameStatus.complete)
+        self.assertIsNotNone(g.result)
+        self.assertEqual(g.result.result_type, ResultType.resignation)
+        self.assertEqual(g.result.winner, Color.black)
+
+        # test that black can resign on white's turn
+        g = Game(1)
+        a.color = Color.black
+        success, msg = g.take_action(a)
+        self.assertTrue(success)
+        self.assertEqual(msg, "Black resigned")

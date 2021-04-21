@@ -319,7 +319,13 @@ class Game:
         return True, f"{action.color.name.capitalize()} passed on their turn"
 
     def _resign(self, action: Action) -> Tuple[bool, str]:
-        return False, "Unimplemented"
+        assert action.action_type is ActionType.resign
+        assert self.status is GameStatus.play
+
+        self.status = GameStatus.complete
+        self.result = Result(ResultType.resignation, action.color.inverse())
+
+        return True, f"{action.color.name.capitalize()} resigned"
 
     def _mark_dead(self, action: Action) -> Tuple[bool, str]:
         return False, "Unimplemented"
