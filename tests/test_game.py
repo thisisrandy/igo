@@ -165,6 +165,23 @@ class GameTestCase(unittest.TestCase):
         self.assertEqual(g.prisoners[Color.white], 0)
         self.assertEqual(g.prisoners[Color.black], 5)
 
+    def test_pass_assertions(self):
+        g = Game(1)
+        a = Action(ActionType.pass_turn, Color.white, datetime.now().timestamp())
+
+        # wrong status
+        g.status = GameStatus.endgame
+        with self.assertRaises(AssertionError):
+            g.take_action(a)
+        g.status = GameStatus.play
+
+        # wrong type. Game.take_action should route this (correctly) to the
+        # mark dead method, so we have to explicitly call the "private" method
+        # to test the behavior
+        a.action_type = ActionType.mark_dead
+        with self.assertRaises(AssertionError):
+            g._pass_turn(a)
+
     def test_pass_turn(self):
         g = Game(1)
         ts = datetime.now().timestamp()
