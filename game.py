@@ -227,6 +227,7 @@ class Game:
     def _place_stone(self, action: Action) -> Tuple[bool, str]:
         assert action.action_type is ActionType.place_stone
         assert self.status is GameStatus.play
+        assert action.coords
 
         if action.color is not self.turn:
             return (False, f"It isn't {action.color.name}'s turn")

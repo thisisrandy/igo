@@ -1,5 +1,5 @@
 from datetime import datetime
-from game import Action, ActionType, Board, Color, Game, Point
+from game import Action, ActionType, Board, Color, Game, GameStatus, Point
 import unittest
 
 
@@ -35,6 +35,28 @@ class BoardTestCase(unittest.TestCase):
 
 
 class GameTestCase(unittest.TestCase):
+    def test_placement_assertions(self):
+        g = Game(1)
+
+        # no coords
+        a = Action(ActionType.place_stone, Color.white, datetime.now().timestamp())
+        with self.assertRaises(AssertionError):
+            g.take_action(a)
+        a.coords = (0, 0)
+
+        # wrong status
+        g.status = GameStatus.endgame
+        with self.assertRaises(AssertionError):
+            g.take_action(a)
+        g.status = GameStatus.play
+
+        # wrong type. Game.take_action should route this (correctly) to the
+        # mark dead method, so we have to explicitly call the "private" method
+        # to test the behavior
+        a.action_type = ActionType.mark_dead
+        with self.assertRaises(AssertionError):
+            g._place_stone(a)
+
     def test_placement(self):
         g = Game(3)
         b = Board(3)
