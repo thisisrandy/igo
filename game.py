@@ -203,21 +203,21 @@ class Game:
         was valid and False otherwise, and an explanatory message in either
         case"""
 
-        if action.action_type == ActionType.place_stone:
+        if action.action_type is ActionType.place_stone:
             success, msg = self._place_stone(action)
-        elif action.action_type == ActionType.pass_turn:
+        elif action.action_type is ActionType.pass_turn:
             success, msg = self._pass_turn(action)
-        elif action.action_type == ActionType.resign:
+        elif action.action_type is ActionType.resign:
             success, msg = self._resign(action)
-        elif action.action_type == ActionType.mark_dead:
+        elif action.action_type is ActionType.mark_dead:
             success, msg = self._mark_dead(action)
-        elif action.action_type == ActionType.request_draw:
+        elif action.action_type is ActionType.request_draw:
             success, msg = self._request_draw(action)
-        elif action.action_type == ActionType.request_end_game:
+        elif action.action_type is ActionType.request_end_game:
             success, msg = self._request_end_game(action)
-        elif action.action_type == ActionType.accept:
+        elif action.action_type is ActionType.accept:
             success, msg = self._respond(action)
-        elif action.action_type == ActionType.reject:
+        elif action.action_type is ActionType.reject:
             success, msg = self._respond(action)
 
         if success:
@@ -225,8 +225,8 @@ class Game:
         return success, msg
 
     def _place_stone(self, action: Action) -> Tuple[bool, str]:
-        assert action.action_type == ActionType.place_stone
-        assert self.status == GameStatus.play
+        assert action.action_type is ActionType.place_stone
+        assert self.status is GameStatus.play
 
         if action.color is not self.turn:
             return (False, f"It isn't {action.color.name}'s turn")
