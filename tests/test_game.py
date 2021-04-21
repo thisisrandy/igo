@@ -294,7 +294,7 @@ class GameTestCase(unittest.TestCase):
         )
         self.assertIs(g.status, GameStatus.request_pending)
         self.assertIsNotNone(g.pending_request)
-        self.assertIs(g.pending_request.request_type, RequestType.draw)
+        self.assertIs(g.pending_request.request_type, RequestType.mark_dead)
         self.assertIs(g.pending_request.initiator, Color.white)
 
         # test that two consecutive mark dead operations fail
@@ -347,5 +347,6 @@ class GameTestCase(unittest.TestCase):
         # test that requesting a draw outside of one's turn fails
         g = Game(1)
         a.color = Color.black
+        success, msg = g.take_action(a)
         self.assertFalse(success)
         self.assertEqual(msg, "It isn't black's turn")
