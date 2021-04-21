@@ -17,11 +17,12 @@ class Color(Enum):
 
 
 class ActionType(Enum):
-    placement = auto()
-    pass_move = auto()
+    place_stone = auto()
+    pass_turn = auto()
     mark_dead = auto()
-    draw_game = auto()
-    end_game = auto()
+    request_draw = auto()
+    resign = auto()
+    request_end_game = auto()
     accept = auto()
     reject = auto()
 
@@ -204,15 +205,17 @@ class Game:
         # TODO: remove this once all action types are handled
         success, msg = False, ""
 
-        if action.action_type == ActionType.placement:
+        if action.action_type == ActionType.place_stone:
             success, msg = self._place_stone(action)
-        elif action.action_type == ActionType.pass_move:
+        elif action.action_type == ActionType.pass_turn:
+            pass
+        elif action.action_type == ActionType.resign:
             pass
         elif action.action_type == ActionType.mark_dead:
             pass
-        elif action.action_type == ActionType.draw_game:
+        elif action.action_type == ActionType.request_draw:
             pass
-        elif action.action_type == ActionType.end_game:
+        elif action.action_type == ActionType.request_end_game:
             pass
         elif action.action_type == ActionType.accept:
             pass
@@ -224,7 +227,7 @@ class Game:
         return success, msg
 
     def _place_stone(self, action: Action) -> Tuple[bool, str]:
-        assert action.action_type == ActionType.placement
+        assert action.action_type == ActionType.place_stone
         assert self.status == GameStatus.play
 
         if action.color is not self.turn:
