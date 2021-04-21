@@ -31,6 +31,7 @@ class GameStatus(Enum):
     play = auto()
     endgame = auto()
     complete = auto()
+    request_pending = auto()
 
 
 class ResultType(Enum):
@@ -332,16 +333,13 @@ class Game:
 
     def _mark_dead(self, action: Action) -> Tuple[bool, str]:
         assert action.action_type is ActionType.mark_dead
-        assert self.status is GameStatus.endgame
+        assert self.status in (GameStatus.endgame, GameStatus.request_pending)
         assert action.coords
 
-        if (
-            self.action_stack
-            and self.action_stack[-1].action_type is ActionType.mark_dead
-        ):
-            return False, (
-                "Cannot mark stones as dead while a previous mark dead"
-                " request is pending"
+        if self.status is GameStatus.request_pending:
+            return (
+                False,
+                "Cannot mark stones as dead while a previous request is pending",
             )
 
         i, j = action.coords
@@ -353,17 +351,18 @@ class Game:
             assert not self.board[ii][jj].marked_dead
             self.board[ii][jj].marked_dead = True
 
+        self.status = GameStatus.request_pending
+
         return True, f"{len(group)} stones marked as dead. Awaiting response..."
 
     def _request_draw(self, action: Action) -> Tuple[bool, str]:
         assert action.action_type is ActionType.request_draw
-        assert self.status is GameStatus.play
+        assert self.status in (GameStatus.play, GameStatus.request_pending)
 
-        if (
-            self.action_stack
-            and self.action_stack[-1].action_type is ActionType.request_draw
-        ):
+        if self.status is GameStatus.request_pending:
             return False, "Cannot request draw while a previous request is pending"
+
+        self.status = GameStatus.request_pending
 
         return (
             True,

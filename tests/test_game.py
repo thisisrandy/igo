@@ -282,6 +282,7 @@ class GameTestCase(unittest.TestCase):
         self.assertTrue(
             all(g.board[i][j].marked_dead for i in range(2) for j in range(2))
         )
+        self.assertIs(g.status, GameStatus.request_pending)
 
         # test that two consecutive mark dead operations fail
         success, msg = g.take_action(a)
@@ -320,6 +321,7 @@ class GameTestCase(unittest.TestCase):
         success, msg = g.take_action(a)
         self.assertTrue(success)
         self.assertEqual(msg, "White requested a draw. Awaiting response...")
+        self.assertIs(g.status, GameStatus.request_pending)
 
         # test that two requests without a response fail
         success, msg = g.take_action(a)
