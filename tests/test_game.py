@@ -40,7 +40,7 @@ class GameTestCase(unittest.TestCase):
         b = Board(3)
         success, _ = g.take_action(
             Action(
-                ActionType.placement, Color.white, (0, 0), datetime.now().timestamp()
+                ActionType.place_stone, Color.white, (0, 0), datetime.now().timestamp()
             )
         )
         self.assertTrue(success)
@@ -51,19 +51,19 @@ class GameTestCase(unittest.TestCase):
         g = Game(3)
         success, msg = g.take_action(
             Action(
-                ActionType.placement, Color.black, (0, 0), datetime.now().timestamp()
+                ActionType.place_stone, Color.black, (0, 0), datetime.now().timestamp()
             )
         )
         self.assertFalse(success)
         self.assertEqual(msg, "It isn't black's turn")
         g.take_action(
             Action(
-                ActionType.placement, Color.white, (0, 0), datetime.now().timestamp()
+                ActionType.place_stone, Color.white, (0, 0), datetime.now().timestamp()
             )
         )
         success, msg = g.take_action(
             Action(
-                ActionType.placement, Color.white, (0, 1), datetime.now().timestamp()
+                ActionType.place_stone, Color.white, (0, 1), datetime.now().timestamp()
             )
         )
         self.assertFalse(success)
@@ -73,12 +73,12 @@ class GameTestCase(unittest.TestCase):
         g = Game(3)
         g.take_action(
             Action(
-                ActionType.placement, Color.white, (0, 0), datetime.now().timestamp()
+                ActionType.place_stone, Color.white, (0, 0), datetime.now().timestamp()
             )
         )
         success, msg = g.take_action(
             Action(
-                ActionType.placement, Color.black, (0, 0), datetime.now().timestamp()
+                ActionType.place_stone, Color.black, (0, 0), datetime.now().timestamp()
             )
         )
         self.assertFalse(success)
@@ -88,12 +88,12 @@ class GameTestCase(unittest.TestCase):
         g = Game(3)
         ts = datetime.now().timestamp()
         actions = [
-            Action(ActionType.placement, Color.white, (1, 0), ts),
-            Action(ActionType.placement, Color.black, (0, 0), ts),
-            Action(ActionType.placement, Color.white, (1, 1), ts),
-            Action(ActionType.placement, Color.black, (0, 1), ts),
-            Action(ActionType.placement, Color.white, (1, 2), ts),
-            Action(ActionType.placement, Color.black, (0, 2), ts),
+            Action(ActionType.place_stone, Color.white, (1, 0), ts),
+            Action(ActionType.place_stone, Color.black, (0, 0), ts),
+            Action(ActionType.place_stone, Color.white, (1, 1), ts),
+            Action(ActionType.place_stone, Color.black, (0, 1), ts),
+            Action(ActionType.place_stone, Color.white, (1, 2), ts),
+            Action(ActionType.place_stone, Color.black, (0, 2), ts),
         ]
         for a in actions:
             success, msg = g.take_action(a)
@@ -104,15 +104,15 @@ class GameTestCase(unittest.TestCase):
         g = Game(4)
         ts = datetime.now().timestamp()
         actions = [
-            Action(ActionType.placement, Color.white, (1, 0), ts),
-            Action(ActionType.placement, Color.black, (2, 0), ts),
-            Action(ActionType.placement, Color.white, (0, 1), ts),
-            Action(ActionType.placement, Color.black, (3, 1), ts),
-            Action(ActionType.placement, Color.white, (1, 2), ts),
-            Action(ActionType.placement, Color.black, (2, 2), ts),
-            Action(ActionType.placement, Color.white, (2, 1), ts),
-            Action(ActionType.placement, Color.black, (1, 1), ts),
-            Action(ActionType.placement, Color.white, (2, 1), ts),
+            Action(ActionType.place_stone, Color.white, (1, 0), ts),
+            Action(ActionType.place_stone, Color.black, (2, 0), ts),
+            Action(ActionType.place_stone, Color.white, (0, 1), ts),
+            Action(ActionType.place_stone, Color.black, (3, 1), ts),
+            Action(ActionType.place_stone, Color.white, (1, 2), ts),
+            Action(ActionType.place_stone, Color.black, (2, 2), ts),
+            Action(ActionType.place_stone, Color.white, (2, 1), ts),
+            Action(ActionType.place_stone, Color.black, (1, 1), ts),
+            Action(ActionType.place_stone, Color.white, (2, 1), ts),
         ]
         for a in actions:
             success, msg = g.take_action(a)
@@ -123,16 +123,16 @@ class GameTestCase(unittest.TestCase):
         g = Game(5)
         ts = datetime.now().timestamp()
         actions = [
-            Action(ActionType.placement, Color.white, (0, 0), ts),
-            Action(ActionType.placement, Color.black, (1, 0), ts),
-            Action(ActionType.placement, Color.white, (0, 1), ts),
-            Action(ActionType.placement, Color.black, (1, 1), ts),
-            Action(ActionType.placement, Color.white, (0, 2), ts),
-            Action(ActionType.placement, Color.black, (2, 2), ts),
-            Action(ActionType.placement, Color.white, (1, 2), ts),
-            Action(ActionType.placement, Color.black, (1, 3), ts),
-            Action(ActionType.placement, Color.white, (0, 3), ts),
-            Action(ActionType.placement, Color.black, (0, 4), ts),
+            Action(ActionType.place_stone, Color.white, (0, 0), ts),
+            Action(ActionType.place_stone, Color.black, (1, 0), ts),
+            Action(ActionType.place_stone, Color.white, (0, 1), ts),
+            Action(ActionType.place_stone, Color.black, (1, 1), ts),
+            Action(ActionType.place_stone, Color.white, (0, 2), ts),
+            Action(ActionType.place_stone, Color.black, (2, 2), ts),
+            Action(ActionType.place_stone, Color.white, (1, 2), ts),
+            Action(ActionType.place_stone, Color.black, (1, 3), ts),
+            Action(ActionType.place_stone, Color.white, (0, 3), ts),
+            Action(ActionType.place_stone, Color.black, (0, 4), ts),
         ]
         for a in actions:
             success, msg = g.take_action(a)
