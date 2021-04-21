@@ -402,7 +402,25 @@ class Game:
         )
 
     def _request_tally_score(self, action: Action) -> Tuple[bool, str]:
-        return False, "Unimplemented"
+        assert action.action_type is ActionType.request_tally_score
+        assert self.status in (GameStatus.endgame, GameStatus.request_pending)
+
+        if self.status is GameStatus.request_pending:
+            return (
+                False,
+                "Cannot request score tally while a previous request is pending",
+            )
+
+        self.status = GameStatus.request_pending
+        self.pending_request = Request(RequestType.tally_score, action.color)
+
+        return (
+            True,
+            (
+                f"{action.color.name.capitalize()} requested that the score be tallied."
+                " Awaiting response..."
+            ),
+        )
 
     def _respond(self, action: Action) -> Tuple[bool, str]:
         return False, "Unimplemented"

@@ -350,3 +350,46 @@ class GameTestCase(unittest.TestCase):
         success, msg = g.take_action(a)
         self.assertFalse(success)
         self.assertEqual(msg, "It isn't black's turn")
+
+    def test_request_tally_score_assertions(self):
+        g = Game(1)
+        a = Action(
+            ActionType.request_tally_score, Color.white, datetime.now().timestamp()
+        )
+
+        # wrong status
+        with self.assertRaises(AssertionError):
+            g.take_action(a)
+        g.status = GameStatus.endgame
+
+        # wrong type. Game.take_action should route this (correctly) to the
+        # mark dead method, so we have to explicitly call the "private" method
+        # to test the behavior
+        a.action_type = ActionType.mark_dead
+        with self.assertRaises(AssertionError):
+            g._request_tally_score(a)
+
+    def test_request_tally_score(self):
+        g = Game(1)
+        g.status = GameStatus.endgame
+        a = Action(
+            ActionType.request_tally_score, Color.white, datetime.now().timestamp()
+        )
+
+        # test that we can request a score tally
+        success, msg = g.take_action(a)
+        self.assertTrue(success)
+        self.assertEqual(
+            msg, ("White requested that the score be tallied. Awaiting response...")
+        )
+        self.assertIs(g.status, GameStatus.request_pending)
+        self.assertIsNotNone(g.pending_request)
+        self.assertIs(g.pending_request.request_type, RequestType.tally_score)
+        self.assertIs(g.pending_request.initiator, Color.white)
+
+        # test that two requests without a response fail
+        success, msg = g.take_action(a)
+        self.assertFalse(success)
+        self.assertEqual(
+            msg, "Cannot request score tally while a previous request is pending"
+        )
