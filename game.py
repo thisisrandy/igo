@@ -199,8 +199,9 @@ class Game:
         )
 
     def take_action(self, action: Action) -> Tuple[bool, str]:
-        """Attempt to take an action. Return True if that action was valid
-        and False otherwise"""
+        """Attempt to take an action. Return a tuple of True if that action
+        was valid and False otherwise, and an explanatory message in either
+        case"""
 
         if action.action_type == ActionType.place_stone:
             success, msg = self._place_stone(action)
