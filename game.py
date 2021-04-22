@@ -85,6 +85,11 @@ class Request:
     request_type: RequestType
     initiator: Color
 
+    def jsonifyable(self):
+        """Return a representation which can be readily JSONified"""
+
+        return {"requestType": self.request_type.name, "initiator": self.initiator.name}
+
 
 @dataclass
 class Result:
@@ -100,6 +105,14 @@ class Result:
 
     result_type: ResultType
     winner: Optional[Color] = None
+
+    def jsonifyable(self):
+        """Return a representation which can be readily JSONified"""
+
+        return {
+            "resultType": self.result_type.name,
+            "winner": self.winner.name if self.winner else None,
+        }
 
 
 @dataclass
@@ -645,4 +658,10 @@ class Game:
                 Color.black.name: self.prisoners[Color.black],
             },
             "turn": self.turn.name,
+            "territory": {
+                Color.white.name: self.territory[Color.white],
+                Color.black.name: self.territory[Color.black],
+            },
+            "pendingRequest": self.pending_request.jsonifyable(),
+            "result": self.result.jsonifyable(),
         }
