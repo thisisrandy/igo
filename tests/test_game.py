@@ -30,11 +30,13 @@ class BoardTestCase(unittest.TestCase):
     def test_json(self):
         board = Board(3)
         self.assertEqual(
-            board.jsonifyable(), [["", "", ""], ["", "", ""], ["", "", ""]]
+            board.jsonifyable(),
+            [["___", "___", "___"], ["___", "___", "___"], ["___", "___", "___"]],
         )
         board[0][1].color = Color.black
         self.assertEqual(
-            board.jsonifyable(), [["", "b", ""], ["", "", ""], ["", "", ""]]
+            board.jsonifyable(),
+            [["___", "b___", "___"], ["___", "___", "___"], ["___", "___", "___"]],
         )
 
     def test_eq(self):
