@@ -280,6 +280,9 @@ class Game:
             f", board={self.board}"
             f", komi={self.komi}"
             f", prisoners={self.prisoners}"
+            f", territory={self.territory}"
+            f", pending_request={self.pending_request}"
+            f", result={self.result}"
             f", _prev_board={self._prev_board})"
         )
 
