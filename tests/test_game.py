@@ -435,6 +435,7 @@ class GameTestCase(unittest.TestCase):
         self.assertTrue(success)
         self.assertIsNone(g.pending_request)
 
+    @staticmethod
     def goto_endgame(g: Game, ts: float):
         """Assuming that the g is in play status and it's white's turn,
         transition to endgame by passing twice"""
