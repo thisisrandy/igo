@@ -15,11 +15,15 @@ import unittest
 
 class PointTestCase(unittest.TestCase):
     def test_json(self):
-        self.assertEqual("", Point().jsonifyable())
-        self.assertEqual("w", Point(Color.white).jsonifyable())
-        self.assertEqual("b", Point(Color.black).jsonifyable())
-        self.assertEqual("wd", Point(Color.white, True).jsonifyable())
-        self.assertEqual("bd", Point(Color.black, True).jsonifyable())
+        self.assertEqual("___", Point().jsonifyable())
+        self.assertEqual("w___", Point(Color.white).jsonifyable())
+        self.assertEqual("b___", Point(Color.black).jsonifyable())
+        self.assertEqual("w_d__", Point(Color.white, True).jsonifyable())
+        self.assertEqual("b_d__", Point(Color.black, True).jsonifyable())
+        self.assertEqual("b__c_", Point(Color.black, counted=True).jsonifyable())
+        self.assertEqual(
+            "__c_b", Point(counted=True, counts_for=Color.black).jsonifyable()
+        )
 
 
 class BoardTestCase(unittest.TestCase):

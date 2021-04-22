@@ -113,17 +113,31 @@ class Point:
 
         marked_dead: bool - indicator of whether this stone has been marked
         dead. meaningless if color is None
+
+        counted: bool - indicator of whether this point has been counted
+        during the scoring phase. under Japanese rules, this is only
+        applicable to empty points
+
+        counts_for: Optional[Color] - if this point has been counted as part
+        of a player's territory, this attribute indicates which one
     """
 
     color: Optional[Color] = None
     marked_dead: bool = False
+    counted: bool = False
+    counts_for: Optional[Color] = None
 
     def __repr__(self) -> str:
         return repr(str(self))
 
     def __str__(self) -> str:
-        return ("" if not self.color else "w" if self.color is Color.white else "b") + (
-            "d" if self.marked_dead else ""
+        return "_".join(
+            [
+                ("" if not self.color else self.color.name[0]),
+                ("d" if self.marked_dead else ""),
+                ("c" if self.counted else ""),
+                ("" if not self.counts_for else self.counts_for.name[0]),
+            ]
         )
 
     def __eq__(self, o: object) -> bool:
