@@ -527,6 +527,24 @@ class Game:
 
         if action.action_type is ActionType.accept:
             self._count_territory()
+            white_score = (
+                self.komi + self.prisoners[Color.white] + self.territory[Color.white]
+            )
+            black_score = self.prisoners[Color.black] + self.territory[Color.black]
+            self.result = Result(
+                (
+                    ResultType.draw
+                    if white_score == black_score
+                    else ResultType.standard_win
+                ),
+                (
+                    Color.white
+                    if white_score > black_score
+                    else Color.black
+                    if black_score > white_score
+                    else None
+                ),
+            )
             self.status = GameStatus.complete
         else:  # ActionType.reject
             self.status = GameStatus.endgame

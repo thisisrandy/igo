@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Optional
 from game import (
     Action,
     ActionType,
@@ -503,12 +504,18 @@ class GameTestCase(unittest.TestCase):
         self.assertEqual(msg, "Black accepted white's draw request")
 
     def test_respond_tally_score(self):
-        g = Game(5)
-        for j in range(5):
-            g.board[1][j].color = Color.white
-            g.board[3][j].color = Color.black
         ts = datetime.now().timestamp()
-        GameTestCase.goto_endgame(g, ts)
+
+        def ready_to_tally(komi: Optional[float] = None):
+            """Return a ready to tally game"""
+            g = Game(5, komi) if komi is not None else Game(5)
+            for j in range(5):
+                g.board[1][j].color = Color.white
+                g.board[3][j].color = Color.black
+            GameTestCase.goto_endgame(g, ts)
+            return g
+
+        g = ready_to_tally(0.0)
         request = Action(ActionType.request_tally_score, Color.white, ts)
 
         # negative response
@@ -519,7 +526,7 @@ class GameTestCase(unittest.TestCase):
         self.assertTrue(success)
         self.assertEqual(msg, "Black rejected white's request to tally the score")
 
-        # positive response
+        # positive response (draw)
         respond.action_type = ActionType.accept
         g.take_action(request)
         success, msg = g.take_action(respond)
@@ -528,3 +535,15 @@ class GameTestCase(unittest.TestCase):
         self.assertEqual(msg, "Black accepted white's request to tally the score")
         self.assertEqual(g.territory[Color.white], 5)
         self.assertEqual(g.territory[Color.black], 5)
+        self.assertIsNotNone(g.result)
+        self.assertIs(g.result.result_type, ResultType.draw)
+        self.assertIsNone(g.result.winner)
+
+        # positive respond with winner
+        g = ready_to_tally()
+        g.take_action(request)
+        g.take_action(respond)
+        self.assertIsNotNone(g.result)
+        self.assertIs(g.result.result_type, ResultType.standard_win)
+        self.assertIsNotNone(g.result.winner)
+        self.assertIs(g.result.winner, Color.white)
