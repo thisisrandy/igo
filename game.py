@@ -404,6 +404,57 @@ class Game:
 
         return True, f"{len(group)} stones marked as dead. Awaiting response..."
 
+    def _respond_mark_dead(self, action: Action) -> str:
+        """This function should only ever be called from _respond, which
+        makes the appropriate assertions for all types of requests. Any other
+        usage is undefined"""
+
+        def count_and_clear(just_count: bool = False) -> Tuple[int, Color]:
+            """As only one group at a time can be marked dead, we can simply
+            scan the board for points marked dead, counting and unmarking
+            them as we go. If just_count is False, we will additionally clear
+            the pieces by setting that Point's color to None"""
+
+            num_marked = 0
+            color = None
+
+            for i in range(self.board.size):
+                for j in range(self.board.size):
+                    if self.board[i][j].marked_dead:
+                        if color is None:
+                            color = self.board[i][j].color
+                        elif color is not self.board[i][j].color:
+                            raise RuntimeError(
+                                "More than one color of stones at a time is currently"
+                                " marked dead, which should never happen"
+                            )
+                        self.board[i][j].marked_dead = False
+                        if not just_count:
+                            self.board[i][j].color = None
+                        num_marked += 1
+
+            if not num_marked:
+                raise RuntimeError(
+                    "No stones are marked as dead, but we are handling a response to"
+                    " them having been marked"
+                )
+
+            return num_marked, color
+
+        if action.action_type is ActionType.accept:
+            num_marked, color = count_and_clear()
+            self.prisoners[color.inverse()] += num_marked
+            self.status = GameStatus.endgame
+        else:  # ActionType.reject
+            num_marked, color = count_and_clear(True)
+            self.status = GameStatus.play
+
+        return f"request to mark {num_marked} {color.name} stones as dead" + (
+            ". Returning to play to resolve"
+            if action.action_type is ActionType.reject
+            else ""
+        )
+
     def _request_draw(self, action: Action) -> Tuple[bool, str]:
         assert action.action_type is ActionType.request_draw
         assert self.status in (GameStatus.play, GameStatus.request_pending)
@@ -421,6 +472,19 @@ class Game:
             True,
             f"{action.color.name.capitalize()} requested a draw. Awaiting response...",
         )
+
+    def _respond_draw(self, action: Action) -> str:
+        """This function should only ever be called from _respond, which
+        makes the appropriate assertions for all types of requests. Any other
+        usage is undefined"""
+
+        if action.action_type is ActionType.accept:
+            self.status = GameStatus.complete
+            self.result = Result(ResultType.draw)
+        else:  # ActionType.reject
+            self.status = GameStatus.play
+
+        return "draw request"
 
     def _request_tally_score(self, action: Action) -> Tuple[bool, str]:
         assert action.action_type is ActionType.request_tally_score
@@ -443,8 +507,83 @@ class Game:
             ),
         )
 
+    def _respond_draw_tally_score(self, action: Action) -> str:
+        """This function should only ever be called from _respond, which
+        makes the appropriate assertions for all types of requests. Any other
+        usage is undefined"""
+
+        if action.action_type is ActionType.accept:
+            self._count_territory()
+            self.status = GameStatus.complete
+        else:  # ActionType.reject
+            self.status = GameStatus.endgame
+
+        return "request to tally the score"
+
+    def _count_territory(self) -> None:
+        # We proceed by scanning the board for empty points, keeping track of
+        # those already processed by marking them as counted. When we find an
+        # uncounted empty point, we collect all empty points connected to it
+        # along with the colors of the stones on the group's borders. If there
+        # is only one color on the border, we assign the points to that color
+        # and mark the points as such. Otherwise (zero or two border colors),
+        # we mark the group as neutral and assign no points
+
+        for i in range(self.board.size):
+            for j in range(self.board.size):
+                if self.board[i][j].color is None and not self.board[i][j].counted:
+                    stack = [(i, j)]
+                    colors = set()
+                    group = set()
+                    border = set()
+                    while stack:
+                        ii, jj = stack.pop()
+                        if (ii, jj) in group | border:
+                            continue
+                        color = self.board[ii][jj].color
+                        if color is None:
+                            group.add((ii, jj))
+                            stack.extend(self._adjacencies(ii, jj))
+                        else:
+                            border.add((ii, jj))
+                            colors.add(color)
+                    counts_for = colors.pop() if len(colors) == 1 else None
+                    for ii, jj in group:
+                        self.board[ii][jj].counted = True
+                        self.board[ii][jj].counts_for = counts_for
+                    if counts_for:
+                        self.territory[counts_for] += len(group)
+
     def _respond(self, action: Action) -> Tuple[bool, str]:
-        return False, "Unimplemented"
+        assert action.action_type in (ActionType.accept, ActionType.reject)
+        assert self.status is GameStatus.request_pending
+        assert self.pending_request is not None
+        assert self.pending_request.initiator is not action.color
+
+        if self.pending_request.request_type is RequestType.mark_dead:
+            response_string = self._respond_mark_dead(action)
+        elif self.pending_request.request_type is RequestType.draw:
+            response_string = self._respond_draw(action)
+        elif self.pending_request.request_type is RequestType.tally_score:
+            response_string = self._respond_draw_tally_score(action)
+        else:
+            raise RuntimeError(
+                f"Unknown RequestType encountered: {self.pending_request.request_type}"
+            )
+
+        self.pending_request = None
+        return (
+            True,
+            (
+                "%s %sed %s's %s"
+                % (
+                    action.color.name.capitalize(),
+                    action.action_type.name,
+                    action.color.inverse().name,
+                    response_string,
+                )
+            ),
+        )
 
     def _adjacencies(self, i: int, j: int) -> Set[Tuple[int, int]]:
         """Utility to return the set of in bounds points adjacent to (i, j)

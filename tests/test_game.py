@@ -7,6 +7,7 @@ from game import (
     Game,
     GameStatus,
     Point,
+    Request,
     RequestType,
     ResultType,
 )
@@ -399,3 +400,131 @@ class GameTestCase(unittest.TestCase):
         self.assertEqual(
             msg, "Cannot request score tally while a previous request is pending"
         )
+
+    def test_respond_assertions(self):
+        g = Game(1)
+        a = Action(ActionType.accept, Color.white, datetime.now().timestamp())
+
+        # wrong status
+        with self.assertRaises(AssertionError):
+            g.take_action(a)
+        g.status = GameStatus.request_pending
+
+        # wrong type. Game.take_action should route this (correctly) to the
+        # mark dead method, so we have to explicitly call the "private" method
+        # to test the behavior
+        a.action_type = ActionType.mark_dead
+        with self.assertRaises(AssertionError):
+            g._respond(a)
+        a.action_type = ActionType.accept
+
+        # trying to respond to self
+        g.pending_request = Request(RequestType.draw, Color.white)
+        with self.assertRaises(AssertionError):
+            g._respond(a)
+
+    def test_respond(self):
+        g = Game(1)
+        ts = datetime.now().timestamp()
+        for a in [
+            Action(ActionType.request_draw, Color.white, ts),
+            Action(ActionType.reject, Color.black, ts),
+        ]:
+            success, _ = g.take_action(a)
+        self.assertTrue(success)
+        self.assertIsNone(g.pending_request)
+
+    def goto_endgame(g: Game, ts: float):
+        """Assuming that the g is in play status and it's white's turn,
+        transition to endgame by passing twice"""
+
+        for c in Color:
+            g.take_action(Action(ActionType.pass_turn, c, ts))
+
+    def test_respond_mark_dead(self):
+        g = Game(3)
+        g.board[0][1].color = Color.white
+        g.board[1][1].color = Color.white
+        ts = datetime.now().timestamp()
+        request = Action(ActionType.mark_dead, Color.white, ts, (1, 1))
+
+        # negative response
+        respond = Action(ActionType.reject, Color.black, ts)
+        GameTestCase.goto_endgame(g, ts)
+        g.take_action(request)
+        success, msg = g.take_action(respond)
+        self.assertIs(g.status, GameStatus.play)
+        self.assertTrue(success)
+        self.assertEqual(
+            msg,
+            (
+                "Black rejected white's request to mark 2 white stones as dead."
+                " Returning to play to resolve"
+            ),
+        )
+
+        # positive response
+        respond.action_type = ActionType.accept
+        GameTestCase.goto_endgame(g, ts)
+        g.take_action(request)
+        success, msg = g.take_action(respond)
+        self.assertIs(g.status, GameStatus.endgame)
+        self.assertTrue(success)
+        self.assertEqual(
+            msg,
+            "Black accepted white's request to mark 2 white stones as dead",
+        )
+        self.assertEqual(g.prisoners[Color.white], 0)
+        self.assertEqual(g.prisoners[Color.black], 2)
+        self.assertIsNone(g.board[0][1].color)
+        self.assertIsNone(g.board[1][1].color)
+
+    def test_respond_draw(self):
+        g = Game(1)
+        ts = datetime.now().timestamp()
+        request = Action(ActionType.request_draw, Color.white, ts)
+
+        # negative response
+        respond = Action(ActionType.reject, Color.black, ts)
+        g.take_action(request)
+        success, msg = g.take_action(respond)
+        self.assertIs(g.status, GameStatus.play)
+        self.assertTrue(success)
+        self.assertEqual(msg, "Black rejected white's draw request")
+
+        # positive response
+        respond.action_type = ActionType.accept
+        g.take_action(request)
+        success, msg = g.take_action(respond)
+        self.assertIs(g.status, GameStatus.complete)
+        self.assertIs(g.result.result_type, ResultType.draw)
+        self.assertIsNone(g.result.winner)
+        self.assertTrue(success)
+        self.assertEqual(msg, "Black accepted white's draw request")
+
+    def test_respond_tally_score(self):
+        g = Game(5)
+        for j in range(5):
+            g.board[1][j].color = Color.white
+            g.board[3][j].color = Color.black
+        ts = datetime.now().timestamp()
+        GameTestCase.goto_endgame(g, ts)
+        request = Action(ActionType.request_tally_score, Color.white, ts)
+
+        # negative response
+        respond = Action(ActionType.reject, Color.black, ts)
+        g.take_action(request)
+        success, msg = g.take_action(respond)
+        self.assertIs(g.status, GameStatus.endgame)
+        self.assertTrue(success)
+        self.assertEqual(msg, "Black rejected white's request to tally the score")
+
+        # positive response
+        respond.action_type = ActionType.accept
+        g.take_action(request)
+        success, msg = g.take_action(respond)
+        self.assertIs(g.status, GameStatus.complete)
+        self.assertTrue(success)
+        self.assertEqual(msg, "Black accepted white's request to tally the score")
+        self.assertEqual(g.territory[Color.white], 5)
+        self.assertEqual(g.territory[Color.black], 5)
