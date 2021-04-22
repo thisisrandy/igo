@@ -646,8 +646,9 @@ class Game:
     def jsonifyable(self) -> Dict:
         """Return a representation which can be readily JSONified. In
         particular, return a dictionary with the board, game status, komi,
-        prisoner counts, and whose turn it is, noting that the last datum is
-        meaningless if the game is over"""
+        prisoner counts, whose turn it is, territory, any pending request,
+        and the game result, noting that some of these are meaningless or
+        unavailable depending on the game state"""
 
         return {
             "board": self.board.jsonifyable(),
