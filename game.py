@@ -231,6 +231,10 @@ class Game:
 
         prisoners: Dict[Color, int] - the number of prisoners taken by each player
 
+        territory: Dict[Color, int] - the number of empty points enclosed by
+        each player's stones, calculated at the end of the game and zero
+        otherwise
+
         pending_request: Optional[Request] - if there is a pending request in
         need of response, it is stored here
 
@@ -249,6 +253,7 @@ class Game:
         self.board: Board = Board(size)
         self.komi: float = komi
         self.prisoners: Dict[Color, int] = {Color.white: 0, Color.black: 0}
+        self.territory: Dict[Color, int] = {Color.white: 0, Color.black: 0}
         self.pending_request: Optional[Request] = None
         self.result: Optional[Result] = None
         self._prev_board: Board = None
