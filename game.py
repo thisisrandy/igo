@@ -681,6 +681,8 @@ class Game:
                 Color.white.name: self.territory[Color.white],
                 Color.black.name: self.territory[Color.black],
             },
-            "pendingRequest": self.pending_request.jsonifyable(),
-            "result": self.result.jsonifyable(),
+            "pendingRequest": self.pending_request.jsonifyable()
+            if self.pending_request
+            else None,
+            "result": self.result.jsonifyable() if self.result else None,
         }

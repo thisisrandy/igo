@@ -547,3 +547,18 @@ class GameTestCase(unittest.TestCase):
         self.assertIs(g.result.result_type, ResultType.standard_win)
         self.assertIsNotNone(g.result.winner)
         self.assertIs(g.result.winner, Color.white)
+
+    def test_jsonifyable(self):
+        self.assertEqual(
+            Game(2).jsonifyable(),
+            {
+                "board": [["___", "___"], ["___", "___"]],
+                "status": "play",
+                "komi": 6.5,
+                "prisoners": {"white": 0, "black": 0},
+                "turn": "white",
+                "territory": {"white": 0, "black": 0},
+                "pendingRequest": None,
+                "result": None,
+            },
+        )
