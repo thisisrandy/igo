@@ -549,16 +549,34 @@ class GameTestCase(unittest.TestCase):
         self.assertIs(g.result.winner, Color.white)
 
     def test_jsonifyable(self):
+        g = Game(2)
+        ts = datetime.now().timestamp()
+        GameTestCase.goto_endgame(g, ts)
+        g.take_action(Action(ActionType.request_tally_score, Color.white, ts))
         self.assertEqual(
-            Game(2).jsonifyable(),
+            g.jsonifyable(),
             {
                 "board": [["___", "___"], ["___", "___"]],
-                "status": "play",
+                "status": "request_pending",
+                "komi": 6.5,
+                "prisoners": {"white": 0, "black": 0},
+                "turn": "white",
+                "territory": {"white": 0, "black": 0},
+                "pendingRequest": {"requestType": "tally_score", "initiator": "white"},
+                "result": None,
+            },
+        )
+        g.take_action(Action(ActionType.accept, Color.black, ts))
+        self.assertEqual(
+            g.jsonifyable(),
+            {
+                "board": [["__c_", "__c_"], ["__c_", "__c_"]],
+                "status": "complete",
                 "komi": 6.5,
                 "prisoners": {"white": 0, "black": 0},
                 "turn": "white",
                 "territory": {"white": 0, "black": 0},
                 "pendingRequest": None,
-                "result": None,
+                "result": {"resultType": "standard_win", "winner": "white"},
             },
         )
