@@ -1,4 +1,5 @@
 from __future__ import annotations
+from secrets import token_urlsafe
 from dataclasses import dataclass
 from enum import Enum, auto
 import json
@@ -143,7 +144,7 @@ class Application(tornado.web.Application):
     def __init__(self):
         handlers = [(r"/ws", EchoWebSocket)]
         settings = dict(
-            cookie_secret="__TODO:_GENERATE_YOUR_OWN_RANDOM_VALUE_HERE__",
+            cookie_secret=token_urlsafe(),
             xsrf_cookies=True,
         )
         super().__init__(handlers, **settings)
