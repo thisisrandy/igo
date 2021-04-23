@@ -4,6 +4,7 @@ import os
 import logging
 from dataclasses import dataclass
 import pickle
+from tornado.websocket import WebSocketHandler
 
 KEY_LEN = 10
 
@@ -20,21 +21,21 @@ class GameContainer:
 
         keys: Dict[str, Color] - mapping from key to color
 
-        user_bindings: Optional[Dict[str, Optional[bool]]] - indicator of the
-        user id, if any, that each key is bound to. Note: Optional only for
-        the sake of using a sentinel as the default to avoid the mutable
-        default anti-pattern
+        socket_bindings: Optional[Dict[str, Optional[WebSocketHandler]]] -
+        indicator of the websocket, if any, that each key is bound to. Note:
+        Optional only for the sake of using a sentinel as the default to
+        avoid the mutable default anti-pattern
 
         game: Optional[Game] - the Game object, if loaded
     """
 
     filepath: str
-    keys: Dict[Color, str]
-    user_bindings: Optional[Dict[str, Optional[str]]] = None
+    keys: Dict[str, Color]
+    socket_bindings: Optional[Dict[str, Optional[WebSocketHandler]]] = None
     game: Optional[Game] = None
 
     def __post_init__(self) -> None:
-        self.user_bindings = {key: None for key in self.keys.values()}
+        self.socket_bindings = {key: None for key in self.keys}
         self._filename = os.path.basename(self.filepath)
 
     def load(self) -> None:
