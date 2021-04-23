@@ -1,4 +1,5 @@
 from __future__ import annotations
+from constants import ACTION_TYPE, COLOR, VS, KOMI, KEY, TYPE
 from datetime import datetime
 from secrets import token_urlsafe
 from dataclasses import dataclass
@@ -6,13 +7,6 @@ from enum import Enum, auto
 import json
 from typing import Dict, List
 import tornado.websocket
-
-
-TYPE = "type"
-KEY = "key"
-VS = "vs"
-COLOR = "color"
-KOMI = "komi"
 
 
 class IncomingMessageType(Enum):
@@ -28,9 +22,7 @@ class IncomingMessageType(Enum):
         return {
             IncomingMessageType.new_game: [VS, COLOR, KOMI],
             IncomingMessageType.join_game: [KEY],
-            # NOTE: this is obviously not exhaustive, but we handle game
-            # actions at a different level, so check the message there
-            IncomingMessageType.game_action: [KEY],
+            IncomingMessageType.game_action: [KEY, ACTION_TYPE, COLOR],
         }
 
 
