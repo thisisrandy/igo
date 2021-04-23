@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from enum import Enum, auto
 import json
 from typing import Dict, List
+import logging
 import tornado.websocket
 
 
@@ -100,7 +101,12 @@ class OutgoingMessage(Message):
         )
 
     def send(self) -> None:
-        self.websocket_handler.write_message(self._jsonify())
+        try:
+            self.websocket_handler.write_message(self._jsonify())
+            logging.info(f"Sent a message of type {self.message_type}")
+            logging.debug(f"Message details: {self}")
+        except Exception as e:
+            logging.warn(f"Failed send a message {self} with exception {e}")
 
     def __repr__(self) -> str:
         return (
