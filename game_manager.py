@@ -214,6 +214,9 @@ class GameStore:
     def new_game(self, keys: Dict[Color, str]) -> None:
         """Create a new GameContainer and store it in our routing table"""
 
+        # TODO: GameManager doesn't need to know about keys. Move key
+        # generation here
+
         assert (
             keys[Color.white] not in self.keys and keys[Color.black] not in self.keys
         ), "Duplicate key, blowing up"
