@@ -19,6 +19,9 @@ class IncomingMessageType(Enum):
 
     @staticmethod
     def required_keys() -> Dict[IncomingMessageType, List[str]]:
+        """Return a dictionary of IncomingMessageType: list of required keys
+        in the data attribute of an IncomingMessage with that message_type"""
+
         return {
             IncomingMessageType.new_game: [VS, COLOR, KOMI],
             IncomingMessageType.join_game: [KEY],
