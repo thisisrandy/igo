@@ -12,8 +12,8 @@ KEY_LEN = 10
 @dataclass
 class GameContainer:
     """
-    A container for Games. Responsible for loading and unloading from and
-    writing to disk as needed, as well as passing messages
+    A container for Games. Responsible for loading from and writing to disk
+    and unloading as needed, as well as passing messages
 
     Attributes:
 
