@@ -1,50 +1,96 @@
+from constants import ACTION_TYPE, COLOR, COORDS, KEY, KEY_LEN
+from messages import (
+    IncomingMessage,
+    IncomingMessageType,
+    OutgoingMessage,
+    OutgoingMessageType,
+)
+from uuid import uuid4
 from typing import Dict, Optional
-from game import Color, Game
+from game import Action, ActionType, Color, Game
 import os
 import logging
 from dataclasses import dataclass
 import pickle
 from tornado.websocket import WebSocketHandler
 
-KEY_LEN = 10
-
 
 @dataclass
-class GameContainer:
+class ActionResponseContainer:
     """
-    A container for Games. Responsible for loading from and writing to disk
-    and unloading as needed, as well as passing messages
+    A container for the response from Game.take_action which implements jsonifyable
 
     Attributes:
 
-        filepath: str - the name of the file where the game is stored
+        success: bool - indicator of the input action's success
 
-        keys: Dict[str, Color] - mapping from key to color
-
-        socket_bindings: Optional[Dict[str, Optional[WebSocketHandler]]] -
-        indicator of the websocket, if any, that each key is bound to. Note:
-        Optional only for the sake of using a sentinel as the default to
-        avoid the mutable default anti-pattern
-
-        game: Optional[Game] - the Game object, if loaded
+        explanation: str - explanation of success
     """
 
-    filepath: str
-    keys: Dict[str, Color]
-    socket_bindings: Optional[Dict[str, Optional[WebSocketHandler]]] = None
-    game: Optional[Game] = None
+    success: bool
+    explanation: str
 
-    def __post_init__(self) -> None:
-        self.socket_bindings = {key: None for key in self.keys}
-        self._filename = os.path.basename(self.filepath)
+    def jsonifyable(self):
+        return {"success": self.success, "explanation": self.explanation}
+
+
+class GameContainer:
+    """
+    A container for Games. Responsible for loading from disk and unloading on
+    demand (extenally controlled), writing to disk as needed, and passing
+    messages between the requesting client and the contained game
+    """
+
+    def __init__(
+        self, filepath: str, keys: Dict[Color, str], game: Optional[Game] = None
+    ) -> None:
+        """
+        Arguments:
+
+            filepath: str - the path to read from and write to
+
+            keys: Dict[Color, str] - a mapping from colors to keys
+
+            game: Optional[Game] - if provided, game is treated as a new game
+            and immediately written to disk
+        """
+
+        # TODO: each game needs a write lock. I think... invesigate tornado in
+        # order guarantees and reason a bit about how I'm handling messages
+
+        self._filepath: str = filepath
+        self._keys: Dict[str, Color] = {
+            keys[Color.white]: Color.white,
+            keys[Color.black]: Color.black,
+        }
+        self._game: Optional[Game] = game
+        self._filename = os.path.basename(self._filepath)
+
+        if self._game:
+            self.write()
+
+    def __hash__(self) -> int:
+        return hash(self._filename)
+
+    def __eq__(self, o: object) -> bool:
+        if not isinstance(o, self.__class__):
+            return False
+        return o._filepath == self._filepath
+
+    def __repr__(self) -> str:
+        return (
+            f"GameContainer(filepath={self._filepath}"
+            f", keys={self._keys}"
+            f", game={self._game})"
+        )
 
     def load(self) -> None:
         if self.is_loaded():
             logging.warn(f"Tried to load already loaded game {self._filename}")
             return
 
-        with open(self.filepath, "rb") as reader:
-            self.game = pickle.load(reader)
+        with open(self._filepath, "rb") as reader:
+            self._game = pickle.load(reader)
 
         logging.info(f"Loaded game {self._filename}")
 
@@ -53,26 +99,62 @@ class GameContainer:
             logging.warn(f"Tried to unload already unload game {self._filename}")
             return
 
-        self.game = None
+        self._game = None
 
         logging.info(f"Unloaded game {self._filename}")
 
     def write(self) -> None:
-        if not self.is_loaded():
-            raise RuntimeError(f"Attempted to write unloaded game {self._filename}")
+        self._assert_loaded("write")
 
-        with open(self.filepath, "wb") as writer:
-            pickle.dump(self.game, writer)
+        with open(self._filepath, "wb") as writer:
+            pickle.dump(self._game, writer)
 
         logging.info(f"Wrote game {self._filename} to disk")
 
     def is_loaded(self) -> bool:
-        return self.game is not None
+        return self._game is not None
+
+    def _assert_loaded(self, action: str) -> None:
+        assert self.is_loaded(), f"Attempted to {action} unloaded game {self._filename}"
+
+    def pass_message(self, msg: IncomingMessage) -> bool:
+        """Translate msg into a game action, attempt to take that action, and
+        reply with the game's response"""
+
+        self._assert_loaded("pass message to")
+        assert (
+            msg.message_type is IncomingMessageType.game_action
+        ), f"{self.__class__.__name__} can only process game actions"
+
+        success, explanation = self._game.take_action(
+            Action(
+                ActionType[msg.data[ACTION_TYPE]],
+                Color[msg.data[COLOR]],
+                msg.timestamp,
+                tuple(msg.data[COORDS]) if COORDS in msg.data else None,
+            )
+        )
+
+        logging.info(
+            f"Took action with result success={success}, explanation={explanation}"
+        )
+        logging.debug(f"Game state is now {self._game}")
+
+        if success:
+            self.write()
+
+        OutgoingMessage(
+            OutgoingMessageType.action_response,
+            ActionResponseContainer(success, explanation),
+            msg.websocket_handler,
+        ).send()
 
 
 class GameStore:
     """
-    The interface storing and routing messages to Game objects
+    The interface storing and routing messages to GameContainer objects.
+    Responsible for populating the games list from disk and managing
+    subscriptions to game keys
 
     Attributes:
 
@@ -80,6 +162,11 @@ class GameStore:
 
         keys: Dict[str, GameContainer] - the in-memory store mapping keys to
         their respective Games
+
+        containers: Dict[GameContainer, str] - reverse of keys, useful for
+        managing subscriptions
+
+        subscriptions: Dict[WebSocketHandler, str] -
     """
 
     def __init__(self, dir: str) -> None:
@@ -114,8 +201,27 @@ class GameStore:
                 path, {Color.white: key_w, Color.black: key_b}
             )
 
-    def route_message(key: str, msg: str) -> bool:
-        pass
+    def route_message(self, msg: IncomingMessage) -> None:
+        assert (
+            msg.data[KEY] in self.keys
+        ), f"Received message with unknown key {msg.data[KEY]}"
+
+        # TODO: check if the caller is subscribed to the key before passing the
+        # message
+
+        self.keys[msg.data[KEY]].pass_message(msg)
+
+    def new_game(self, keys: Dict[Color, str]) -> None:
+        """Create a new GameContainer and store it in our routing table"""
+
+        assert (
+            keys[Color.white] not in self.keys and keys[Color.black] not in self.keys
+        ), "Duplicate key, blowing up"
+
+        path = os.path.join(self.dir, f"{keys[Color.white]}{keys[Color.black]}")
+        self.keys[keys[Color.white]] = self.keys[keys[Color.black]] = GameContainer(
+            path, keys
+        )
 
 
 class GameManager:
@@ -142,3 +248,32 @@ class GameManager:
         ),
     ) -> None:
         self.store_dir = store_dir
+
+    def new_game(self, msg: IncomingMessage) -> None:
+        """Create a new game and subscribe the caller to the appropriate key"""
+
+        # TODO: I think the correct flow is actually to have one public entry
+        # point where we look at the message type and route to the correct
+        # private method. Do that instead
+
+        keys: Dict[Color, str] = {
+            Color.white: uuid4().hex[-KEY_LEN:],
+            Color.black: uuid4().hex[-KEY_LEN:],
+        }
+
+    def subscribe(self, msg: IncomingMessage) -> None:
+        """Attempt to subscribe the caller to the requested key and reply
+        appropriately"""
+
+        pass
+
+    def unsubscribe(self, socket: WebSocketHandler) -> bool:
+        """Attempt to unsubscribe the socket from its key. Return True on
+        success and False if a subscription is not found"""
+
+        pass
+
+    def pass_message(self, msg: IncomingMessage) -> None:
+        """Attempt to route the message and reply appropriately"""
+
+        pass
