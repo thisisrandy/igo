@@ -227,11 +227,6 @@ class Game:
 
     Attributes:
 
-        keys: Dict[Color, str] - truncated (10 char) UUIDs for black and
-        white players. the creating player is informed of both keys upon game
-        creation, and all subsequent actions from either player require their
-        key
-
         status: GameStatus - indicator of the status of the game
 
         turn: Color - during play, indicator of whose turn it is (meaningless
@@ -256,10 +251,6 @@ class Game:
     """
 
     def __init__(self, size: int = 19, komi: float = 6.5) -> None:
-        self.keys: Dict[Color, str] = {
-            Color.white: uuid4().hex[-10:],
-            Color.black: uuid4().hex[-10:],
-        }
         self.status: GameStatus = GameStatus.play
         self.turn: Color = Color.white
         self.action_stack: List[Action] = []
@@ -273,8 +264,7 @@ class Game:
 
     def __repr__(self) -> str:
         return (
-            f"Game(keys={self.keys}"
-            f", status={self.status}"
+            f"Game(status={self.status}"
             f", turn={self.turn}"
             f", action_stack={self.action_stack}"
             f", board={self.board}"
