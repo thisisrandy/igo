@@ -1,10 +1,12 @@
 from __future__ import annotations
+from datetime import datetime
 from secrets import token_urlsafe
 from dataclasses import dataclass
 from enum import Enum, auto
 import json
-from typing import Dict, List, Optional
+from typing import Dict, List
 import tornado.websocket
+
 
 TYPE = "type"
 KEY = "key"
@@ -33,10 +35,10 @@ class IncomingMessageType(Enum):
 
 
 class OutgoingMessageType(Enum):
+    action_response = auto()
     game_status = auto()
 
 
-@dataclass
 class Message:
     """
     Base class for messages
@@ -45,31 +47,29 @@ class Message:
 
         websocket_handler: tornado.websocket.WebSocketHandler - the
         associated message handler for this websocket
+
+        timestamp: the server time at which this message was created
     """
 
-    websocket_handler: tornado.websocket.WebSocketHandler
+    def __init__(self, websocket_handler: tornado.websocket.WebSocketHandler) -> None:
+        self.websocket_handler: tornado.websocket.WebSocketHandler = websocket_handler
+        self.timestamp: float = datetime.now().timestamp()
 
 
-@dataclass
 class IncomingMessage(Message):
     """
     Container class for incoming messages
 
     Attributes:
 
-        message_type: Optional[MessageType] - the type of the message.
-        Optional only to work as a @dataclass
+        message_type: IncomingMessageType - the type of the message
 
-        data: Optional[Dict[str, object]] - a dictionary of the message data.
-        Optional only to work as a @dataclass
+        data: Dict[str, object] - a dictionary of the message data
     """
 
-    message_type: Optional[IncomingMessageType] = None
-    data: Optional[Dict[str, object]] = None
-
     def __init__(self, json_str: str, *args, **kwargs) -> None:
-        self.data = json.loads(json_str)
-        self.message_type = IncomingMessageType[self.data[TYPE]]
+        self.data: Dict[str, object] = json.loads(json_str)
+        self.message_type: IncomingMessage = IncomingMessageType[self.data[TYPE]]
         del self.data[TYPE]
         for rk in IncomingMessageType.required_keys()[self.message_type]:
             assert (
@@ -78,29 +78,15 @@ class IncomingMessage(Message):
 
         super(IncomingMessage, self).__init__(*args, **kwargs)
 
-
-@dataclass
-class Response(Message):
-    """
-    Container class for outgoing responses to IncomingMessages. Distinct from
-    OutgoingMessage, which the server initiates
-
-    Attributes:
-
-        success: bool - indicator of the associated IncomingMessage's success
-
-        message: str - explanatory message
-    """
-
-    success: bool
-    message: str
+    def __repr__(self) -> str:
+        return (
+            f"IncomingMessage(messsage_type={self.message_type}" f", data={self.data})"
+        )
 
 
-@dataclass
 class OutgoingMessage(Message):
     """
-    Container class for outgoing messages initiated by the server. Distinct
-    from Response
+    Container class for outgoing messages
 
     Attributes:
 
@@ -109,12 +95,26 @@ class OutgoingMessage(Message):
         data: object - any object implementing the jsonifyable method
     """
 
-    message_type: OutgoingMessageType
-    data: object
+    def __init__(
+        self, message_type: OutgoingMessageType, data: object, *args, **kwargs
+    ) -> None:
+        self.message_type: OutgoingMessageType = message_type
+        self.data: object = data
+        super(OutgoingMessage, self).__init__(*args, **kwargs)
 
-    def jsonify(self) -> str:
+    def _jsonify(self) -> str:
         return json.dumps(
             {"message_type": self.message_type, "data": self.data.jsonifyable()}
+        )
+
+    def send(self) -> None:
+        self.websocket_handler.write_message(self._jsonify())
+
+    def __repr__(self) -> str:
+        return (
+            f"OutgoingMessage(message_type={self.message_type}"
+            f", data={self.data}"
+            f", timestamp={self.timestamp})"
         )
 
 
