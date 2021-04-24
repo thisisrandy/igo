@@ -65,8 +65,7 @@ class GameContainer:
         # order guarantees and reason a bit about how I'm handling messages
 
         self._filepath: str = filepath
-        self.colors = keys
-        self._keys: Dict[str, Color] = {
+        self.colors: Dict[str, Color] = {
             keys[Color.white]: Color.white,
             keys[Color.black]: Color.black,
         }
@@ -87,7 +86,7 @@ class GameContainer:
     def __repr__(self) -> str:
         return (
             f"GameContainer(filepath={self._filepath}"
-            f", keys={self._keys}"
+            f", colors={self.colors}"
             f", game={self.game})"
         )
 
