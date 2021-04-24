@@ -125,7 +125,8 @@ class GameContainer:
 
     def pass_message(self, msg: IncomingMessage) -> bool:
         """Translate msg into a game action, attempt to take that action, and
-        reply with the game's response"""
+        reply with the game's response. Return True if the action was
+        successful and False otherwise"""
 
         self._assert_loaded("pass message to")
         assert (
@@ -154,6 +155,8 @@ class GameContainer:
             ActionResponseContainer(success, explanation),
             msg.websocket_handler,
         ).send()
+
+        return success
 
 
 class GameStore:
