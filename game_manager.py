@@ -1,4 +1,4 @@
-from constants import ACTION_TYPE, COLOR, COORDS, KEY, KEY_LEN
+from constants import ACTION_TYPE, COLOR, COORDS, KEY, KEY_LEN, KOMI
 from messages import (
     IncomingMessage,
     IncomingMessageType,
@@ -6,7 +6,7 @@ from messages import (
     OutgoingMessageType,
 )
 from uuid import uuid4
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 from game import Action, ActionType, Color, Game
 import os
 import logging
@@ -16,15 +16,33 @@ from tornado.websocket import WebSocketHandler
 
 
 @dataclass
-class ActionResponseContainer:
+class NewGameResponseContainer:
     """
-    A container for the response from Game.take_action which implements jsonifyable
+    A container for the response to a new game request which implements
+    jsonifyable
 
     Attributes:
 
-        success: bool - indicator of the input action's success
+        keys: Dict[Color, str] - color to newly created key mapping
+    """
 
-        explanation: str - explanation of success
+    keys: Dict[Color, str]
+
+    def jsonifyable(self) -> Dict[str, str]:
+        return {k.name: v for k, v in self.keys.items()}
+
+
+@dataclass
+class JoinGameResponseContainer:
+    """
+    A container for the response to a join game request which implements
+    jsonifyable
+
+    Attributes:
+
+        success: bool - whether or not the join request succeeded
+
+        explanation: str - an explanatory string
     """
 
     success: bool
@@ -32,6 +50,21 @@ class ActionResponseContainer:
 
     def jsonifyable(self):
         return {"success": self.success, "explanation": self.explanation}
+
+
+@dataclass
+class ActionResponseContainer(JoinGameResponseContainer):
+    """
+    A container for the response from Game.take_action which implements
+    jsonifyable. Note that JoinGameResponseContainer is subclassed, as its
+    fields and serialization prep are identical
+
+    Attributes:
+
+        success: bool - indicator of the input action's success
+
+        explanation: str - explanation of success
+    """
 
 
 class GameContainer:
@@ -73,7 +106,7 @@ class GameContainer:
         self._filename = os.path.basename(self._filepath)
 
         if self.game:
-            self.write()
+            self._write()
 
     def __hash__(self) -> int:
         return hash(self._filename)
@@ -91,7 +124,7 @@ class GameContainer:
         )
 
     def load(self) -> None:
-        if self.is_loaded():
+        if self._is_loaded():
             logging.warn(f"Tried to load already loaded game {self._filename}")
             return
 
@@ -101,7 +134,7 @@ class GameContainer:
         logging.info(f"Loaded game {self._filename}")
 
     def unload(self) -> None:
-        if not self.is_loaded():
+        if not self._is_loaded():
             logging.warn(f"Tried to unload already unload game {self._filename}")
             return
 
@@ -109,7 +142,7 @@ class GameContainer:
 
         logging.info(f"Unloaded game {self._filename}")
 
-    def write(self) -> None:
+    def _write(self) -> None:
         self._assert_loaded("write")
 
         with open(self._filepath, "wb") as writer:
@@ -117,11 +150,13 @@ class GameContainer:
 
         logging.info(f"Wrote game {self._filename} to disk")
 
-    def is_loaded(self) -> bool:
+    def _is_loaded(self) -> bool:
         return self.game is not None
 
     def _assert_loaded(self, action: str) -> None:
-        assert self.is_loaded(), f"Attempted to {action} unloaded game {self._filename}"
+        assert (
+            self._is_loaded()
+        ), f"Attempted to {action} unloaded game {self._filename}"
 
     def pass_message(self, msg: IncomingMessage) -> bool:
         """Translate msg into a game action, attempt to take that action, and
@@ -148,7 +183,7 @@ class GameContainer:
         logging.debug(f"Game state is now {self.game}")
 
         if success:
-            self.write()
+            self._write()
 
         OutgoingMessage(
             OutgoingMessageType.action_response,
@@ -167,20 +202,28 @@ class GameStore:
 
     Attributes:
 
-        dir: str - the store directory
+        dir: str - the store directory. a Game g is stored in pickled form at
+        store_dir/{g.keys[Color.white]}{g.keys[Color.black]} and is read and
+        written as needed
 
         keys: Dict[str, GameContainer] - the in-memory store mapping keys to
         their respective Games
 
-        containers: Dict[GameContainer, str] - reverse of keys, useful for
-        managing subscriptions
+        containers: Dict[GameContainer, Tuple[str, str]] - reverse of keys,
+        useful for routing status updates
 
-        subscriptions: Dict[WebSocketHandler, str] -
+        subscriptions: Dict[str, WebSocketHandler] - key to client mapping
+
+        clients: Dict[WebSocketHandler, str] - reverse of subscriptions,
+        useful for unsubscribing when a connection is closed
     """
 
     def __init__(self, dir: str) -> None:
         self.dir: str = dir
         self.keys: Dict[str, GameContainer] = {}
+        self.containers: Dict[GameContainer, Tuple[str, str]] = {}
+        self.subscriptions: Dict[str, WebSocketHandler] = {}
+        self.clients: Dict[WebSocketHandler, str] = {}
         self._hydrate_games()
 
     def _hydrate_games(self) -> None:
@@ -211,46 +254,124 @@ class GameStore:
             )
 
     def route_message(self, msg: IncomingMessage) -> None:
+        key = msg.data[KEY]
+
+        assert key in self.keys, f"Received message with unknown key {key}"
+        assert self.subscriptions[key] == msg.websocket_handler, (
+            f"Received message with key {key} from a client who isn't subscribed to"
+            " that key"
+        )
+
+        if self.keys[key].pass_message(msg):
+            self._send_game_status(self.keys[key])
+
+    def _send_game_status(self, gc: GameContainer) -> None:
+        """Send a game status message to any subscribers to gc"""
+
+        for key in self.containers[gc]:
+            if key in self.subscriptions:
+                OutgoingMessage(
+                    OutgoingMessageType.game_status, gc.game, self.subscriptions[key]
+                ).send()
+
+    def new_game(self, msg: IncomingMessage) -> None:
+        """Create a new GameContainer according to the specification in msg,
+        store it in our routing tables, and respond appropriately"""
+
+        key_w, key_b = [uuid4().hex[-KEY_LEN:] for _ in range(2)]
+        keys = {Color.white: key_w, Color.black: key_b}
+
         assert (
-            msg.data[KEY] in self.keys
-        ), f"Received message with unknown key {msg.data[KEY]}"
-
-        # TODO: check if the caller is subscribed to the key before passing the
-        # message
-
-        self.keys[msg.data[KEY]].pass_message(msg)
-
-    def new_game(self, keys: Dict[Color, str]) -> None:
-        """Create a new GameContainer and store it in our routing table"""
-
-        # TODO: GameManager doesn't need to know about keys. Move key
-        # generation here
-
-        assert (
-            keys[Color.white] not in self.keys and keys[Color.black] not in self.keys
+            key_w not in self.keys and key_b not in self.keys
         ), "Duplicate key, blowing up"
 
-        path = os.path.join(self.dir, f"{keys[Color.white]}{keys[Color.black]}")
-        self.keys[keys[Color.white]] = self.keys[keys[Color.black]] = GameContainer(
-            path, keys
-        )
+        path = os.path.join(self.dir, f"{key_w}{key_b}")
+        # TODO: If I decide to support different board sizes, here is the place
+        # to plug it in
+        gc = GameContainer(path, keys, Game(komi=msg.data[KOMI]))
+        requested_color = Color[msg.data[COLOR]]
+
+        self.keys[key_w] = self.keys[key_b] = gc
+        self.containers[gc] = (key_w, key_b)
+        self.subscriptions[keys[requested_color]] = msg.websocket_handler
+        self.clients[msg.websocket_handler] = keys[requested_color]
+
+        # TODO: If msg.data[VS] is "computer", set up computer as second player
+
+        OutgoingMessage(
+            OutgoingMessageType.new_game_response,
+            NewGameResponseContainer(keys),
+            msg.websocket_handler,
+        ).send()
+
+        self._send_game_status(gc)
+
+    def join_game(self, msg: IncomingMessage) -> None:
+        """Attempt to subscribe to the key specified in msg and respond
+        appropriately"""
+
+        assert (
+            msg.websocket_handler not in self.clients
+        ), "A client is attempting to subscribe to more than one key"
+
+        key = msg.data[KEY]
+        if key in self.subscriptions:
+            OutgoingMessage(
+                OutgoingMessageType.join_game_response,
+                JoinGameResponseContainer(
+                    False, "Someone else is already playing that game and color"
+                ),
+                msg.websocket_handler,
+            ).send()
+        else:
+            self.subscriptions[key] = msg.websocket_handler
+            self.clients[msg.websocket_handler] = key
+            gc = self.keys[key]
+            color = gc.colors[key]
+
+            OutgoingMessage(
+                OutgoingMessageType.join_game_response,
+                JoinGameResponseContainer(
+                    True, f"Successfully joined the game as {color.name}"
+                ),
+                msg.websocket_handler,
+            ).send()
+
+            # if we are the first to join this game, e.g. because we are
+            # resuming an old game, load it up from disk
+            if self._num_subscribers(gc) == 1:
+                gc.load()
+
+            self._send_game_status(self.keys[key])
+
+    def _num_subscribers(self, gc: GameContainer) -> int:
+        """Determine the number of clients actively subscribed to gc"""
+
+        k1, k2 = self.containers[gc]
+        return (k1 in self.subscriptions) + (k2 in self.subscriptions)
+
+    def unsubscribe(self, socket: WebSocketHandler) -> None:
+        """If socket is subscribed to a key, unsubscribe it"""
+
+        if socket in self.clients:
+            key = self.clients[socket]
+            del self.clients[socket]
+            del self.subscriptions[key]
+
+            # if subscribers has dropped to 0, unload the game
+            gc = self.keys[key]
+            if not self._num_subscribers(gc):
+                gc.unload()
 
 
 class GameManager:
     """
-    The GameManager has several responsibilities:
-
-    1. Instantiating new Games
-    2. Binding and unbinding Game subscriptions
-    3. Handling message routing/translation between ConnectionManager and Game
-    4. Pickling and loading Games on modification and on demand, respectively
+    GameManager is the simplified Game API to the connection_manager module.
+    Its only responsibilites are routing messages to the underlying store
 
     Attributes:
 
-        store_dir: str = (script dir)/store - the location of the Game store.
-        a Game g is stored in pickled form at
-        store_dir/{g.keys[Color.white]}{g.keys[Color.black]} and is read and
-        written as needed
+        store: GameStore - the game store
     """
 
     def __init__(
@@ -259,33 +380,26 @@ class GameManager:
             os.path.dirname(os.path.realpath(__file__)), "store"
         ),
     ) -> None:
-        self.store_dir = store_dir
+        """
+        Arguments:
 
-    def new_game(self, msg: IncomingMessage) -> None:
-        """Create a new game and subscribe the caller to the appropriate key"""
+            store: str = (script dir)/store
+        """
 
-        # TODO: I think the correct flow is actually to have one public entry
-        # point where we look at the message type and route to the correct
-        # private method. Do that instead
+        self.store = GameStore(store_dir)
 
-        keys: Dict[Color, str] = {
-            Color.white: uuid4().hex[-KEY_LEN:],
-            Color.black: uuid4().hex[-KEY_LEN:],
-        }
+    def unsubscribe(self, socket: WebSocketHandler) -> None:
+        """Unsubscribe the socket from its key if it is subscribed, otherwise
+        do nothing"""
 
-    def subscribe(self, msg: IncomingMessage) -> None:
-        """Attempt to subscribe the caller to the requested key and reply
-        appropriately"""
+        self.store.unsubscribe(socket)
 
-        pass
+    def route_message(self, msg: IncomingMessage) -> None:
+        """Route the message to the correct method on the underlying store"""
 
-    def unsubscribe(self, socket: WebSocketHandler) -> bool:
-        """Attempt to unsubscribe the socket from its key. Return True on
-        success and False if a subscription is not found"""
-
-        pass
-
-    def pass_message(self, msg: IncomingMessage) -> None:
-        """Attempt to route the message and reply appropriately"""
-
-        pass
+        if msg.message_type is IncomingMessageType.new_game:
+            self.store.new_game(msg)
+        elif msg.message_type is IncomingMessageType.join_game:
+            self.store.join_game(msg)
+        elif msg.message_type is IncomingMessageType.game_action:
+            self.store.route_message(msg)

@@ -26,7 +26,9 @@ class IncomingMessageType(Enum):
 
 
 class OutgoingMessageType(Enum):
-    action_response = auto()
+    new_game_response = auto()
+    join_game_response = auto()
+    game_action_response = auto()
     game_status = auto()
 
 
