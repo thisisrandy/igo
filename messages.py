@@ -97,7 +97,7 @@ class OutgoingMessage(Message):
 
     def _jsonify(self) -> str:
         return json.dumps(
-            {"message_type": self.message_type, "data": self.data.jsonifyable()}
+            {"message_type": self.message_type.name, "data": self.data.jsonifyable()}
         )
 
     def send(self) -> None:
