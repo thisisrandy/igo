@@ -43,6 +43,8 @@ class GameContainer:
     Attributes:
 
         game: Game - the contained Game object
+
+        colors: Dict[str, Color] - a mapping from keys to colors
     """
 
     def __init__(
@@ -63,6 +65,7 @@ class GameContainer:
         # order guarantees and reason a bit about how I'm handling messages
 
         self._filepath: str = filepath
+        self.colors = keys
         self._keys: Dict[str, Color] = {
             keys[Color.white]: Color.white,
             keys[Color.black]: Color.black,
