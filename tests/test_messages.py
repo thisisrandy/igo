@@ -4,7 +4,7 @@ import unittest
 from unittest.mock import patch
 from tornado.websocket import WebSocketHandler
 from constants import TYPE, VS, COLOR, KOMI, KEY, ACTION_TYPE
-from json import dumps
+import json
 
 
 @patch.object(WebSocketHandler, "__init__", lambda self: None)
@@ -13,21 +13,24 @@ class IncomingMessageTestCase(unittest.TestCase):
         # test required keys (incorrect)
         with self.assertRaises(AssertionError):
             IncomingMessage(
-                dumps({TYPE: IncomingMessageType.new_game.name}), WebSocketHandler()
+                json.dumps({TYPE: IncomingMessageType.new_game.name}),
+                WebSocketHandler(),
             )
         with self.assertRaises(AssertionError):
             IncomingMessage(
-                dumps({TYPE: IncomingMessageType.join_game.name}), WebSocketHandler()
+                json.dumps({TYPE: IncomingMessageType.join_game.name}),
+                WebSocketHandler(),
             )
         with self.assertRaises(AssertionError):
             IncomingMessage(
-                dumps({TYPE: IncomingMessageType.game_action.name}), WebSocketHandler()
+                json.dumps({TYPE: IncomingMessageType.game_action.name}),
+                WebSocketHandler(),
             )
 
         # test required keys (correct)
         try:
             IncomingMessage(
-                dumps(
+                json.dumps(
                     {
                         TYPE: IncomingMessageType.new_game.name,
                         VS: "human",
@@ -43,7 +46,9 @@ class IncomingMessageTestCase(unittest.TestCase):
             )
         try:
             IncomingMessage(
-                dumps({TYPE: IncomingMessageType.join_game.name, KEY: "0123456789"}),
+                json.dumps(
+                    {TYPE: IncomingMessageType.join_game.name, KEY: "0123456789"}
+                ),
                 WebSocketHandler(),
             )
         except AssertionError:
@@ -52,7 +57,7 @@ class IncomingMessageTestCase(unittest.TestCase):
             )
         try:
             IncomingMessage(
-                dumps(
+                json.dumps(
                     {
                         TYPE: IncomingMessageType.game_action.name,
                         KEY: "0123456789",
@@ -66,4 +71,3 @@ class IncomingMessageTestCase(unittest.TestCase):
             self.fail(
                 f"Correctly specified IncomingMessage still failed required key assertion: {e}"
             )
-
