@@ -39,6 +39,10 @@ class GameContainer:
     A container for Games. Responsible for loading from disk and unloading on
     demand (extenally controlled), writing to disk as needed, and passing
     messages between the requesting client and the contained game
+
+    Attributes:
+
+        game: Game - the contained Game object
     """
 
     def __init__(
@@ -63,10 +67,10 @@ class GameContainer:
             keys[Color.white]: Color.white,
             keys[Color.black]: Color.black,
         }
-        self._game: Optional[Game] = game
+        self.game: Optional[Game] = game
         self._filename = os.path.basename(self._filepath)
 
-        if self._game:
+        if self.game:
             self.write()
 
     def __hash__(self) -> int:
@@ -81,7 +85,7 @@ class GameContainer:
         return (
             f"GameContainer(filepath={self._filepath}"
             f", keys={self._keys}"
-            f", game={self._game})"
+            f", game={self.game})"
         )
 
     def load(self) -> None:
@@ -90,7 +94,7 @@ class GameContainer:
             return
 
         with open(self._filepath, "rb") as reader:
-            self._game = pickle.load(reader)
+            self.game = pickle.load(reader)
 
         logging.info(f"Loaded game {self._filename}")
 
@@ -99,7 +103,7 @@ class GameContainer:
             logging.warn(f"Tried to unload already unload game {self._filename}")
             return
 
-        self._game = None
+        self.game = None
 
         logging.info(f"Unloaded game {self._filename}")
 
@@ -107,12 +111,12 @@ class GameContainer:
         self._assert_loaded("write")
 
         with open(self._filepath, "wb") as writer:
-            pickle.dump(self._game, writer)
+            pickle.dump(self.game, writer)
 
         logging.info(f"Wrote game {self._filename} to disk")
 
     def is_loaded(self) -> bool:
-        return self._game is not None
+        return self.game is not None
 
     def _assert_loaded(self, action: str) -> None:
         assert self.is_loaded(), f"Attempted to {action} unloaded game {self._filename}"
@@ -126,7 +130,7 @@ class GameContainer:
             msg.message_type is IncomingMessageType.game_action
         ), f"{self.__class__.__name__} can only process game actions"
 
-        success, explanation = self._game.take_action(
+        success, explanation = self.game.take_action(
             Action(
                 ActionType[msg.data[ACTION_TYPE]],
                 Color[msg.data[COLOR]],
@@ -138,7 +142,7 @@ class GameContainer:
         logging.info(
             f"Took action with result success={success}, explanation={explanation}"
         )
-        logging.debug(f"Game state is now {self._game}")
+        logging.debug(f"Game state is now {self.game}")
 
         if success:
             self.write()
