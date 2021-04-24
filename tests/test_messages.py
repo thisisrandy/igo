@@ -1,7 +1,12 @@
-from game import ActionType, Color
-from messages import IncomingMessage, IncomingMessageType
+from game import ActionType, Color, Game
+from messages import (
+    IncomingMessage,
+    IncomingMessageType,
+    OutgoingMessage,
+    OutgoingMessageType,
+)
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 from tornado.websocket import WebSocketHandler
 from constants import TYPE, VS, COLOR, KOMI, KEY, ACTION_TYPE
 import json
@@ -71,3 +76,28 @@ class IncomingMessageTestCase(unittest.TestCase):
             self.fail(
                 f"Correctly specified IncomingMessage still failed required key assertion: {e}"
             )
+
+
+@patch.object(WebSocketHandler, "__init__", lambda self: None)
+class OutgoingMessageTestCase(unittest.TestCase):
+    def test_jsonify(self):
+        msg = OutgoingMessage(
+            OutgoingMessageType.game_status, Game(1), WebSocketHandler()
+        )
+        self.assertEqual(
+            msg._jsonify(),
+            json.dumps(
+                {
+                    "message_type": OutgoingMessageType.game_status.name,
+                    "data": Game(1).jsonifyable(),
+                }
+            ),
+        )
+
+    @patch("tornado.websocket.WebSocketHandler.write_message")
+    def test_send(self, mock_write_message: MagicMock):
+        msg = OutgoingMessage(
+            OutgoingMessageType.game_status, Game(1), WebSocketHandler()
+        )
+        msg.send()
+        mock_write_message.assert_called()
