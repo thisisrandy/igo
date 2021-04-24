@@ -37,7 +37,7 @@ class ActionResponseContainer:
 class GameContainer:
     """
     A container for Games. Responsible for loading from disk and unloading on
-    demand (extenally controlled), writing to disk as needed, and passing
+    demand (externally controlled), writing to disk as needed, and passing
     messages between the requesting client and the contained game
 
     Attributes:
