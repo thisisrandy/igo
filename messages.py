@@ -69,7 +69,7 @@ class IncomingMessage(Message):
                 rk in self.data
             ), f"Required key {rk} not found in incoming message {self.data}"
 
-        super(IncomingMessage, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def __repr__(self) -> str:
         return (
@@ -93,7 +93,7 @@ class OutgoingMessage(Message):
     ) -> None:
         self.message_type: OutgoingMessageType = message_type
         self.data: object = data
-        super(OutgoingMessage, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def _jsonify(self) -> str:
         return json.dumps(
