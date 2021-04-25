@@ -53,6 +53,17 @@ class BoardTestCase(unittest.TestCase):
 
 
 class GameTestCase(unittest.TestCase):
+    def test_eq(self):
+        g1, g2, g3 = Game(3), Game(3), Game(5)
+        self.assertEqual(g1, g2)
+        self.assertNotEqual(g1, g3)
+        g1.take_action(
+            Action(
+                ActionType.place_stone, Color.white, datetime.now().timestamp(), (1, 1)
+            )
+        )
+        self.assertNotEqual(g1, g2)
+
     def test_placement_assertions(self):
         g = Game(1)
 

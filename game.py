@@ -275,6 +275,23 @@ class Game:
             f", _prev_board={self._prev_board})"
         )
 
+    def __eq__(self, o: object) -> bool:
+        """Equality is judged by comparing initializers and the action stack,
+        which together fully determine the state of the game, provided of
+        course that only the public interface has been accessed (this
+        function's return is undefined otherwise). NB: this is a state
+        comparison, *not* a unique game comparison. Game does not contain any
+        data which uniquely identify it beyond its state, which is by
+        design"""
+
+        if not isinstance(o, Game):
+            return False
+        return (
+            self.board.size == o.board.size
+            and self.komi == o.komi
+            and self.action_stack == o.action_stack
+        )
+
     def take_action(self, action: Action) -> Tuple[bool, str]:
         """Attempt to take an action. Return a tuple of True if that action
         was valid and False otherwise, and an explanatory message in either
