@@ -268,9 +268,9 @@ class GameStore:
                 key_w not in self.keys and key_b not in self.keys
             ), "Duplicate key, blowing up"
 
-            self.keys[key_w] = self.keys[key_b] = GameContainer(
-                path, {Color.white: key_w, Color.black: key_b}
-            )
+            gc = GameContainer(path, {Color.white: key_w, Color.black: key_b})
+            self.keys[key_w] = self.keys[key_b] = gc
+            self.containers[gc] = (key_w, key_b)
 
     def route_message(self, msg: IncomingMessage) -> None:
         key = msg.data[KEY]
