@@ -6,7 +6,7 @@ from messages import (
     OutgoingMessageType,
 )
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import Mock, patch
 from tornado.websocket import WebSocketHandler
 from constants import TYPE, VS, COLOR, KOMI, KEY, ACTION_TYPE
 import json
@@ -95,7 +95,7 @@ class OutgoingMessageTestCase(unittest.TestCase):
         )
 
     @patch("tornado.websocket.WebSocketHandler.write_message")
-    def test_send(self, mock_write_message: MagicMock):
+    def test_send(self, mock_write_message: Mock):
         msg = OutgoingMessage(
             OutgoingMessageType.game_status, Game(1), WebSocketHandler()
         )

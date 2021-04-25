@@ -9,7 +9,7 @@ from game_manager import (
     NewGameResponseContainer,
 )
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import Mock, patch
 import tempfile
 from constants import ACTION_TYPE, COLOR, KEY, KEY_LEN, TYPE
 from tornado.websocket import WebSocketHandler
@@ -106,7 +106,7 @@ class GameContainerTestCase(unittest.TestCase):
 
     @patch("game_manager.GameContainer._write")
     @patch("messages.OutgoingMessage.send")
-    def test_pass_message(self, send: MagicMock, _write: MagicMock):
+    def test_pass_message(self, send: Mock, _write: Mock):
         gc = GameContainer(self.filepath, self.keys, Game(1))
         # assert once here in order to assert unambiguously below that
         # pass_message will also call _write exactly once
