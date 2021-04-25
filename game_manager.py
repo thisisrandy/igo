@@ -319,7 +319,7 @@ class GameStore:
 
         send_outgoing_message(
             OutgoingMessageType.new_game_response,
-            NewGameResponseContainer(keys),
+            NewGameResponseContainer(keys, requested_color),
             msg.websocket_handler,
         )
 
@@ -351,7 +351,7 @@ class GameStore:
             send_outgoing_message(
                 OutgoingMessageType.join_game_response,
                 JoinGameResponseContainer(
-                    True, f"Successfully joined the game as {color.name}"
+                    True, f"Successfully joined the game as {color.name}", color
                 ),
                 msg.websocket_handler,
             )
