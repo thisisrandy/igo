@@ -77,40 +77,28 @@ class IncomingMessage(Message):
         )
 
 
-class OutgoingMessage(Message):
+def send_outgoing_message(
+    message_type: OutgoingMessageType, data: object, websocket_handler: WebSocketHandler
+) -> bool:
     """
-    Container class for outgoing messages
+    Send outgoing message and return True on success and False otherwise
 
-    Attributes:
+    Arguments:
 
         message_type: OutgoingMessageType - the type of the message
 
         data: object - any object implementing the jsonifyable method
+
+        websocket_handler: WebSocketHandler - the vehicle by which to send
+        the message
     """
 
-    def __init__(
-        self, message_type: OutgoingMessageType, data: object, *args, **kwargs
-    ) -> None:
-        self.message_type: OutgoingMessageType = message_type
-        self.data: object = data
-        super().__init__(*args, **kwargs)
-
-    def _jsonify(self) -> str:
-        return json.dumps(
-            {"message_type": self.message_type.name, "data": self.data.jsonifyable()}
-        )
-
-    def send(self) -> None:
-        try:
-            self.websocket_handler.write_message(self._jsonify())
-            logging.info(f"Sent a message of type {self.message_type}")
-            logging.debug(f"Message details: {self}")
-        except Exception as e:
-            logging.warn(f"Failed send a message {self} with exception {e}")
-
-    def __repr__(self) -> str:
-        return (
-            f"OutgoingMessage(message_type={self.message_type}"
-            f", data={self.data}"
-            f", timestamp={self.timestamp})"
-        )
+    msg = json.dumps({"message_type": message_type.name, "data": data.jsonifyable()})
+    try:
+        websocket_handler.write_message(msg)
+        logging.info(f"Sent a message of type {message_type}")
+        logging.debug(f"Message data: {msg}")
+        return True
+    except Exception as e:
+        logging.warn(f"Failed send a message of type {message_type} with exception {e}")
+        return False

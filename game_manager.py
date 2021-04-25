@@ -2,8 +2,8 @@ from constants import ACTION_TYPE, COLOR, COORDS, KEY, KEY_LEN, KOMI
 from messages import (
     IncomingMessage,
     IncomingMessageType,
-    OutgoingMessage,
     OutgoingMessageType,
+    send_outgoing_message,
 )
 from uuid import uuid4
 from typing import Dict, Optional, Tuple
@@ -204,11 +204,11 @@ class GameContainer:
         if success:
             self._write()
 
-        OutgoingMessage(
+        send_outgoing_message(
             OutgoingMessageType.game_action_response,
             ActionResponseContainer(success, explanation),
             msg.websocket_handler,
-        ).send()
+        )
 
         return success
 
@@ -289,9 +289,9 @@ class GameStore:
 
         for key in self.containers[gc]:
             if key in self.subscriptions:
-                OutgoingMessage(
+                send_outgoing_message(
                     OutgoingMessageType.game_status, gc.game, self.subscriptions[key]
-                ).send()
+                )
 
     def new_game(self, msg: IncomingMessage) -> None:
         """Create a new GameContainer according to the specification in msg,
@@ -317,11 +317,11 @@ class GameStore:
 
         # TODO: If msg.data[VS] is "computer", set up computer as second player
 
-        OutgoingMessage(
+        send_outgoing_message(
             OutgoingMessageType.new_game_response,
             NewGameResponseContainer(keys),
             msg.websocket_handler,
-        ).send()
+        )
 
         self._send_game_status(gc)
 
@@ -335,26 +335,26 @@ class GameStore:
 
         key = msg.data[KEY]
         if key in self.subscriptions:
-            OutgoingMessage(
+            send_outgoing_message(
                 OutgoingMessageType.join_game_response,
                 JoinGameResponseContainer(
                     False, "Someone else is already playing that game and color"
                 ),
                 msg.websocket_handler,
-            ).send()
+            )
         else:
             self.subscriptions[key] = msg.websocket_handler
             self.clients[msg.websocket_handler] = key
             gc = self.keys[key]
             color = gc.colors[key]
 
-            OutgoingMessage(
+            send_outgoing_message(
                 OutgoingMessageType.join_game_response,
                 JoinGameResponseContainer(
                     True, f"Successfully joined the game as {color.name}"
                 ),
                 msg.websocket_handler,
-            ).send()
+            )
 
             # if we are the first to join this game, e.g. because we are
             # resuming an old game, load it up from disk

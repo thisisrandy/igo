@@ -2,8 +2,8 @@ from game import ActionType, Color, Game
 from messages import (
     IncomingMessage,
     IncomingMessageType,
-    OutgoingMessage,
     OutgoingMessageType,
+    send_outgoing_message,
 )
 import unittest
 from unittest.mock import Mock, patch
@@ -79,25 +79,23 @@ class IncomingMessageTestCase(unittest.TestCase):
 
 
 @patch.object(WebSocketHandler, "__init__", lambda self: None)
+@patch.object(WebSocketHandler, "write_message")
 class OutgoingMessageTestCase(unittest.TestCase):
-    def test_jsonify(self):
-        msg = OutgoingMessage(
+    def test_jsonify(self, write_message: Mock):
+        send_outgoing_message(
             OutgoingMessageType.game_status, Game(1), WebSocketHandler()
         )
-        self.assertEqual(
-            msg._jsonify(),
+        write_message.assert_called_once_with(
             json.dumps(
                 {
                     "message_type": OutgoingMessageType.game_status.name,
                     "data": Game(1).jsonifyable(),
                 }
-            ),
+            )
         )
 
-    @patch("tornado.websocket.WebSocketHandler.write_message")
-    def test_send(self, mock_write_message: Mock):
-        msg = OutgoingMessage(
+    def test_send(self, write_message: Mock):
+        send_outgoing_message(
             OutgoingMessageType.game_status, Game(1), WebSocketHandler()
         )
-        msg.send()
-        mock_write_message.assert_called()
+        write_message.assert_called()

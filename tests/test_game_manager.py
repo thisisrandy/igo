@@ -105,8 +105,8 @@ class GameContainerTestCase(unittest.TestCase):
             gc.pass_message(msg)
 
     @patch("game_manager.GameContainer._write")
-    @patch("messages.OutgoingMessage.send")
-    def test_pass_message(self, send: Mock, _write: Mock):
+    @patch("game_manager.send_outgoing_message")
+    def test_pass_message(self, send_outgoing_message: Mock, _write: Mock):
         gc = GameContainer(self.filepath, self.keys, Game(1))
         # assert once here in order to assert unambiguously below that
         # pass_message will also call _write exactly once
@@ -124,7 +124,7 @@ class GameContainerTestCase(unittest.TestCase):
         )
         self.assertTrue(gc.pass_message(msg))
         self.assertEqual(_write.call_count, 2)
-        send.assert_called_once()
+        send_outgoing_message.assert_called_once()
         self.assertIsNotNone(gc.game.pending_request)
 
 
