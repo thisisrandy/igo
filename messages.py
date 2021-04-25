@@ -81,7 +81,16 @@ def send_outgoing_message(
     message_type: OutgoingMessageType, data: object, websocket_handler: WebSocketHandler
 ) -> bool:
     """
-    Send outgoing message and return True on success and False otherwise
+    Send outgoing message. Return True on success and False otherwise
+
+    NOTE: This is a module method and not a class because conceptually,
+    outgoing messages are meant to be sent immediately and not checked/routed
+    through any components other that a WebSocketHandler. There is also a
+    practical reason: I can't for the life of me figure out how to check how
+    a constructor was called with the unittest library, so testing this as
+    e.g. a class with an argumentless send method was proving difficult. Note
+    that the method detailed e.g. at tinyurl.com/996jp3m, which uses the old
+    mock library, is no longer valid
 
     Arguments:
 
