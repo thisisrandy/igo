@@ -186,7 +186,7 @@ class GameContainer:
             self._write()
 
         OutgoingMessage(
-            OutgoingMessageType.action_response,
+            OutgoingMessageType.game_action_response,
             ActionResponseContainer(success, explanation),
             msg.websocket_handler,
         ).send()
