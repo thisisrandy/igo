@@ -24,12 +24,18 @@ class NewGameResponseContainer:
     Attributes:
 
         keys: Dict[Color, str] - color to newly created key mapping
+
+        your_color: Color - the color that the user is subscribed to
     """
 
     keys: Dict[Color, str]
+    your_color: Color
 
     def jsonifyable(self) -> Dict[str, str]:
-        return {k.name: v for k, v in self.keys.items()}
+        return {
+            "keys": {k.name: v for k, v in self.keys.items()},
+            "your_color": self.your_color.name,
+        }
 
 
 @dataclass
@@ -43,21 +49,28 @@ class JoinGameResponseContainer:
         success: bool - whether or not the join request succeeded
 
         explanation: str - an explanatory string
+
+        your_color: Optional[Color] = None - if success, the color that the
+        user is subscribed to, and None otherwise
     """
 
     success: bool
     explanation: str
+    your_color: Optional[Color] = None
 
     def jsonifyable(self):
-        return {"success": self.success, "explanation": self.explanation}
+        return {
+            "success": self.success,
+            "explanation": self.explanation,
+            "your_color": self.your_color.name if self.your_color else None,
+        }
 
 
 @dataclass
-class ActionResponseContainer(JoinGameResponseContainer):
+class ActionResponseContainer:
     """
     A container for the response from Game.take_action which implements
-    jsonifyable. Note that JoinGameResponseContainer is subclassed, as its
-    fields and serialization prep are identical
+    jsonifyable
 
     Attributes:
 
@@ -65,6 +78,12 @@ class ActionResponseContainer(JoinGameResponseContainer):
 
         explanation: str - explanation of success
     """
+
+    success: bool
+    explanation: str
+
+    def jsonifyable(self):
+        return {"success": self.success, "explanation": self.explanation}
 
 
 class GameContainer:

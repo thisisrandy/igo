@@ -18,13 +18,22 @@ import json
 
 class ResponseContainerTestCase(unittest.TestCase):
     def test_new_game(self):
-        new_game = NewGameResponseContainer({Color.white: "1234", Color.black: "5678"})
-        self.assertEqual(new_game.jsonifyable(), {"white": "1234", "black": "5678"})
+        new_game = NewGameResponseContainer(
+            {Color.white: "1234", Color.black: "5678"}, Color.white
+        )
+        self.assertEqual(
+            new_game.jsonifyable(),
+            {
+                "keys": {"white": "1234", "black": "5678"},
+                "your_color": Color.white.name,
+            },
+        )
 
     def test_join_game(self):
-        join_game = JoinGameResponseContainer(True, "because")
+        join_game = JoinGameResponseContainer(True, "because", Color.white)
         self.assertEqual(
-            join_game.jsonifyable(), {"success": True, "explanation": "because"}
+            join_game.jsonifyable(),
+            {"success": True, "explanation": "because", "your_color": Color.white.name},
         )
 
     def test_action_response(self):
