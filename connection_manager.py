@@ -43,7 +43,7 @@ class EchoWebSocket(tornado.websocket.WebSocketHandler):
 
 class Application(tornado.web.Application):
     def __init__(self):
-        handlers = [(r"/ws", EchoWebSocket)]
+        handlers = [(r"/websocket", EchoWebSocket)]
         settings = dict(
             cookie_secret=token_urlsafe(),
             xsrf_cookies=True,
