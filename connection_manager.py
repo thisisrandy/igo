@@ -1,3 +1,5 @@
+from messages import IncomingMessage
+from game_manager import GameManager
 from secrets import token_urlsafe
 import logging
 import tornado.web
@@ -26,24 +28,29 @@ def _parse_log_level(string: str) -> int:
         raise ValueError(f"{string} is not a valid log level")
 
 
-class EchoWebSocket(tornado.websocket.WebSocketHandler):
-    def open(self):
-        print("WebSocket opened")
-        print(self)
+class IgoWebSocket(tornado.websocket.WebSocketHandler):
+    game_manager = GameManager()
 
-    def on_message(self, message):
-        self.write_message("You said: " + message)
+    def open(self):
+        logging.info("New connection opened")
+
+    def on_message(self, json: str):
+        logging.info("Received message")
+        logging.debug(f"Message details: {json}")
+        self.__class__.game_manager.route_message(IncomingMessage(json, self))
 
     def on_close(self):
-        print("WebSocket closed")
+        logging.info("Connection closed")
+        self.__class__.game_manager.unsubscribe(self)
 
     def check_origin(self, origin):
+        # TODO: some sort of check here
         return True
 
 
 class Application(tornado.web.Application):
     def __init__(self):
-        handlers = [(r"/websocket", EchoWebSocket)]
+        handlers = [(r"/websocket", IgoWebSocket)]
         settings = dict(
             cookie_secret=token_urlsafe(),
             xsrf_cookies=True,
@@ -51,9 +58,14 @@ class Application(tornado.web.Application):
         super().__init__(handlers, **settings)
 
 
-if __name__ == "__main__":
-    tornado.options.parse_command_line()
+def main():
+    options.parse_command_line()
     logging.basicConfig(level=_parse_log_level(options.loglevel))
     app = Application()
     app.listen(options.port)
+    logging.info(f"Listening on port {options.port}")
     tornado.ioloop.IOLoop.current().start()
+
+
+if __name__ == "__main__":
+    main()
