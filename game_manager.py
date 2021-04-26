@@ -126,6 +126,7 @@ class GameContainer:
         self._filename = os.path.basename(self._filepath)
 
         if self.game:
+            logging.info(f"Created new game {self._filename}")
             self._write()
 
     def __hash__(self) -> int:
@@ -272,6 +273,8 @@ class GameStore:
             gc = GameContainer(path, {Color.white: key_w, Color.black: key_b})
             self.keys[key_w] = self.keys[key_b] = gc
             self.containers[gc] = (key_w, key_b)
+
+            logging.info(f"Discovered game {f} in store {self.dir}")
 
     def route_message(self, msg: IncomingMessage) -> None:
         key = msg.data[KEY]
