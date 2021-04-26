@@ -355,6 +355,18 @@ class GameStore:
                 ),
                 msg.websocket_handler,
             )
+        elif msg.websocket_handler in self.clients:
+            send_outgoing_message(
+                OutgoingMessageType.join_game_response,
+                JoinGameResponseContainer(
+                    False,
+                    (
+                        "You are already playing a game using key"
+                        f"{self.clients[msg.websocket_handler]}"
+                    ),
+                ),
+                msg.websocket_handler,
+            )
         elif key in self.subscriptions:
             send_outgoing_message(
                 OutgoingMessageType.join_game_response,
