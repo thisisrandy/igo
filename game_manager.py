@@ -293,12 +293,21 @@ class GameStore:
                     OutgoingMessageType.game_status, gc.game, self.subscriptions[key]
                 )
 
-    def new_game(self, msg: IncomingMessage) -> None:
-        """Create a new GameContainer according to the specification in msg,
-        store it in our routing tables, and respond appropriately"""
+    def new_game(self, msg: IncomingMessage, _keys: Dict[Color, str] = None) -> None:
+        """
+        Create a new GameContainer according to the specification in msg,
+        store it in our routing tables, and respond appropriately.
 
-        key_w, key_b = [uuid4().hex[-KEY_LEN:] for _ in range(2)]
-        keys = {Color.white: key_w, Color.black: key_b}
+        NB: _keys is for testing purposes only. in production, randomly
+        generated keys should always be used
+        """
+
+        if _keys:
+            key_w, key_b = _keys[Color.white], _keys[Color.black]
+            keys = _keys
+        else:
+            key_w, key_b = [uuid4().hex[-KEY_LEN:] for _ in range(2)]
+            keys = {Color.white: key_w, Color.black: key_b}
 
         assert (
             key_w not in self.keys and key_b not in self.keys
