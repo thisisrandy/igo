@@ -444,4 +444,14 @@ class GameStoreTestCase(unittest.TestCase):
 
 
 class GameManagerTestCase(unittest.TestCase):
-    pass
+    def test_init(self):
+        # test that store with correct dir is created
+        pass
+
+    def test_unsubscribe(self):
+        # test that store's unsubscribe is called
+        pass
+
+    def test_route_message(self):
+        # test that correct store methods are called for each message type
+        pass
