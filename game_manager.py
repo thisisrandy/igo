@@ -343,7 +343,19 @@ class GameStore:
         ), "A client is attempting to subscribe to more than one key"
 
         key = msg.data[KEY]
-        if key in self.subscriptions:
+        if key not in self.keys:
+            send_outgoing_message(
+                OutgoingMessageType.join_game_response,
+                JoinGameResponseContainer(
+                    False,
+                    (
+                        f"A game corresponding to key {key} was not found. Please"
+                        " double-check and try again"
+                    ),
+                ),
+                msg.websocket_handler,
+            )
+        elif key in self.subscriptions:
             send_outgoing_message(
                 OutgoingMessageType.join_game_response,
                 JoinGameResponseContainer(
