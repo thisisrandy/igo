@@ -137,5 +137,7 @@ def send_outgoing_message(
         logging.debug(f"Message data: {msg}")
         return True
     except Exception as e:
-        logging.warn(f"Failed send a message of type {message_type} with exception {e}")
+        logging.warning(
+            f"Failed send a message of type {message_type} with exception {e}"
+        )
         return False

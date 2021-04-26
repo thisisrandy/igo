@@ -145,7 +145,7 @@ class GameContainer:
 
     def load(self) -> None:
         if self._is_loaded():
-            logging.warn(f"Tried to load already loaded game {self._filename}")
+            logging.warning(f"Tried to load already loaded game {self._filename}")
             return
 
         with open(self._filepath, "rb") as reader:
@@ -155,7 +155,7 @@ class GameContainer:
 
     def unload(self) -> None:
         if not self._is_loaded():
-            logging.warn(f"Tried to unload already unload game {self._filename}")
+            logging.warning(f"Tried to unload already unload game {self._filename}")
             return
 
         self.game = None
@@ -253,13 +253,13 @@ class GameStore:
         for f in os.listdir(self.dir):
             path = os.path.join(self.dir, f)
             if not os.path.isfile(path):
-                logging.warn(
+                logging.warning(
                     f"The store directory ({self.dir}) should only contain files, but a"
                     " directory ({f}) was found. Ignoring"
                 )
                 continue
             if len(f) != KEY_LEN * 2:
-                logging.warn(
+                logging.warning(
                     f"Found a file with a name of the wrong length ({f}, expected"
                     " length {KEY_LEN*2}). Ignoring"
                 )
