@@ -400,7 +400,8 @@ class GameStoreTestCase(unittest.TestCase):
         gc.pass_message.assert_called_once()
         gs._send_game_status.assert_not_called()
 
-    def test_unsubscribe(self):
+    @patch("game_manager.send_outgoing_message")
+    def test_unsubscribe(self, _):
         # make sure num subscribers decreases and that game remains loaded if
         # remaining subscribers is 1 and is unloaded otherwise
         p1, p2 = WebSocketHandler(), WebSocketHandler()
