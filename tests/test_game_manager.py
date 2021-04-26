@@ -403,7 +403,44 @@ class GameStoreTestCase(unittest.TestCase):
     def test_unsubscribe(self):
         # make sure num subscribers decreases and that game remains loaded if
         # remaining subscribers is 1 and is unloaded otherwise
-        pass
+        p1, p2 = WebSocketHandler(), WebSocketHandler()
+        key_w, key_b, dir = self.set_up_game_container()
+        gs = GameStore(dir)
+        gc = gs.keys[key_w]
+
+        # one player
+        gs.join_game(
+            IncomingMessage(
+                json.dumps({TYPE: IncomingMessageType.join_game.name, KEY: key_w}),
+                p1,
+            )
+        )
+        self.assertTrue(gc._is_loaded())
+        # no-op
+        gs.unsubscribe(p2)
+        self.assertTrue(gc._is_loaded())
+        # real unsub
+        gs.unsubscribe(p1)
+        self.assertFalse(gc._is_loaded())
+
+        # two players
+        gs.join_game(
+            IncomingMessage(
+                json.dumps({TYPE: IncomingMessageType.join_game.name, KEY: key_w}),
+                p1,
+            )
+        )
+        gs.join_game(
+            IncomingMessage(
+                json.dumps({TYPE: IncomingMessageType.join_game.name, KEY: key_b}),
+                p2,
+            )
+        )
+        self.assertTrue(gc._is_loaded())
+        gs.unsubscribe(p1)
+        self.assertTrue(gc._is_loaded())
+        gs.unsubscribe(p2)
+        self.assertFalse(gc._is_loaded())
 
 
 class GameManagerTestCase(unittest.TestCase):
