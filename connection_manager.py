@@ -18,8 +18,7 @@ class IgoWebSocket(tornado.websocket.WebSocketHandler):
         logging.info("New connection opened")
 
     def on_message(self, json: str):
-        logging.info("Received message")
-        logging.debug(f"Message details: {json}")
+        logging.info(f"Received message: {json}")
         self.__class__.game_manager.route_message(IncomingMessage(json, self))
 
     def on_close(self):
