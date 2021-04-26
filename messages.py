@@ -48,6 +48,14 @@ class Message:
         self.websocket_handler: WebSocketHandler = websocket_handler
         self.timestamp: float = datetime.now().timestamp()
 
+    def __eq__(self, o: object) -> bool:
+        if not isinstance(o, self.__class__):
+            return False
+        return (
+            self.websocket_handler is o.websocket_handler
+            and self.timestamp == o.timestamp
+        )
+
 
 class IncomingMessage(Message):
     """
@@ -74,6 +82,15 @@ class IncomingMessage(Message):
     def __repr__(self) -> str:
         return (
             f"IncomingMessage(messsage_type={self.message_type}" f", data={self.data})"
+        )
+
+    def __eq__(self, o: object) -> bool:
+        if not isinstance(o, self.__class__):
+            return False
+        return (
+            self.data == o.data
+            and self.message_type == o.message_type
+            and super().__eq__(o)
         )
 
 

@@ -1,3 +1,4 @@
+from datetime import datetime
 from game import ActionType, Color, Game
 from messages import (
     IncomingMessage,
@@ -13,6 +14,8 @@ import json
 
 
 @patch.object(WebSocketHandler, "__init__", lambda self: None)
+@patch.object(WebSocketHandler, "__hash__", lambda self: 1)
+@patch.object(WebSocketHandler, "__eq__", lambda self, o: o is self)
 class IncomingMessageTestCase(unittest.TestCase):
     def test_create_message(self):
         # test required keys (incorrect)
@@ -75,6 +78,43 @@ class IncomingMessageTestCase(unittest.TestCase):
             self.fail(
                 f"Correctly specified IncomingMessage still failed required key assertion: {e}"
             )
+
+    def test_eq(self):
+        ts = datetime.now().timestamp()
+        p1, p2 = WebSocketHandler(), WebSocketHandler()
+        m1 = IncomingMessage(
+            json.dumps(
+                {
+                    TYPE: IncomingMessageType.new_game.name,
+                    VS: "human",
+                    COLOR: Color.white.name,
+                    KOMI: 6.5,
+                }
+            ),
+            p1,
+        )
+        m2 = IncomingMessage(
+            json.dumps(
+                {
+                    TYPE: IncomingMessageType.new_game.name,
+                    VS: "human",
+                    COLOR: Color.white.name,
+                    KOMI: 6.5,
+                }
+            ),
+            p1,
+        )
+        self.assertNotEqual(m1, m2)
+        m1.timestamp = m2.timestamp = ts
+        self.assertEqual(m1, m2)
+        m2.websocket_handler = p2
+        self.assertNotEqual(m1, m2)
+        m2 = IncomingMessage(
+            json.dumps({TYPE: IncomingMessageType.join_game.name, KEY: "0123456789"}),
+            p1,
+        )
+        m2.timestamp = ts
+        self.assertNotEqual(m1, m2)
 
 
 @patch.object(WebSocketHandler, "__init__", lambda self: None)
