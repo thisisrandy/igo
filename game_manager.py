@@ -435,6 +435,11 @@ class GameManager:
 
             store: str = (script dir)/store
         """
+        if not os.path.exists(store_dir):
+            logging.info(f"{store_dir} does not exist. Attempting to create...")
+            os.mkdir(store_dir)
+        elif not os.path.isdir(store_dir):
+            raise NotADirectoryError(f"{store_dir} is not a directory")
 
         self.store = GameStore(store_dir)
 
