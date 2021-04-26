@@ -338,10 +338,6 @@ class GameStore:
         """Attempt to subscribe to the key specified in msg and respond
         appropriately"""
 
-        assert (
-            msg.websocket_handler not in self.clients
-        ), "A client is attempting to subscribe to more than one key"
-
         key = msg.data[KEY]
         if key not in self.keys:
             send_outgoing_message(
