@@ -190,7 +190,7 @@ class GameContainer:
         success, explanation = self.game.take_action(
             Action(
                 ActionType[msg.data[ACTION_TYPE]],
-                Color[msg.data[COLOR]],
+                self.colors[msg.data[KEY]],
                 msg.timestamp,
                 tuple(msg.data[COORDS]) if COORDS in msg.data else None,
             )

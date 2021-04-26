@@ -21,7 +21,7 @@ class IncomingMessageType(Enum):
         return {
             IncomingMessageType.new_game: [VS, COLOR, KOMI],
             IncomingMessageType.join_game: [KEY],
-            IncomingMessageType.game_action: [KEY, ACTION_TYPE, COLOR],
+            IncomingMessageType.game_action: [KEY, ACTION_TYPE],
         }
 
 

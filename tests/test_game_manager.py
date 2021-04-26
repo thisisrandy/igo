@@ -86,9 +86,8 @@ class GameContainerTestCase(unittest.TestCase):
             json.dumps(
                 {
                     TYPE: IncomingMessageType.game_action.name,
-                    KEY: "0123456789",
+                    KEY: self.keys[Color.white],
                     ACTION_TYPE: ActionType.place_stone.name,
-                    COLOR: Color.white.name,
                 }
             ),
             WebSocketHandler(),
@@ -116,9 +115,8 @@ class GameContainerTestCase(unittest.TestCase):
             json.dumps(
                 {
                     TYPE: IncomingMessageType.game_action.name,
-                    KEY: "0123456789",
+                    KEY: self.keys[Color.white],
                     ACTION_TYPE: ActionType.request_draw.name,
-                    COLOR: Color.white.name,
                 }
             ),
             WebSocketHandler(),

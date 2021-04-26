@@ -67,7 +67,6 @@ class IncomingMessageTestCase(unittest.TestCase):
                         TYPE: IncomingMessageType.game_action.name,
                         KEY: "0123456789",
                         ACTION_TYPE: ActionType.place_stone.name,
-                        COLOR: Color.white.name,
                     }
                 ),
                 WebSocketHandler(),
