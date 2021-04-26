@@ -2,6 +2,7 @@ from constants import ACTION_TYPE, COLOR, COORDS, KEY, KEY_LEN, KOMI
 from messages import (
     IncomingMessage,
     IncomingMessageType,
+    JsonifyableBase,
     OutgoingMessageType,
     send_outgoing_message,
 )
@@ -16,7 +17,7 @@ from tornado.websocket import WebSocketHandler
 
 
 @dataclass
-class NewGameResponseContainer:
+class NewGameResponseContainer(JsonifyableBase):
     """
     A container for the response to a new game request which implements
     jsonifyable
@@ -39,7 +40,7 @@ class NewGameResponseContainer:
 
 
 @dataclass
-class JoinGameResponseContainer:
+class JoinGameResponseContainer(JsonifyableBase):
     """
     A container for the response to a join game request which implements
     jsonifyable
@@ -67,7 +68,7 @@ class JoinGameResponseContainer:
 
 
 @dataclass
-class ActionResponseContainer:
+class ActionResponseContainer(JsonifyableBase):
     """
     A container for the response from Game.take_action which implements
     jsonifyable

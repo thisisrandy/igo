@@ -3,9 +3,10 @@ from constants import ACTION_TYPE, COLOR, VS, KOMI, KEY, TYPE
 from datetime import datetime
 from enum import Enum, auto
 import json
-from typing import Dict, List
+from typing import Dict, List, Any
 import logging
 from tornado.websocket import WebSocketHandler
+from abc import ABC, abstractmethod
 
 
 class IncomingMessageType(Enum):
@@ -94,8 +95,18 @@ class IncomingMessage(Message):
         )
 
 
+class JsonifyableBase(ABC):
+    """Base class for classes usable as OutgoingMessage data"""
+
+    @abstractmethod
+    def jsonifyable(self) -> Any:
+        raise NotImplementedError()
+
+
 def send_outgoing_message(
-    message_type: OutgoingMessageType, data: object, websocket_handler: WebSocketHandler
+    message_type: OutgoingMessageType,
+    data: JsonifyableBase,
+    websocket_handler: WebSocketHandler,
 ) -> bool:
     """
     Send outgoing message. Return True on success and False otherwise
@@ -113,7 +124,7 @@ def send_outgoing_message(
 
         message_type: OutgoingMessageType - the type of the message
 
-        data: object - any object implementing the jsonifyable method
+        data: JsonifyableBase - any object implementing the jsonifyable method
 
         websocket_handler: WebSocketHandler - the vehicle by which to send
         the message

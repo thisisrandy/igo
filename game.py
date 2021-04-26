@@ -1,6 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum, auto
+from messages import JsonifyableBase
 from typing import Dict, List, Optional, Set, Tuple
 from copy import deepcopy
 
@@ -69,7 +70,7 @@ class Action:
 
 
 @dataclass
-class Request:
+class Request(JsonifyableBase):
     """
     Container class for requests that are pending response
 
@@ -91,7 +92,7 @@ class Request:
 
 
 @dataclass
-class Result:
+class Result(JsonifyableBase):
     """
     Container class for the final result of the game
 
@@ -115,7 +116,7 @@ class Result:
 
 
 @dataclass
-class Point:
+class Point(JsonifyableBase):
     """
     Container class for board points
 
@@ -165,7 +166,7 @@ class Point:
         return str(self)
 
 
-class Board:
+class Board(JsonifyableBase):
     """
     Subscriptable 2d container class for the full board. `Board()[i][j] -> Point`
 
@@ -174,7 +175,7 @@ class Board:
         size: int - the number of points on either side of the board
     """
 
-    class _BoardRow:
+    class _BoardRow(JsonifyableBase):
         def __init__(self, size: int) -> None:
             self._row = [Point() for _ in range(size)]
 
@@ -220,7 +221,7 @@ class Board:
         return [r.jsonifyable() for r in self._rows]
 
 
-class Game:
+class Game(JsonifyableBase):
     """
     The state and rule logic of a go game
 
