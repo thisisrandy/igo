@@ -9,6 +9,7 @@ from game import ActionType, Color, Game
 from game_manager import (
     ActionResponseContainer,
     GameContainer,
+    GameManager,
     GameStore,
     JoinGameResponseContainer,
     NewGameResponseContainer,
@@ -16,7 +17,7 @@ from game_manager import (
 import unittest
 from unittest.mock import MagicMock, Mock, call, patch
 import tempfile
-from constants import ACTION_TYPE, COLOR, KEY, KEY_LEN, TYPE, VS, KOMI
+from constants import ACTION_TYPE, COLOR, COORDS, KEY, KEY_LEN, TYPE, VS, KOMI
 from tornado.websocket import WebSocketHandler
 import json
 
@@ -443,15 +444,63 @@ class GameStoreTestCase(unittest.TestCase):
         self.assertFalse(gc._is_loaded())
 
 
+@patch.object(WebSocketHandler, "__init__", lambda self: None)
+@patch.object(WebSocketHandler, "__hash__", lambda self: 1)
+@patch.object(WebSocketHandler, "__eq__", lambda self, o: o is self)
 class GameManagerTestCase(unittest.TestCase):
+    def setUp(self) -> None:
+        self.dir = tempfile.mkdtemp()
+        self.gm = GameManager(self.dir)
+
     def test_init(self):
         # test that store with correct dir is created
-        pass
+        self.assertEqual(self.gm.store.dir, self.dir)
 
-    def test_unsubscribe(self):
+    @patch.object(GameStore, "unsubscribe")
+    def test_unsubscribe(self, unsubscribe: Mock):
         # test that store's unsubscribe is called
-        pass
+        player = WebSocketHandler()
+        self.gm.unsubscribe(player)
+        unsubscribe.assert_called_once_with(player)
 
-    def test_route_message(self):
+    @patch.object(GameStore, "new_game")
+    @patch.object(GameStore, "join_game")
+    @patch.object(GameStore, "route_message")
+    def test_route_message(self, route_message: Mock, join_game: Mock, new_game: Mock):
         # test that correct store methods are called for each message type
-        pass
+        player = WebSocketHandler()
+
+        msg = IncomingMessage(
+            json.dumps(
+                {
+                    TYPE: IncomingMessageType.new_game.name,
+                    VS: "human",
+                    COLOR: Color.white.name,
+                    KOMI: 6.5,
+                }
+            ),
+            player,
+        )
+        self.gm.route_message(msg)
+        new_game.assert_called_once_with(msg)
+
+        msg = IncomingMessage(
+            json.dumps({TYPE: IncomingMessageType.join_game.name, KEY: "0123456789"}),
+            player,
+        )
+        self.gm.route_message(msg)
+        join_game.assert_called_once_with(msg)
+
+        msg = IncomingMessage(
+            json.dumps(
+                {
+                    TYPE: IncomingMessageType.game_action.name,
+                    KEY: "0123456789",
+                    ACTION_TYPE: ActionType.place_stone.name,
+                    COORDS: (0, 0),
+                }
+            ),
+            player,
+        )
+        self.gm.route_message(msg)
+        route_message.assert_called_once_with(msg)
