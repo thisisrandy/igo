@@ -362,7 +362,7 @@ class GameStore:
                     False,
                     (
                         "You are already playing a game using key"
-                        f"{self.clients[msg.websocket_handler]}"
+                        f" {self.clients[msg.websocket_handler]}"
                     ),
                 ),
                 msg.websocket_handler,
