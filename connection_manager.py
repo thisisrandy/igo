@@ -6,26 +6,9 @@ import tornado.web
 import tornado.websocket
 from tornado.options import define, options
 
+# NOTE: tornado configures logging and provides some command line options by
+# default.  See --help for details
 define("port", default=8888, help="run on the given port", type=int)
-define("loglevel", default="info", help="set the logging level to this", type=str)
-
-
-def _parse_log_level(string: str) -> int:
-    string = string.lower()
-    if string == "notset":
-        return logging.NOTSET
-    elif string == "debug":
-        return logging.DEBUG
-    elif string == "info":
-        return logging.INFO
-    elif string == "warn" or string == "warning":
-        return logging.WARNING
-    elif string == "error":
-        return logging.ERROR
-    elif string == "critical":
-        return logging.CRITICAL
-    else:
-        raise ValueError(f"{string} is not a valid log level")
 
 
 class IgoWebSocket(tornado.websocket.WebSocketHandler):
@@ -60,7 +43,6 @@ class Application(tornado.web.Application):
 
 def main():
     options.parse_command_line()
-    logging.basicConfig(level=_parse_log_level(options.loglevel))
     app = Application()
     app.listen(options.port)
     logging.info(f"Listening on port {options.port}")
