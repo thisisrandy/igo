@@ -276,6 +276,7 @@ class GameStore:
         key = msg.data[KEY]
 
         assert key in self.keys, f"Received message with unknown key {key}"
+        assert key in self.subscriptions, f"No one is subscribed to {key}"
         assert self.subscriptions[key] == msg.websocket_handler, (
             f"Received message with key {key} from a client who isn't subscribed to"
             " that key"
