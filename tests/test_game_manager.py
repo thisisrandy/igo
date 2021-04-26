@@ -1,4 +1,9 @@
-from messages import IncomingMessage, IncomingMessageType, OutgoingMessageType
+import messages
+from messages import (
+    IncomingMessage,
+    IncomingMessageType,
+    OutgoingMessageType,
+)
 import os
 from uuid import uuid4
 from game import ActionType, Color, Game
@@ -10,7 +15,7 @@ from game_manager import (
     NewGameResponseContainer,
 )
 import unittest
-from unittest.mock import Mock, call, patch
+from unittest.mock import MagicMock, Mock, call, patch
 import tempfile
 from constants import ACTION_TYPE, COLOR, KEY, KEY_LEN, TYPE, VS, KOMI
 from tornado.websocket import WebSocketHandler
@@ -341,10 +346,59 @@ class GameStoreTestCase(unittest.TestCase):
             any_order=True,
         )
 
+    @patch("game_manager.send_outgoing_message", lambda *args: None)
     def test_route_message(self):
         # mock out GameContainer to intercept pass_message. ensure that status
         # is sent via mock on success and not sent on failure
-        pass
+        player = WebSocketHandler()
+        key_w, _, dir = self.set_up_game_container()
+        gs = GameStore(dir)
+        gc = gs.keys[key_w]
+
+        gs.join_game(
+            IncomingMessage(
+                json.dumps({TYPE: IncomingMessageType.join_game.name, KEY: key_w}),
+                player,
+            )
+        )
+
+        # success
+        gs._send_game_status = MagicMock()
+        gc.pass_message = MagicMock(return_value=True)
+        gs.route_message(
+            IncomingMessage(
+                json.dumps(
+                    {
+                        TYPE: IncomingMessageType.game_action.name,
+                        KEY: key_w,
+                        ACTION_TYPE: ActionType.place_stone.name,
+                    }
+                ),
+                player,
+            )
+        )
+
+        gc.pass_message.assert_called_once()
+        gs._send_game_status.assert_called_once()
+
+        # failure
+        gs._send_game_status = MagicMock()
+        gc.pass_message = MagicMock(return_value=False)
+        gs.route_message(
+            IncomingMessage(
+                json.dumps(
+                    {
+                        TYPE: IncomingMessageType.game_action.name,
+                        KEY: key_w,
+                        ACTION_TYPE: ActionType.place_stone.name,
+                    }
+                ),
+                player,
+            )
+        )
+
+        gc.pass_message.assert_called_once()
+        gs._send_game_status.assert_not_called()
 
     def test_unsubscribe(self):
         # make sure num subscribers decreases and that game remains loaded if
