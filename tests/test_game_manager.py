@@ -1,4 +1,3 @@
-import messages
 from messages import (
     IncomingMessage,
     IncomingMessageType,
