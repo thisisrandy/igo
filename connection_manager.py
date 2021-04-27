@@ -1,3 +1,5 @@
+from typing import Any
+from tornado import httputil
 from messages import IncomingMessage
 from game_manager import GameManager
 from secrets import token_urlsafe
@@ -12,7 +14,31 @@ define("port", default=8888, help="run on the given port", type=int)
 
 
 class IgoWebSocket(tornado.websocket.WebSocketHandler):
-    game_manager = GameManager()
+    def __init__(
+        self,
+        application: tornado.web.Application,
+        request: httputil.HTTPServerRequest,
+        **kwargs: Any,
+    ) -> None:
+        assert hasattr(
+            self.__class__, "game_manager"
+        ), f"{self.__class__.__name__}.init must be called before use"
+        super().__init__(application, request, **kwargs)
+
+    @classmethod
+    def init(cls, game_manager: GameManager):
+        """
+        Must be called before use. We want tornado to have priority
+        setting up, so this is best called immediately before starting the
+        event loop.
+
+        To illustrate why, consider e.g. that logging may occur during
+        GameManager set up. If we allow that to happen before calling
+        tornado.options.parse_command_line, tornado's pretty logging will be
+        preempted with the default logger settings
+        """
+
+        cls.game_manager = game_manager
 
     def open(self):
         logging.info("New connection opened")
@@ -44,6 +70,7 @@ def main():
     options.parse_command_line()
     app = Application()
     app.listen(options.port)
+    IgoWebSocket.init(GameManager())
     logging.info(f"Listening on port {options.port}")
     tornado.ioloop.IOLoop.current().start()
 
