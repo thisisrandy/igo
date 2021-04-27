@@ -324,6 +324,11 @@ class GameStore:
             key_w not in self.keys and key_b not in self.keys
         ), "Duplicate key, blowing up"
 
+        if msg.websocket_handler in self.clients:
+            old_key = self.clients[msg.websocket_handler]
+            logging.info(f"Client requesting new game already subscribed to {old_key}")
+            self.unsubscribe(msg.websocket_handler)
+
         path = os.path.join(self.dir, f"{key_w}{key_b}")
         # TODO: If I decide to support different board sizes, here is the place
         # to plug it in
