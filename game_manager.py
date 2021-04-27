@@ -390,18 +390,6 @@ class GameStore:
                 ),
                 msg.websocket_handler,
             )
-        elif msg.websocket_handler in self.clients:
-            send_outgoing_message(
-                OutgoingMessageType.join_game_response,
-                JoinGameResponseContainer(
-                    False,
-                    (
-                        "You are already playing a game using key"
-                        f" {self.clients[msg.websocket_handler]}"
-                    ),
-                ),
-                msg.websocket_handler,
-            )
         elif key in self.subscriptions:
             send_outgoing_message(
                 OutgoingMessageType.join_game_response,
@@ -411,6 +399,13 @@ class GameStore:
                 msg.websocket_handler,
             )
         else:
+            if msg.websocket_handler in self.clients:
+                old_key = self.clients[msg.websocket_handler]
+                logging.info(
+                    f"Client requesting join game already subscribed to {old_key}"
+                )
+                self.unsubscribe(msg.websocket_handler)
+
             self.subscriptions[key] = msg.websocket_handler
             self.clients[msg.websocket_handler] = key
             gc = self.keys[key]

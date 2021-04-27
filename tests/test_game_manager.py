@@ -278,6 +278,29 @@ class GameStoreTestCase(unittest.TestCase):
             ],
         )
 
+        gs.join_game(
+            IncomingMessage(
+                json.dumps({TYPE: IncomingMessageType.join_game.name, KEY: key_b}),
+                p1,
+            )
+        )
+        self.assertEqual(len(gs.subscriptions), 1)
+        self.assertTrue(gc._is_loaded())
+        send_outgoing_message.assert_has_calls(
+            [
+                call(
+                    OutgoingMessageType.join_game_response,
+                    JoinGameResponseContainer(
+                        True,
+                        "Successfully joined the game as black",
+                        Color.black,
+                    ),
+                    p1,
+                ),
+                call(OutgoingMessageType.game_status, gc.game, p1),
+            ],
+        )
+
         # join unsuccessfully in various ways and make sure current message sent
         bad_key = "0000000000"
         gs.join_game(
@@ -300,20 +323,6 @@ class GameStoreTestCase(unittest.TestCase):
         gs.join_game(
             IncomingMessage(
                 json.dumps({TYPE: IncomingMessageType.join_game.name, KEY: key_b}),
-                p1,
-            )
-        )
-        send_outgoing_message.assert_called_with(
-            OutgoingMessageType.join_game_response,
-            JoinGameResponseContainer(
-                False,
-                f"You are already playing a game using key {key_w}",
-            ),
-            p1,
-        )
-        gs.join_game(
-            IncomingMessage(
-                json.dumps({TYPE: IncomingMessageType.join_game.name, KEY: key_w}),
                 p2,
             )
         )
@@ -329,7 +338,7 @@ class GameStoreTestCase(unittest.TestCase):
         # finally, join the other player successfully
         gs.join_game(
             IncomingMessage(
-                json.dumps({TYPE: IncomingMessageType.join_game.name, KEY: key_b}),
+                json.dumps({TYPE: IncomingMessageType.join_game.name, KEY: key_w}),
                 p2,
             )
         )
@@ -340,8 +349,8 @@ class GameStoreTestCase(unittest.TestCase):
                     OutgoingMessageType.join_game_response,
                     JoinGameResponseContainer(
                         True,
-                        "Successfully joined the game as black",
-                        Color.black,
+                        "Successfully joined the game as white",
+                        Color.white,
                     ),
                     p2,
                 ),
