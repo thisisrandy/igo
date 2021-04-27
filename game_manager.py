@@ -23,12 +23,35 @@ from tornado.websocket import WebSocketHandler
 
 
 @dataclass
-class NewGameResponseContainer(JsonifyableBase):
+class ResponseContainer(JsonifyableBase):
+    """
+    A base container for responses which implements jsonifyable
+
+    Attributes:
+
+        success: bool - indicator of the input action's success
+
+        explanation: str - explanation of success
+    """
+
+    success: bool
+    explanation: str
+
+    def jsonifyable(self):
+        return {"success": self.success, "explanation": self.explanation}
+
+
+@dataclass
+class NewGameResponseContainer(ResponseContainer):
     """
     A container for the response to a new game request which implements
     jsonifyable
 
     Attributes:
+
+        success: bool - indicator of the input action's success
+
+        explanation: str - explanation of success
 
         keys: Dict[Color, str] - color to newly created key mapping
 
@@ -40,13 +63,16 @@ class NewGameResponseContainer(JsonifyableBase):
 
     def jsonifyable(self) -> Dict[str, str]:
         return {
-            "keys": {k.name: v for k, v in self.keys.items()},
-            "your_color": self.your_color.name,
+            **{
+                "keys": {k.name: v for k, v in self.keys.items()},
+                "your_color": self.your_color.name,
+            },
+            **super().jsonifyable(),
         }
 
 
 @dataclass
-class JoinGameResponseContainer(JsonifyableBase):
+class JoinGameResponseContainer(ResponseContainer):
     """
     A container for the response to a join game request which implements
     jsonifyable
@@ -61,20 +87,19 @@ class JoinGameResponseContainer(JsonifyableBase):
         user is subscribed to, and None otherwise
     """
 
-    success: bool
-    explanation: str
     your_color: Optional[Color] = None
 
     def jsonifyable(self):
         return {
-            "success": self.success,
-            "explanation": self.explanation,
-            "your_color": self.your_color.name if self.your_color else None,
+            **{
+                "your_color": self.your_color.name if self.your_color else None,
+            },
+            **super().jsonifyable(),
         }
 
 
 @dataclass
-class ActionResponseContainer(JsonifyableBase):
+class ActionResponseContainer(ResponseContainer):
     """
     A container for the response from Game.take_action which implements
     jsonifyable
@@ -86,11 +111,7 @@ class ActionResponseContainer(JsonifyableBase):
         explanation: str - explanation of success
     """
 
-    success: bool
-    explanation: str
-
-    def jsonifyable(self):
-        return {"success": self.success, "explanation": self.explanation}
+    pass
 
 
 class GameContainer:
@@ -344,7 +365,9 @@ class GameStore:
 
         send_outgoing_message(
             OutgoingMessageType.new_game_response,
-            NewGameResponseContainer(keys, requested_color),
+            NewGameResponseContainer(
+                True, "Successfully created new game", keys, requested_color
+            ),
             msg.websocket_handler,
         )
 

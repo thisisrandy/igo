@@ -25,11 +25,13 @@ import json
 class ResponseContainerTestCase(unittest.TestCase):
     def test_new_game(self):
         new_game = NewGameResponseContainer(
-            {Color.white: "1234", Color.black: "5678"}, Color.white
+            True, "Success", {Color.white: "1234", Color.black: "5678"}, Color.white
         )
         self.assertEqual(
             new_game.jsonifyable(),
             {
+                "success": True,
+                "explanation": "Success",
                 "keys": {"white": "1234", "black": "5678"},
                 "your_color": Color.white.name,
             },
@@ -232,7 +234,9 @@ class GameStoreTestCase(unittest.TestCase):
             [
                 call(
                     OutgoingMessageType.new_game_response,
-                    NewGameResponseContainer(keys, color),
+                    NewGameResponseContainer(
+                        True, "Successfully created new game", keys, color
+                    ),
                     player,
                 ),
                 call(
