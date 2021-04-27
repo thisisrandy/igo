@@ -17,14 +17,17 @@ import unittest
 
 class PointTestCase(unittest.TestCase):
     def test_json(self):
-        self.assertEqual("___", Point().jsonifyable())
-        self.assertEqual("w___", Point(Color.white).jsonifyable())
-        self.assertEqual("b___", Point(Color.black).jsonifyable())
-        self.assertEqual("w_d__", Point(Color.white, True).jsonifyable())
-        self.assertEqual("b_d__", Point(Color.black, True).jsonifyable())
-        self.assertEqual("b__c_", Point(Color.black, counted=True).jsonifyable())
+        self.assertEqual(["", False, False, ""], Point().jsonifyable())
+        self.assertEqual(["w", False, False, ""], Point(Color.white).jsonifyable())
+        self.assertEqual(["b", False, False, ""], Point(Color.black).jsonifyable())
+        self.assertEqual(["w", True, False, ""], Point(Color.white, True).jsonifyable())
+        self.assertEqual(["b", True, False, ""], Point(Color.black, True).jsonifyable())
         self.assertEqual(
-            "__c_b", Point(counted=True, counts_for=Color.black).jsonifyable()
+            ["b", False, True, ""], Point(Color.black, counted=True).jsonifyable()
+        )
+        self.assertEqual(
+            ["", False, True, "b"],
+            Point(counted=True, counts_for=Color.black).jsonifyable(),
         )
 
 
@@ -33,12 +36,44 @@ class BoardTestCase(unittest.TestCase):
         board = Board(3)
         self.assertEqual(
             board.jsonifyable(),
-            [["___", "___", "___"], ["___", "___", "___"], ["___", "___", "___"]],
+            [
+                [
+                    ["", False, False, ""],
+                    ["", False, False, ""],
+                    ["", False, False, ""],
+                ],
+                [
+                    ["", False, False, ""],
+                    ["", False, False, ""],
+                    ["", False, False, ""],
+                ],
+                [
+                    ["", False, False, ""],
+                    ["", False, False, ""],
+                    ["", False, False, ""],
+                ],
+            ],
         )
         board[0][1].color = Color.black
         self.assertEqual(
             board.jsonifyable(),
-            [["___", "b___", "___"], ["___", "___", "___"], ["___", "___", "___"]],
+            [
+                [
+                    ["", False, False, ""],
+                    ["b", False, False, ""],
+                    ["", False, False, ""],
+                ],
+                [
+                    ["", False, False, ""],
+                    ["", False, False, ""],
+                    ["", False, False, ""],
+                ],
+                [
+                    ["", False, False, ""],
+                    ["", False, False, ""],
+                    ["", False, False, ""],
+                ],
+            ],
         )
 
     def test_eq(self):
@@ -568,7 +603,10 @@ class GameTestCase(unittest.TestCase):
         self.assertEqual(
             g.jsonifyable(),
             {
-                "board": [["___", "___"], ["___", "___"]],
+                "board": [
+                    [["", False, False, ""], ["", False, False, ""]],
+                    [["", False, False, ""], ["", False, False, ""]],
+                ],
                 "status": "request_pending",
                 "komi": 6.5,
                 "prisoners": {"white": 0, "black": 0},
@@ -582,7 +620,10 @@ class GameTestCase(unittest.TestCase):
         self.assertEqual(
             g.jsonifyable(),
             {
-                "board": [["__c_", "__c_"], ["__c_", "__c_"]],
+                "board": [
+                    [["", False, True, ""], ["", False, True, ""]],
+                    [["", False, True, ""], ["", False, True, ""]],
+                ],
                 "status": "complete",
                 "komi": 6.5,
                 "prisoners": {"white": 0, "black": 0},

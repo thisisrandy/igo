@@ -146,14 +146,7 @@ class Point(JsonifyableBase):
         return repr(str(self))
 
     def __str__(self) -> str:
-        return "_".join(
-            [
-                ("" if not self.color else self.color.name[0]),
-                ("d" if self.marked_dead else ""),
-                ("c" if self.counted else ""),
-                ("" if not self.counts_for else self.counts_for.name[0]),
-            ]
-        )
+        return str(self.jsonifyable())
 
     def __eq__(self, o: object) -> bool:
         """Color equality only, as this is only for the purpose of detecting ko"""
@@ -165,7 +158,12 @@ class Point(JsonifyableBase):
     def jsonifyable(self) -> str:
         """Return a representation which can be readily JSONified"""
 
-        return str(self)
+        return [
+            ("" if not self.color else self.color.name[0]),
+            self.marked_dead,
+            self.counted,
+            ("" if not self.counts_for else self.counts_for.name[0]),
+        ]
 
 
 class Board(JsonifyableBase):
