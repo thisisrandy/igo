@@ -416,11 +416,14 @@ class GameStore:
             key = self.clients[socket]
             del self.clients[socket]
             del self.subscriptions[key]
+            logging.info(f"Unsubscribed client from key {key}")
 
             # if subscribers has dropped to 0, unload the game
             gc = self.keys[key]
             if not self._num_subscribers(gc):
                 gc.unload()
+        else:
+            logging.info("Client with no active subscription dropped")
 
 
 class GameManager:
