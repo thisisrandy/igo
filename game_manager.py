@@ -15,6 +15,12 @@ from dataclasses import dataclass
 import pickle
 from tornado.websocket import WebSocketHandler
 
+# TODO: there are assertions all over on the correctness of message data, but
+# as the server does not control the correctness of incoming data, it's
+# essentially providing a super easy way for a malicious client to crash it.
+# here and elsewhere, these need to be converted into failure messages back to
+# the client rather than just blowing up
+
 
 @dataclass
 class NewGameResponseContainer(JsonifyableBase):

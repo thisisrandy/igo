@@ -5,6 +5,8 @@ from messages import JsonifyableBase
 from typing import Dict, List, Optional, Set, Tuple
 from copy import deepcopy
 
+# TODO: see TODO about assertions at the top of game_manager
+
 
 class Color(Enum):
     white = auto()
