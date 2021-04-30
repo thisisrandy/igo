@@ -28,9 +28,9 @@ class IgoWebSocket(tornado.websocket.WebSocketHandler):
     @classmethod
     def init(cls, game_manager: GameManager):
         """
-        Must be called before use. We want tornado to have priority
-        setting up, so this is best called immediately before starting the
-        event loop.
+        Must be called before use. We want tornado to have priority setting
+        up, so this is best called with a concurrently instantiated
+        GameManager immediately before starting the event loop.
 
         To illustrate why, consider e.g. that logging may occur during
         GameManager set up. If we allow that to happen before calling
