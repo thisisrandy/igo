@@ -38,10 +38,17 @@ class ResponseContainerTestCase(unittest.TestCase):
         )
 
     def test_join_game(self):
-        join_game = JoinGameResponseContainer(True, "because", Color.white)
+        join_game = JoinGameResponseContainer(
+            True, "because", {Color.white: "1234", Color.black: "5678"}, Color.white
+        )
         self.assertEqual(
             join_game.jsonifyable(),
-            {"success": True, "explanation": "because", "your_color": Color.white.name},
+            {
+                "success": True,
+                "explanation": "because",
+                "keys": {"white": "1234", "black": "5678"},
+                "your_color": Color.white.name,
+            },
         )
 
     def test_action_response(self):
@@ -270,6 +277,7 @@ class GameStoreTestCase(unittest.TestCase):
                     JoinGameResponseContainer(
                         True,
                         "Successfully joined the game as white",
+                        gc.keys,
                         Color.white,
                     ),
                     p1,
@@ -293,6 +301,7 @@ class GameStoreTestCase(unittest.TestCase):
                     JoinGameResponseContainer(
                         True,
                         "Successfully joined the game as black",
+                        gc.keys,
                         Color.black,
                     ),
                     p1,
@@ -350,6 +359,7 @@ class GameStoreTestCase(unittest.TestCase):
                     JoinGameResponseContainer(
                         True,
                         "Successfully joined the game as white",
+                        gc.keys,
                         Color.white,
                     ),
                     p2,

@@ -83,15 +83,22 @@ class JoinGameResponseContainer(ResponseContainer):
 
         explanation: str - an explanatory string
 
+        keys: Optional[Dict[Color, str]] = None - if success, a color to key
+        mapping, and None otherwise
+
         your_color: Optional[Color] = None - if success, the color that the
         user is subscribed to, and None otherwise
     """
 
+    keys: Optional[Dict[Color, str]] = None
     your_color: Optional[Color] = None
 
     def jsonifyable(self):
         return {
             **{
+                "keys": {k.name: v for k, v in self.keys.items()}
+                if self.keys
+                else None,
                 "your_color": self.your_color.name if self.your_color else None,
             },
             **super().jsonifyable(),
@@ -417,7 +424,10 @@ class GameStore:
             send_outgoing_message(
                 OutgoingMessageType.join_game_response,
                 JoinGameResponseContainer(
-                    True, f"Successfully joined the game as {color.name}", color
+                    True,
+                    f"Successfully joined the game as {color.name}",
+                    gc.keys,
+                    color,
                 ),
                 msg.websocket_handler,
             )
