@@ -98,7 +98,7 @@ class NewGameResponseContainer(GameResponseContainer):
 
 
 @dataclass
-class JoinGameResponseContainer(ResponseContainer):
+class JoinGameResponseContainer(GameResponseContainer):
     """
     A container for the response to a join game request which implements
     jsonifyable
