@@ -42,44 +42,14 @@ class ResponseContainer(JsonifyableBase):
 
 
 @dataclass
-class NewGameResponseContainer(ResponseContainer):
+class GameResponseContainer(ResponseContainer):
     """
-    A container for the response to a new game request which implements
+    A base container for the response to a game request which implements
     jsonifyable
 
     Attributes:
 
-        success: bool - indicator of the input action's success
-
-        explanation: str - explanation of success
-
-        keys: Dict[Color, str] - color to newly created key mapping
-
-        your_color: Color - the color that the user is subscribed to
-    """
-
-    keys: Dict[Color, str]
-    your_color: Color
-
-    def jsonifyable(self) -> Dict[str, str]:
-        return {
-            **{
-                "keys": {k.name: v for k, v in self.keys.items()},
-                "your_color": self.your_color.name,
-            },
-            **super().jsonifyable(),
-        }
-
-
-@dataclass
-class JoinGameResponseContainer(ResponseContainer):
-    """
-    A container for the response to a join game request which implements
-    jsonifyable
-
-    Attributes:
-
-        success: bool - whether or not the join request succeeded
+        success: bool - whether or not the request succeeded
 
         explanation: str - an explanatory string
 
@@ -103,6 +73,50 @@ class JoinGameResponseContainer(ResponseContainer):
             },
             **super().jsonifyable(),
         }
+
+
+@dataclass
+class NewGameResponseContainer(GameResponseContainer):
+    """
+    A container for the response to a new game request which implements
+    jsonifyable
+
+    Attributes:
+
+        success: bool - indicator of the input action's success
+
+        explanation: str - explanation of success
+
+        keys: Optional[Dict[Color, str]] = None - if success, a color to key
+        mapping, and None otherwise
+
+        your_color: Optional[Color] = None - if success, the color that the
+        user is subscribed to, and None otherwise
+    """
+
+    pass
+
+
+@dataclass
+class JoinGameResponseContainer(ResponseContainer):
+    """
+    A container for the response to a join game request which implements
+    jsonifyable
+
+    Attributes:
+
+        success: bool - whether or not the join request succeeded
+
+        explanation: str - an explanatory string
+
+        keys: Optional[Dict[Color, str]] = None - if success, a color to key
+        mapping, and None otherwise
+
+        your_color: Optional[Color] = None - if success, the color that the
+        user is subscribed to, and None otherwise
+    """
+
+    pass
 
 
 @dataclass
