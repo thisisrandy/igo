@@ -215,6 +215,8 @@ class GameContainer:
         logging.info(f"Unloaded game {self._filename}")
 
     def _write(self) -> None:
+        # TODO: this function should be async to avoid blocking the websocket
+        # handler
         self._assert_loaded("write")
 
         with open(self._filepath, "wb") as writer:
