@@ -441,7 +441,7 @@ class GameStore:
                 OutgoingMessageType.join_game_response,
                 JoinGameResponseContainer(
                     True,
-                    f"Successfully joined the game as {color.name}",
+                    f"Successfully (re)joined the game as {color.name}",
                     gc.keys,
                     color,
                 ),
