@@ -10,6 +10,7 @@ from game_manager import (
     ActionResponseContainer,
     GameContainer,
     GameManager,
+    GameStatusContainer,
     GameStore,
     JoinGameResponseContainer,
     NewGameResponseContainer,
@@ -190,7 +191,7 @@ class GameStoreTestCase(unittest.TestCase):
             )
         )
         send_outgoing_message.assert_called_with(
-            OutgoingMessageType.game_status, gc.game, p1
+            OutgoingMessageType.game_status, GameStatusContainer(gc.game, 1), p1
         )
 
         gs.join_game(
@@ -203,8 +204,12 @@ class GameStoreTestCase(unittest.TestCase):
         # defined, so we don't know which player was sent status first
         send_outgoing_message.assert_has_calls(
             [
-                call(OutgoingMessageType.game_status, gc.game, p1),
-                call(OutgoingMessageType.game_status, gc.game, p2),
+                call(
+                    OutgoingMessageType.game_status, GameStatusContainer(gc.game, 2), p1
+                ),
+                call(
+                    OutgoingMessageType.game_status, GameStatusContainer(gc.game, 2), p2
+                ),
             ],
             any_order=True,
         )
@@ -242,13 +247,23 @@ class GameStoreTestCase(unittest.TestCase):
                 call(
                     OutgoingMessageType.new_game_response,
                     NewGameResponseContainer(
-                        True, "Successfully created new game", keys, color
+                        True,
+                        (
+                            f"Successfully created new game. Make sure to give the"
+                            f" {color.inverse().name} key"
+                            f" ({keys[color.inverse()]}) to your opponent so that"
+                            f" they can join the game. Your key is {keys[color]}."
+                            f" Make sure to write it down in case you want to pause the game"
+                            f" and resume it later, or if you want to view it once complete"
+                        ),
+                        keys,
+                        color,
                     ),
                     player,
                 ),
                 call(
                     OutgoingMessageType.game_status,
-                    gc.game,
+                    GameStatusContainer(gc.game, 1),
                     player,
                 ),
             ]
@@ -276,13 +291,15 @@ class GameStoreTestCase(unittest.TestCase):
                     OutgoingMessageType.join_game_response,
                     JoinGameResponseContainer(
                         True,
-                        "Successfully joined the game as white",
+                        "Successfully (re)joined the game as white",
                         gc.keys,
                         Color.white,
                     ),
                     p1,
                 ),
-                call(OutgoingMessageType.game_status, gc.game, p1),
+                call(
+                    OutgoingMessageType.game_status, GameStatusContainer(gc.game, 1), p1
+                ),
             ],
         )
 
@@ -300,13 +317,15 @@ class GameStoreTestCase(unittest.TestCase):
                     OutgoingMessageType.join_game_response,
                     JoinGameResponseContainer(
                         True,
-                        "Successfully joined the game as black",
+                        "Successfully (re)joined the game as black",
                         gc.keys,
                         Color.black,
                     ),
                     p1,
                 ),
-                call(OutgoingMessageType.game_status, gc.game, p1),
+                call(
+                    OutgoingMessageType.game_status, GameStatusContainer(gc.game, 1), p1
+                ),
             ],
         )
 
@@ -358,16 +377,19 @@ class GameStoreTestCase(unittest.TestCase):
                     OutgoingMessageType.join_game_response,
                     JoinGameResponseContainer(
                         True,
-                        "Successfully joined the game as white",
+                        "Successfully (re)joined the game as white",
                         gc.keys,
                         Color.white,
                     ),
                     p2,
                 ),
-                call(OutgoingMessageType.game_status, gc.game, p2),
+                call(
+                    OutgoingMessageType.game_status, GameStatusContainer(gc.game, 2), p2
+                ),
             ],
             any_order=True,
         )
+        self.assertEqual(len(gs.subscriptions), 2)
 
     @patch("game_manager.send_outgoing_message", lambda *args: None)
     def test_route_message(self):

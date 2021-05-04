@@ -7,7 +7,7 @@ from messages import (
     send_outgoing_message,
 )
 from uuid import uuid4
-from typing import Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 from game import Action, ActionType, Color, Game
 import os
 import logging
@@ -133,6 +133,31 @@ class ActionResponseContainer(ResponseContainer):
     """
 
     pass
+
+
+class GameStatusContainer(JsonifyableBase):
+    """
+    A container for game status updates. Augments Game with opponentConnected,
+    an indicator of whether or not the player's opponent is currently connected
+    to the game
+    """
+
+    def __init__(self, game: Game, num_subscribers: int) -> None:
+        self._game = game
+        self._opponent_connected = num_subscribers == 2
+
+    def jsonifyable(self) -> Any:
+        return {
+            **self._game.jsonifyable(),
+            **{"opponentConnected": self._opponent_connected},
+        }
+
+    def __eq__(self, o: object) -> bool:
+        if not isinstance(o, self.__class__):
+            return False
+        return (
+            self._game == o._game and self._opponent_connected == o._opponent_connected
+        )
 
 
 class GameContainer:
@@ -348,7 +373,9 @@ class GameStore:
         for key in self.containers[gc]:
             if key in self.subscriptions:
                 send_outgoing_message(
-                    OutgoingMessageType.game_status, gc.game, self.subscriptions[key]
+                    OutgoingMessageType.game_status,
+                    GameStatusContainer(gc.game, self._num_subscribers(gc)),
+                    self.subscriptions[key],
                 )
 
     def new_game(self, msg: IncomingMessage, _keys: Dict[Color, str] = None) -> None:
