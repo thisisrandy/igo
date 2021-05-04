@@ -446,7 +446,7 @@ class GameStoreTestCase(unittest.TestCase):
         gs._send_game_status.assert_not_called()
 
     @patch("game_manager.send_outgoing_message")
-    def test_unsubscribe(self, _):
+    def test_unsubscribe(self, send_outgoing_message: Mock):
         # make sure num subscribers decreases and that game remains loaded if
         # remaining subscribers is 1 and is unloaded otherwise
         p1, p2 = WebSocketHandler(), WebSocketHandler()
@@ -462,12 +462,15 @@ class GameStoreTestCase(unittest.TestCase):
             )
         )
         self.assertTrue(gc._is_loaded())
+        # reset so we can assert not called below
+        send_outgoing_message.call_count = 0
         # no-op
         gs.unsubscribe(p2)
         self.assertTrue(gc._is_loaded())
         # real unsub
         gs.unsubscribe(p1)
         self.assertFalse(gc._is_loaded())
+        send_outgoing_message.assert_not_called()
 
         # two players
         gs.join_game(
@@ -483,10 +486,14 @@ class GameStoreTestCase(unittest.TestCase):
             )
         )
         self.assertTrue(gc._is_loaded())
+        # reset so we can assert calls below
+        send_outgoing_message.call_count = 0
         gs.unsubscribe(p1)
         self.assertTrue(gc._is_loaded())
+        send_outgoing_message.assert_called_once()
         gs.unsubscribe(p2)
         self.assertFalse(gc._is_loaded())
+        send_outgoing_message.assert_called_once()
 
 
 @patch.object(WebSocketHandler, "__init__", lambda self: None)

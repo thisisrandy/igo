@@ -507,10 +507,13 @@ class GameStore:
             del self.subscriptions[key]
             logging.info(f"Unsubscribed client from key {key}")
 
-            # if subscribers has dropped to 0, unload the game
+            # if subscribers has dropped to 0, unload the game. if not, let the
+            # other player know that their opponent has left
             gc = self.keys[key]
             if not self._num_subscribers(gc):
                 gc.unload()
+            else:
+                self._send_game_status(gc)
         else:
             logging.info("Client with no active subscription dropped")
 
