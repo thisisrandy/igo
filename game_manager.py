@@ -392,7 +392,17 @@ class GameStore:
         send_outgoing_message(
             OutgoingMessageType.new_game_response,
             NewGameResponseContainer(
-                True, "Successfully created new game", keys, requested_color
+                True,
+                (
+                    f"Successfully created new game. Make sure to give the"
+                    f" {requested_color.inverse().name} key"
+                    f" ({keys[requested_color.inverse()]}) to your opponent so that"
+                    f" they can join the game. Your key is {keys[requested_color]}."
+                    f" Make sure to write it down in case you want to pause the game"
+                    f" and resume it later, or if you want to view it once complete"
+                ),
+                keys,
+                requested_color,
             ),
             msg.websocket_handler,
         )
