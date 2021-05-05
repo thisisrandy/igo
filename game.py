@@ -4,6 +4,7 @@ from enum import Enum, auto
 from messages import JsonifyableBase
 from typing import Dict, List, Optional, Set, Tuple
 from copy import deepcopy
+from datetime import datetime
 
 # TODO: see TODO about assertions at the top of game_manager
 
@@ -248,6 +249,8 @@ class Game(JsonifyableBase):
 
         result: Optional[Result] - the result of the game, set only once it
         has been resolved
+
+        time_begun: float - timestamp of when the game was created
     """
 
     def __init__(self, size: int = 19, komi: float = 6.5) -> None:
@@ -260,6 +263,7 @@ class Game(JsonifyableBase):
         self.territory: Dict[Color, int] = {Color.white: 0, Color.black: 0}
         self.pending_request: Optional[Request] = None
         self.result: Optional[Result] = None
+        self.time_begun: float = datetime.now().timestamp()
         self._prev_board: Board = None
 
     def __repr__(self) -> str:
@@ -273,6 +277,7 @@ class Game(JsonifyableBase):
             f", territory={self.territory}"
             f", pending_request={self.pending_request}"
             f", result={self.result}"
+            f", time_begun={self.time_begun}"
             f", _prev_board={self._prev_board})"
         )
 
@@ -282,8 +287,8 @@ class Game(JsonifyableBase):
         course that only the public interface has been accessed (this
         function's return is undefined otherwise). NB: this is a state
         comparison, *not* a unique game comparison. Game does not contain any
-        data which uniquely identify it beyond its state, which is by
-        design"""
+        data which uniquely identify it beyond its state (though timestamp,
+        which is *not* used here, comes close), which is by design"""
 
         if not isinstance(o, Game):
             return False
@@ -695,4 +700,5 @@ class Game(JsonifyableBase):
             if self.pending_request
             else None,
             "result": self.result.jsonifyable() if self.result else None,
+            "timeBegun": self.time_begun,
         }

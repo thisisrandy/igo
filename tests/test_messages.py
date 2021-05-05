@@ -121,14 +121,13 @@ class IncomingMessageTestCase(unittest.TestCase):
 @patch.object(WebSocketHandler, "write_message")
 class OutgoingMessageTestCase(unittest.TestCase):
     def test_jsonify(self, write_message: Mock):
-        send_outgoing_message(
-            OutgoingMessageType.game_status, Game(1), WebSocketHandler()
-        )
+        g = Game(1)
+        send_outgoing_message(OutgoingMessageType.game_status, g, WebSocketHandler())
         write_message.assert_called_once_with(
             json.dumps(
                 {
                     "message_type": OutgoingMessageType.game_status.name,
-                    "data": Game(1).jsonifyable(),
+                    "data": g.jsonifyable(),
                 }
             )
         )

@@ -614,6 +614,7 @@ class GameTestCase(unittest.TestCase):
                 "territory": {"white": 0, "black": 0},
                 "pendingRequest": {"requestType": "tally_score", "initiator": "white"},
                 "result": None,
+                "timeBegun": g.time_begun,
             },
         )
         g.take_action(Action(ActionType.accept, Color.black, ts))
@@ -631,5 +632,10 @@ class GameTestCase(unittest.TestCase):
                 "territory": {"white": 0, "black": 0},
                 "pendingRequest": None,
                 "result": {"resultType": "standard_win", "winner": "white"},
+                "timeBegun": g.time_begun,
             },
         )
+
+    def test_time_begun(self):
+        g = Game(1)
+        self.assertLessEqual(g.time_begun, datetime.now().timestamp())
