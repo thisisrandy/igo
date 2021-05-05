@@ -159,6 +159,13 @@ class GameStatusContainer(JsonifyableBase):
             self._game == o._game and self._opponent_connected == o._opponent_connected
         )
 
+    def __repr__(self) -> str:
+        return (
+            f"{self.__class__.__name__}("
+            f"game={self._game}"
+            f", opponent_connected={self._opponent_connected})"
+        )
+
 
 class GameContainer:
     """
