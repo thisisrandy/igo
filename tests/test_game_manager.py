@@ -250,7 +250,7 @@ class GameStoreTestCase(unittest.TestCase):
                         True,
                         (
                             f"Successfully created new game. Make sure to give the"
-                            f" {color.inverse().name} key"
+                            f" {color.inverse().name} player key"
                             f" ({keys[color.inverse()]}) to your opponent so that"
                             f" they can join the game. Your key is {keys[color]}."
                             f" Make sure to write it down in case you want to pause the game"
