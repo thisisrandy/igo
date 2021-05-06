@@ -251,11 +251,13 @@ class Game(JsonifyableBase):
         has been resolved
 
         time_played: float - the time, in seconds, that this game has been
-        actively played. note that this is externally managed: Game does not
-        have any concept of whether or not anyone is looking at it, so we must
-        handle that at a higher level of abstraction, namely in game_manager's
-        GameContainer, where we can succinctly define play time as the amount of
-        time that a game has been loaded
+        actively played. note that this is externally managed via the
+        add_time_played method: Game does not have any concept of whether or not
+        anyone is looking at it, so we must handle that at a higher level of
+        abstraction, namely in game_manager's GameContainer, where we can
+        succinctly define play time as the cumulative amount of time for each
+        loaded period between when the game is loaded and the last action taken
+        on it
     """
 
     def __init__(self, size: int = 19, komi: float = 6.5) -> None:
@@ -680,6 +682,12 @@ class Game(JsonifyableBase):
         and False if this is a new game or otherwise"""
 
         return self.action_stack and self.action_stack[-1].timestamp > timestamp
+
+    def add_time_played(self, seconds_to_add: float) -> None:
+        assert (
+            self.status != GameStatus.complete
+        ), "Cannot add time played to a complete game"
+        self.time_played += seconds_to_add
 
     def jsonifyable(self) -> Dict:
         """Return a representation which can be readily JSONified. In

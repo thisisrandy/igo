@@ -14,6 +14,7 @@ import logging
 from dataclasses import dataclass
 import pickle
 from tornado.websocket import WebSocketHandler
+from datetime import datetime
 
 # TODO: there are assertions all over on the correctness of message data, but
 # as the server does not control the correctness of incoming data, it's
@@ -207,6 +208,10 @@ class GameContainer:
         }
         self.game: Optional[Game] = game
         self._filename = os.path.basename(self._filepath)
+        # we set this whenever we write or load and unset on unload. if there
+        # was a previously set timestamp when we go to write, add the difference
+        # to the game's time_played
+        self._write_load_timestamp = None
 
         if self.game:
             logging.info(f"Created new game {self._filename}")
@@ -235,6 +240,8 @@ class GameContainer:
         with open(self._filepath, "rb") as reader:
             self.game = pickle.load(reader)
 
+        self._write_load_timestamp = datetime.now().timestamp()
+
         logging.info(f"Loaded game {self._filename}")
 
     def unload(self) -> None:
@@ -243,6 +250,7 @@ class GameContainer:
             return
 
         self.game = None
+        self._write_load_timestamp = None
 
         logging.info(f"Unloaded game {self._filename}")
 
@@ -251,8 +259,14 @@ class GameContainer:
         # handler
         self._assert_loaded("write")
 
+        ts = datetime.now().timestamp()
+        if self._write_load_timestamp:
+            self.game.add_time_played(ts - self._write_load_timestamp)
+
         with open(self._filepath, "wb") as writer:
             pickle.dump(self.game, writer)
+
+        self._write_load_timestamp = ts
 
         logging.info(f"Wrote game {self._filename} to disk")
 
@@ -288,8 +302,9 @@ class GameContainer:
         )
         logging.debug(f"Game state is now {self.game}")
 
-        if success:
-            self._write()
+        # note that we want to write even after unsuccessful actions in order to
+        # update time played
+        self._write()
 
         send_outgoing_message(
             OutgoingMessageType.game_action_response,

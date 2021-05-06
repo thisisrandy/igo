@@ -595,6 +595,15 @@ class GameTestCase(unittest.TestCase):
         self.assertIsNotNone(g.result.winner)
         self.assertIs(g.result.winner, Color.white)
 
+    def test_add_time_played(self):
+        g = Game(1)
+        self.assertEqual(g.time_played, 0.0)
+        g.add_time_played(1.0)
+        self.assertEqual(g.time_played, 1.0)
+        g.status = GameStatus.complete
+        with self.assertRaises(AssertionError):
+            g.add_time_played(1.0)
+
     def test_jsonifyable(self):
         g = Game(2)
         ts = datetime.now().timestamp()

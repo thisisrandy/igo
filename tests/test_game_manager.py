@@ -141,6 +141,18 @@ class GameContainerTestCase(unittest.TestCase):
         send_outgoing_message.assert_called_once()
         self.assertIsNotNone(gc.game.pending_request)
 
+    def test_time_played(self):
+        gc = GameContainer(self.filepath, self.keys, Game(1))
+        self.assertIsNotNone(gc._write_load_timestamp)
+        self.assertEqual(gc.game.time_played, 0.0)
+        gc._write()
+        self.assertGreater(gc.game.time_played, 0.0)
+        prev_time_played = gc.game.time_played
+        gc.unload()
+        self.assertIsNone(gc._write_load_timestamp)
+        gc.load()
+        self.assertEqual(gc.game.time_played, prev_time_played)
+
 
 @patch.object(WebSocketHandler, "__init__", lambda self: None)
 @patch.object(WebSocketHandler, "__hash__", lambda self: 1)
