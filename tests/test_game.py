@@ -601,6 +601,10 @@ class GameTestCase(unittest.TestCase):
         g.add_time_played(1.0)
         self.assertEqual(g.time_played, 1.0)
         g.status = GameStatus.complete
+        # we should be able to record completion time
+        g.add_time_played(1.0)
+        self.assertEqual(g.time_played, 2.0)
+        # but should fail an assertion after that
         with self.assertRaises(AssertionError):
             g.add_time_played(1.0)
 

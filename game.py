@@ -271,6 +271,7 @@ class Game(JsonifyableBase):
         self.pending_request: Optional[Request] = None
         self.result: Optional[Result] = None
         self.time_played: float = 0.0
+        self._completion_time_recorded: bool = False
         self._prev_board: Board = None
 
     def __repr__(self) -> str:
@@ -685,9 +686,11 @@ class Game(JsonifyableBase):
 
     def add_time_played(self, seconds_to_add: float) -> None:
         assert (
-            self.status != GameStatus.complete
-        ), "Cannot add time played to a complete game"
+            self.status != GameStatus.complete or not self._completion_time_recorded
+        ), "Cannot add time played to a complete game except to record final time"
         self.time_played += seconds_to_add
+        if self.status == GameStatus.complete:
+            self._completion_time_recorded = True
 
     def jsonifyable(self) -> Dict:
         """Return a representation which can be readily JSONified. In
