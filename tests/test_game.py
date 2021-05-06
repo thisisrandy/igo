@@ -36,44 +36,50 @@ class BoardTestCase(unittest.TestCase):
         board = Board(3)
         self.assertEqual(
             board.jsonifyable(),
-            [
-                [
-                    ["", False, False, ""],
-                    ["", False, False, ""],
-                    ["", False, False, ""],
+            {
+                "size": 3,
+                "points": [
+                    [
+                        ["", False, False, ""],
+                        ["", False, False, ""],
+                        ["", False, False, ""],
+                    ],
+                    [
+                        ["", False, False, ""],
+                        ["", False, False, ""],
+                        ["", False, False, ""],
+                    ],
+                    [
+                        ["", False, False, ""],
+                        ["", False, False, ""],
+                        ["", False, False, ""],
+                    ],
                 ],
-                [
-                    ["", False, False, ""],
-                    ["", False, False, ""],
-                    ["", False, False, ""],
-                ],
-                [
-                    ["", False, False, ""],
-                    ["", False, False, ""],
-                    ["", False, False, ""],
-                ],
-            ],
+            },
         )
         board[0][1].color = Color.black
         self.assertEqual(
             board.jsonifyable(),
-            [
-                [
-                    ["", False, False, ""],
-                    ["b", False, False, ""],
-                    ["", False, False, ""],
+            {
+                "size": 3,
+                "points": [
+                    [
+                        ["", False, False, ""],
+                        ["b", False, False, ""],
+                        ["", False, False, ""],
+                    ],
+                    [
+                        ["", False, False, ""],
+                        ["", False, False, ""],
+                        ["", False, False, ""],
+                    ],
+                    [
+                        ["", False, False, ""],
+                        ["", False, False, ""],
+                        ["", False, False, ""],
+                    ],
                 ],
-                [
-                    ["", False, False, ""],
-                    ["", False, False, ""],
-                    ["", False, False, ""],
-                ],
-                [
-                    ["", False, False, ""],
-                    ["", False, False, ""],
-                    ["", False, False, ""],
-                ],
-            ],
+            },
         )
 
     def test_eq(self):
@@ -616,10 +622,13 @@ class GameTestCase(unittest.TestCase):
         self.assertEqual(
             g.jsonifyable(),
             {
-                "board": [
-                    [["", False, False, ""], ["", False, False, ""]],
-                    [["", False, False, ""], ["", False, False, ""]],
-                ],
+                "board": {
+                    "size": 2,
+                    "points": [
+                        [["", False, False, ""], ["", False, False, ""]],
+                        [["", False, False, ""], ["", False, False, ""]],
+                    ],
+                },
                 "status": "request_pending",
                 "komi": 6.5,
                 "prisoners": {"white": 0, "black": 0},
@@ -634,10 +643,13 @@ class GameTestCase(unittest.TestCase):
         self.assertEqual(
             g.jsonifyable(),
             {
-                "board": [
-                    [["", False, True, ""], ["", False, True, ""]],
-                    [["", False, True, ""], ["", False, True, ""]],
-                ],
+                "board": {
+                    "size": 2,
+                    "points": [
+                        [["", False, True, ""], ["", False, True, ""]],
+                        [["", False, True, ""], ["", False, True, ""]],
+                    ],
+                },
                 "status": "complete",
                 "komi": 6.5,
                 "prisoners": {"white": 0, "black": 0},

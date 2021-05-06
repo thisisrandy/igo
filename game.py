@@ -219,7 +219,7 @@ class Board(JsonifyableBase):
     def jsonifyable(self) -> List[List[str]]:
         """Return a representation which can be readily JSONified"""
 
-        return [r.jsonifyable() for r in self._rows]
+        return {"size": self.size, "points": [r.jsonifyable() for r in self._rows]}
 
 
 class Game(JsonifyableBase):
