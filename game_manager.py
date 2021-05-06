@@ -471,7 +471,7 @@ class GameStore:
         else:
             if msg.websocket_handler in self.clients:
                 old_key = self.clients[msg.websocket_handler]
-                logging.warning(
+                logging.info(
                     f"Client requesting join game already subscribed to {old_key}"
                 )
                 self.unsubscribe(msg.websocket_handler)
