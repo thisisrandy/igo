@@ -74,7 +74,6 @@ class IncomingMessage(Message):
         self.message_type: IncomingMessage = IncomingMessageType[self.data[TYPE]]
         del self.data[TYPE]
         for rk in IncomingMessageType.required_keys()[self.message_type]:
-            # TODO: see TODO about assertions at the top of game_manager
             assert (
                 rk in self.data
             ), f"Required key {rk} not found in incoming message {self.data}"

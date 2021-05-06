@@ -6,8 +6,6 @@ from typing import Dict, List, Optional, Set, Tuple
 from copy import deepcopy
 from datetime import datetime
 
-# TODO: see TODO about assertions at the top of game_manager
-
 
 class Color(Enum):
     white = auto()
