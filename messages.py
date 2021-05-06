@@ -1,5 +1,5 @@
 from __future__ import annotations
-from constants import ACTION_TYPE, COLOR, VS, KOMI, KEY, TYPE
+from constants import ACTION_TYPE, COLOR, SIZE, VS, KOMI, KEY, TYPE
 from datetime import datetime
 from enum import Enum, auto
 import json
@@ -20,7 +20,7 @@ class IncomingMessageType(Enum):
         in the data attribute of an IncomingMessage with that message_type"""
 
         return {
-            IncomingMessageType.new_game: [VS, COLOR, KOMI],
+            IncomingMessageType.new_game: [VS, COLOR, SIZE, KOMI],
             IncomingMessageType.join_game: [KEY],
             IncomingMessageType.game_action: [KEY, ACTION_TYPE],
         }

@@ -9,7 +9,7 @@ from messages import (
 import unittest
 from unittest.mock import Mock, patch
 from tornado.websocket import WebSocketHandler
-from constants import TYPE, VS, COLOR, KOMI, KEY, ACTION_TYPE
+from constants import SIZE, TYPE, VS, COLOR, KOMI, KEY, ACTION_TYPE
 import json
 
 
@@ -43,6 +43,7 @@ class IncomingMessageTestCase(unittest.TestCase):
                         TYPE: IncomingMessageType.new_game.name,
                         VS: "human",
                         COLOR: Color.white.name,
+                        SIZE: 19,
                         KOMI: 6.5,
                     }
                 ),
@@ -88,6 +89,7 @@ class IncomingMessageTestCase(unittest.TestCase):
                     TYPE: IncomingMessageType.new_game.name,
                     VS: "human",
                     COLOR: Color.white.name,
+                    SIZE: 19,
                     KOMI: 6.5,
                 }
             ),
@@ -99,6 +101,7 @@ class IncomingMessageTestCase(unittest.TestCase):
                     TYPE: IncomingMessageType.new_game.name,
                     VS: "human",
                     COLOR: Color.white.name,
+                    SIZE: 19,
                     KOMI: 6.5,
                 }
             ),

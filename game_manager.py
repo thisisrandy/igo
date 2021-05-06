@@ -1,4 +1,4 @@
-from constants import ACTION_TYPE, COLOR, COORDS, KEY, KEY_LEN, KOMI
+from constants import ACTION_TYPE, COLOR, COORDS, KEY, KEY_LEN, KOMI, SIZE
 from messages import (
     IncomingMessage,
     IncomingMessageType,
@@ -420,9 +420,7 @@ class GameStore:
             self.unsubscribe(msg.websocket_handler)
 
         path = os.path.join(self.dir, f"{key_w}{key_b}")
-        # TODO: If I decide to support different board sizes, here is the place
-        # to plug it in
-        gc = GameContainer(path, keys, Game(komi=msg.data[KOMI]))
+        gc = GameContainer(path, keys, Game(msg.data[SIZE], msg.data[KOMI]))
         requested_color = Color[msg.data[COLOR]]
 
         self.keys[key_w] = self.keys[key_b] = gc

@@ -18,7 +18,7 @@ from game_manager import (
 import unittest
 from unittest.mock import MagicMock, Mock, call, patch
 import tempfile
-from constants import ACTION_TYPE, COLOR, COORDS, KEY, KEY_LEN, TYPE, VS, KOMI
+from constants import ACTION_TYPE, COLOR, COORDS, KEY, KEY_LEN, SIZE, TYPE, VS, KOMI
 from tornado.websocket import WebSocketHandler
 import json
 
@@ -245,6 +245,7 @@ class GameStoreTestCase(unittest.TestCase):
                         TYPE: IncomingMessageType.new_game.name,
                         VS: "human",
                         COLOR: color.name,
+                        SIZE: 19,
                         KOMI: 6.5,
                     }
                 ),
@@ -540,6 +541,7 @@ class GameManagerTestCase(unittest.TestCase):
                     TYPE: IncomingMessageType.new_game.name,
                     VS: "human",
                     COLOR: Color.white.name,
+                    SIZE: 19,
                     KOMI: 6.5,
                 }
             ),
