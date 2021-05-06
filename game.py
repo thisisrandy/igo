@@ -250,7 +250,12 @@ class Game(JsonifyableBase):
         result: Optional[Result] - the result of the game, set only once it
         has been resolved
 
-        time_begun: float - timestamp of when the game was created
+        time_played: float - the time, in seconds, that this game has been
+        actively played. note that this is externally managed: Game does not
+        have any concept of whether or not anyone is looking at it, so we must
+        handle that at a higher level of abstraction, namely in game_manager's
+        GameContainer, where we can succinctly define play time as the amount of
+        time that a game has been loaded
     """
 
     def __init__(self, size: int = 19, komi: float = 6.5) -> None:
@@ -263,7 +268,7 @@ class Game(JsonifyableBase):
         self.territory: Dict[Color, int] = {Color.white: 0, Color.black: 0}
         self.pending_request: Optional[Request] = None
         self.result: Optional[Result] = None
-        self.time_begun: float = datetime.now().timestamp()
+        self.time_played: float = 0.0
         self._prev_board: Board = None
 
     def __repr__(self) -> str:
@@ -277,7 +282,7 @@ class Game(JsonifyableBase):
             f", territory={self.territory}"
             f", pending_request={self.pending_request}"
             f", result={self.result}"
-            f", time_begun={self.time_begun}"
+            f", time_played={self.time_played}"
             f", _prev_board={self._prev_board})"
         )
 
@@ -700,5 +705,5 @@ class Game(JsonifyableBase):
             if self.pending_request
             else None,
             "result": self.result.jsonifyable() if self.result else None,
-            "timeBegun": self.time_begun,
+            "timePlayed": self.time_played,
         }
