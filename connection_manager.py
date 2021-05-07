@@ -26,11 +26,11 @@ class IgoWebSocket(tornado.websocket.WebSocketHandler):
         super().__init__(application, request, **kwargs)
 
     @classmethod
-    def init(cls, game_manager: GameManager):
+    async def init(cls):
         """
         Must be called before use. We want tornado to have priority setting
-        up, so this is best called with a concurrently instantiated
-        GameManager immediately before starting the event loop.
+        up, so this is best called immediately before starting the event loop
+        via tornado.ioloop.IOLoop.current().run_sync.
 
         To illustrate why, consider e.g. that logging may occur during
         GameManager set up. If we allow that to happen before calling
@@ -38,18 +38,20 @@ class IgoWebSocket(tornado.websocket.WebSocketHandler):
         preempted with the default logger settings
         """
 
-        cls.game_manager = game_manager
+        cls.game_manager = await GameManager()
 
     def open(self):
         logging.info("New connection opened")
 
-    def on_message(self, json: str):
+    async def on_message(self, json: str):
         logging.info(f"Received message: {json}")
-        self.__class__.game_manager.route_message(IncomingMessage(json, self))
+        await self.__class__.game_manager.route_message(IncomingMessage(json, self))
 
     def on_close(self):
         logging.info("Connection closed")
-        self.__class__.game_manager.unsubscribe(self)
+        tornado.ioloop.IOLoop.current().spawn_callback(
+            lambda: self.__class__.game_manager.unsubscribe(self)
+        )
 
     def check_origin(self, origin):
         # TODO: some sort of check here
@@ -70,9 +72,10 @@ def main():
     options.parse_command_line()
     app = Application()
     app.listen(options.port)
-    IgoWebSocket.init(GameManager())
+    io_loop = tornado.ioloop.IOLoop.current()
+    io_loop.run_sync(IgoWebSocket.init)
     logging.info(f"Listening on port {options.port}")
-    tornado.ioloop.IOLoop.current().start()
+    io_loop.start()
 
 
 if __name__ == "__main__":

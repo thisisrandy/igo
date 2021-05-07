@@ -15,6 +15,9 @@ from dataclasses import dataclass
 import pickle
 from tornado.websocket import WebSocketHandler
 from datetime import datetime
+import asyncio
+import aiofiles
+from asyncinit import asyncinit
 
 
 @dataclass
@@ -162,6 +165,7 @@ class GameStatusContainer(JsonifyableBase):
         )
 
 
+@asyncinit
 class GameContainer:
     """
     A container for Games. Responsible for loading from disk and unloading on
@@ -177,7 +181,7 @@ class GameContainer:
         colors: Dict[str, Color] - a mapping from keys to colors (inverse of keys)
     """
 
-    def __init__(
+    async def __init__(
         self, filepath: str, keys: Dict[Color, str], game: Optional[Game] = None
     ) -> None:
         """
@@ -191,9 +195,6 @@ class GameContainer:
             and immediately written to disk
         """
 
-        # TODO: each game needs a write lock. I think... invesigate tornado in
-        # order guarantees and reason a bit about how I'm handling messages
-
         self._filepath: str = filepath
         self.keys = keys
         self.colors: Dict[str, Color] = {
@@ -206,10 +207,11 @@ class GameContainer:
         # was a previously set timestamp when we go to write, add the difference
         # to the game's time_played
         self._write_load_timestamp = None
+        self._lock = asyncio.Lock()
 
         if self.game:
             logging.info(f"Created new game {self._filename}")
-            self._write()
+            await self._write()
 
     def __hash__(self) -> int:
         return hash(self._filename)
@@ -226,41 +228,44 @@ class GameContainer:
             f", game={self.game})"
         )
 
-    def load(self) -> None:
-        if self._is_loaded():
-            logging.warning(f"Tried to load already loaded game {self._filename}")
-            return
+    async def load(self) -> None:
+        async with self._lock:
+            if self._is_loaded():
+                logging.warning(f"Tried to load already loaded game {self._filename}")
+                return
 
-        with open(self._filepath, "rb") as reader:
-            self.game = pickle.load(reader)
+            async with aiofiles.open(self._filepath, "rb") as reader:
+                pickled_game = await reader.read()
+            self.game = pickle.loads(pickled_game)
 
-        self._write_load_timestamp = datetime.now().timestamp()
+            self._write_load_timestamp = datetime.now().timestamp()
 
         logging.info(f"Loaded game {self._filename}")
 
-    def unload(self) -> None:
-        if not self._is_loaded():
-            logging.warning(f"Tried to unload already unload game {self._filename}")
-            return
+    async def unload(self) -> None:
+        async with self._lock:
+            if not self._is_loaded():
+                logging.warning(f"Tried to unload already unload game {self._filename}")
+                return
 
-        self.game = None
-        self._write_load_timestamp = None
+            self.game = None
+            self._write_load_timestamp = None
 
         logging.info(f"Unloaded game {self._filename}")
 
-    def _write(self) -> None:
-        # TODO: this function should be async to avoid blocking the websocket
-        # handler
-        self._assert_loaded("write")
+    async def _write(self) -> None:
+        async with self._lock:
+            self._assert_loaded("write")
 
-        ts = datetime.now().timestamp()
-        if self._write_load_timestamp:
-            self.game.add_time_played(ts - self._write_load_timestamp)
+            ts = datetime.now().timestamp()
+            if self._write_load_timestamp:
+                self.game.add_time_played(ts - self._write_load_timestamp)
 
-        with open(self._filepath, "wb") as writer:
-            pickle.dump(self.game, writer)
+            async with aiofiles.open(self._filepath, "wb") as writer:
+                pickled_game = pickle.dumps(self.game)
+                await writer.write(pickled_game)
 
-        self._write_load_timestamp = ts
+            self._write_load_timestamp = ts
 
         logging.info(f"Wrote game {self._filename} to disk")
 
@@ -272,7 +277,7 @@ class GameContainer:
             self._is_loaded()
         ), f"Attempted to {action} unloaded game {self._filename}"
 
-    def pass_message(self, msg: IncomingMessage) -> bool:
+    async def pass_message(self, msg: IncomingMessage) -> bool:
         """Translate msg into a game action, attempt to take that action, and
         reply with the game's response. Return True if the action was
         successful and False otherwise"""
@@ -298,7 +303,7 @@ class GameContainer:
 
         # note that we want to write even after unsuccessful actions in order to
         # update time played
-        self._write()
+        await self._write()
 
         send_outgoing_message(
             OutgoingMessageType.game_action_response,
@@ -309,6 +314,7 @@ class GameContainer:
         return success
 
 
+@asyncinit
 class GameStore:
     """
     The interface storing and routing messages to GameContainer objects.
@@ -333,15 +339,15 @@ class GameStore:
         useful for unsubscribing when a connection is closed
     """
 
-    def __init__(self, dir: str) -> None:
+    async def __init__(self, dir: str) -> None:
         self.dir: str = dir
         self.keys: Dict[str, GameContainer] = {}
         self.containers: Dict[GameContainer, Tuple[str, str]] = {}
         self.subscriptions: Dict[str, WebSocketHandler] = {}
         self.clients: Dict[WebSocketHandler, str] = {}
-        self._hydrate_games()
+        await self._hydrate_games()
 
-    def _hydrate_games(self) -> None:
+    async def _hydrate_games(self) -> None:
         """List the contents of self.store_dir and enumerate the available
         games. Should only be called once by __init__"""
 
@@ -364,13 +370,13 @@ class GameStore:
                 key_w not in self.keys and key_b not in self.keys
             ), "Duplicate key, blowing up"
 
-            gc = GameContainer(path, {Color.white: key_w, Color.black: key_b})
+            gc = await GameContainer(path, {Color.white: key_w, Color.black: key_b})
             self.keys[key_w] = self.keys[key_b] = gc
             self.containers[gc] = (key_w, key_b)
 
             logging.info(f"Discovered game {f} in store {self.dir}")
 
-    def route_message(self, msg: IncomingMessage) -> None:
+    async def route_message(self, msg: IncomingMessage) -> None:
         key = msg.data[KEY]
 
         assert key in self.keys, f"Received message with unknown key {key}"
@@ -380,7 +386,7 @@ class GameStore:
             " that key"
         )
 
-        if self.keys[key].pass_message(msg):
+        if await self.keys[key].pass_message(msg):
             self._send_game_status(self.keys[key])
 
     def _send_game_status(self, gc: GameContainer) -> None:
@@ -394,7 +400,9 @@ class GameStore:
                     self.subscriptions[key],
                 )
 
-    def new_game(self, msg: IncomingMessage, _keys: Dict[Color, str] = None) -> None:
+    async def new_game(
+        self, msg: IncomingMessage, _keys: Dict[Color, str] = None
+    ) -> None:
         """
         Create a new GameContainer according to the specification in msg,
         store it in our routing tables, and respond appropriately.
@@ -417,10 +425,10 @@ class GameStore:
         if msg.websocket_handler in self.clients:
             old_key = self.clients[msg.websocket_handler]
             logging.info(f"Client requesting new game already subscribed to {old_key}")
-            self.unsubscribe(msg.websocket_handler)
+            await self.unsubscribe(msg.websocket_handler)
 
         path = os.path.join(self.dir, f"{key_w}{key_b}")
-        gc = GameContainer(path, keys, Game(msg.data[SIZE], msg.data[KOMI]))
+        gc = await GameContainer(path, keys, Game(msg.data[SIZE], msg.data[KOMI]))
         requested_color = Color[msg.data[COLOR]]
 
         self.keys[key_w] = self.keys[key_b] = gc
@@ -450,7 +458,7 @@ class GameStore:
 
         self._send_game_status(gc)
 
-    def join_game(self, msg: IncomingMessage) -> None:
+    async def join_game(self, msg: IncomingMessage) -> None:
         """Attempt to subscribe to the key specified in msg and respond
         appropriately"""
 
@@ -489,7 +497,7 @@ class GameStore:
                 logging.info(
                     f"Client requesting join game already subscribed to {old_key}"
                 )
-                self.unsubscribe(msg.websocket_handler)
+                await self.unsubscribe(msg.websocket_handler)
 
             self.subscriptions[key] = msg.websocket_handler
             self.clients[msg.websocket_handler] = key
@@ -510,7 +518,7 @@ class GameStore:
             # if we are the first to join this game, e.g. because we are
             # resuming an old game, load it up from disk
             if self._num_subscribers(gc) == 1:
-                gc.load()
+                await gc.load()
 
             self._send_game_status(self.keys[key])
 
@@ -520,7 +528,7 @@ class GameStore:
         k1, k2 = self.containers[gc]
         return (k1 in self.subscriptions) + (k2 in self.subscriptions)
 
-    def unsubscribe(self, socket: WebSocketHandler) -> None:
+    async def unsubscribe(self, socket: WebSocketHandler) -> None:
         """If socket is subscribed to a key, unsubscribe it"""
 
         if socket in self.clients:
@@ -533,13 +541,14 @@ class GameStore:
             # other player know that their opponent has left
             gc = self.keys[key]
             if not self._num_subscribers(gc):
-                gc.unload()
+                await gc.unload()
             else:
                 self._send_game_status(gc)
         else:
             logging.info("Client with no active subscription dropped")
 
 
+@asyncinit
 class GameManager:
     """
     GameManager is the simplified Game API to the connection_manager module.
@@ -550,7 +559,7 @@ class GameManager:
         store: GameStore - the game store
     """
 
-    def __init__(
+    async def __init__(
         self,
         store_dir: str = os.path.join(
             os.path.dirname(os.path.realpath(__file__)), "store"
@@ -567,20 +576,20 @@ class GameManager:
         elif not os.path.isdir(store_dir):
             raise NotADirectoryError(f"{store_dir} is not a directory")
 
-        self.store = GameStore(store_dir)
+        self.store = await GameStore(store_dir)
 
-    def unsubscribe(self, socket: WebSocketHandler) -> None:
+    async def unsubscribe(self, socket: WebSocketHandler) -> None:
         """Unsubscribe the socket from its key if it is subscribed, otherwise
         do nothing"""
 
-        self.store.unsubscribe(socket)
+        await self.store.unsubscribe(socket)
 
-    def route_message(self, msg: IncomingMessage) -> None:
+    async def route_message(self, msg: IncomingMessage) -> None:
         """Route the message to the correct method on the underlying store"""
 
         if msg.message_type is IncomingMessageType.new_game:
-            self.store.new_game(msg)
+            await self.store.new_game(msg)
         elif msg.message_type is IncomingMessageType.join_game:
-            self.store.join_game(msg)
+            await self.store.join_game(msg)
         elif msg.message_type is IncomingMessageType.game_action:
-            self.store.route_message(msg)
+            await self.store.route_message(msg)
