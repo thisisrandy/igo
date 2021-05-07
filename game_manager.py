@@ -471,7 +471,15 @@ class GameStore:
             send_outgoing_message(
                 OutgoingMessageType.join_game_response,
                 JoinGameResponseContainer(
-                    False, "Someone else is already playing that game and color"
+                    False,
+                    (
+                        (
+                            "You are"
+                            if self.subscriptions[key] is msg.websocket_handler
+                            else "Someone else is"
+                        )
+                        + " already playing that game and color",
+                    ),
                 ),
                 msg.websocket_handler,
             )
