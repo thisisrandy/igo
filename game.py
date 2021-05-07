@@ -260,7 +260,7 @@ class Game(JsonifyableBase):
 
     def __init__(self, size: int = 19, komi: float = 6.5) -> None:
         self.status: GameStatus = GameStatus.play
-        self.turn: Color = Color.white
+        self.turn: Color = Color.black
         self.action_stack: List[Action] = []
         self.board: Board = Board(size)
         self.komi: float = komi
