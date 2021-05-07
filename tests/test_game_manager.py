@@ -16,11 +16,12 @@ from game_manager import (
     NewGameResponseContainer,
 )
 import unittest
-from unittest.mock import MagicMock, Mock, call, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, call, patch
 import tempfile
 from constants import ACTION_TYPE, COLOR, COORDS, KEY, KEY_LEN, SIZE, TYPE, VS, KOMI
 from tornado.websocket import WebSocketHandler
 import json
+import asyncio
 
 
 class ResponseContainerTestCase(unittest.TestCase):
@@ -81,22 +82,22 @@ class GameContainerTestCase(unittest.TestCase):
 
     def test_new_game(self):
         self.assertFileDoesNotExists(self.filepath)
-        GameContainer(self.filepath, self.keys, Game(1))
+        asyncio.run(GameContainer(self.filepath, self.keys, Game(1)))
         self.assertFileExists(self.filepath)
 
     def test_load_unload(self):
-        gc = GameContainer(self.filepath, self.keys, Game(1))
+        gc = asyncio.run(GameContainer(self.filepath, self.keys, Game(1)))
         self.assertTrue(gc._is_loaded())
         board = gc.game.board
-        gc.unload()
+        asyncio.run(gc.unload())
         self.assertFalse(gc._is_loaded())
-        gc.load()
+        asyncio.run(gc.load())
         # make sure nothing's changed
         self.assertEqual(gc.game.board, board)
         self.assertTrue(gc._is_loaded())
 
     def test_pass_message_assertions(self):
-        gc = GameContainer(self.filepath, self.keys, Game(1))
+        gc = asyncio.run(GameContainer(self.filepath, self.keys, Game(1)))
         msg = IncomingMessage(
             json.dumps(
                 {
@@ -109,20 +110,20 @@ class GameContainerTestCase(unittest.TestCase):
         )
 
         # test must be loaded
-        gc.unload()
+        asyncio.run(gc.unload())
         with self.assertRaises(AssertionError):
-            gc.pass_message(msg)
-        gc.load()
+            asyncio.run(gc.pass_message(msg))
+        asyncio.run(gc.load())
 
         # test correct message type
         msg.message_type = IncomingMessageType.join_game
         with self.assertRaises(AssertionError):
-            gc.pass_message(msg)
+            asyncio.run(gc.pass_message(msg))
 
     @patch("game_manager.GameContainer._write")
     @patch("game_manager.send_outgoing_message")
     def test_pass_message(self, send_outgoing_message: Mock, _write: Mock):
-        gc = GameContainer(self.filepath, self.keys, Game(1))
+        gc = asyncio.run(GameContainer(self.filepath, self.keys, Game(1)))
         # assert once here in order to assert unambiguously below that
         # pass_message will also call _write exactly once
         _write.assert_called_once()
@@ -130,27 +131,27 @@ class GameContainerTestCase(unittest.TestCase):
             json.dumps(
                 {
                     TYPE: IncomingMessageType.game_action.name,
-                    KEY: self.keys[Color.white],
+                    KEY: self.keys[Color.black],
                     ACTION_TYPE: ActionType.request_draw.name,
                 }
             ),
             WebSocketHandler(),
         )
-        self.assertTrue(gc.pass_message(msg))
+        self.assertTrue(asyncio.run(gc.pass_message(msg)))
         self.assertEqual(_write.call_count, 2)
         send_outgoing_message.assert_called_once()
         self.assertIsNotNone(gc.game.pending_request)
 
     def test_time_played(self):
-        gc = GameContainer(self.filepath, self.keys, Game(1))
+        gc = asyncio.run(GameContainer(self.filepath, self.keys, Game(1)))
         self.assertIsNotNone(gc._write_load_timestamp)
         self.assertEqual(gc.game.time_played, 0.0)
-        gc._write()
+        asyncio.run(gc._write())
         self.assertGreater(gc.game.time_played, 0.0)
         prev_time_played = gc.game.time_played
-        gc.unload()
+        asyncio.run(gc.unload())
         self.assertIsNone(gc._write_load_timestamp)
-        gc.load()
+        asyncio.run(gc.load())
         self.assertEqual(gc.game.time_played, prev_time_played)
 
 
@@ -166,10 +167,12 @@ class GameStoreTestCase(unittest.TestCase):
         key_w = "0123456789"
         key_b = "9876543210"
         dir = tempfile.mkdtemp()
-        GameContainer(
-            os.path.join(dir, f"{key_w}{key_b}"),
-            {Color.white: key_w, Color.black: key_b},
-            Game(3),
+        asyncio.run(
+            GameContainer(
+                os.path.join(dir, f"{key_w}{key_b}"),
+                {Color.white: key_w, Color.black: key_b},
+                Game(3),
+            )
         ).unload()
 
         return key_w, key_b, dir
@@ -180,10 +183,10 @@ class GameStoreTestCase(unittest.TestCase):
         key_w, key_b, dir = self.set_up_game_container()
 
         with patch.object(GameStore, "_hydrate_games") as _hydrate_games:
-            GameStore(dir)
+            asyncio.run(GameStore(dir))
             _hydrate_games.assert_called_once()
 
-        gs = GameStore(dir)
+        gs = asyncio.run(GameStore(dir))
         self.assertIn(key_w, gs.keys)
         self.assertIn(key_b, gs.keys)
         self.assertEqual(len(gs.containers), 1)
@@ -193,23 +196,27 @@ class GameStoreTestCase(unittest.TestCase):
         # subscribe two players and ensure status sent to both
         p1, p2 = WebSocketHandler(), WebSocketHandler()
         key_w, key_b, dir = self.set_up_game_container()
-        gs = GameStore(dir)
+        gs = asyncio.run(GameStore(dir))
         gc = gs.keys[key_w]
 
-        gs.join_game(
-            IncomingMessage(
-                json.dumps({TYPE: IncomingMessageType.join_game.name, KEY: key_w}),
-                p1,
+        asyncio.run(
+            gs.join_game(
+                IncomingMessage(
+                    json.dumps({TYPE: IncomingMessageType.join_game.name, KEY: key_w}),
+                    p1,
+                )
             )
         )
         send_outgoing_message.assert_called_with(
             OutgoingMessageType.game_status, GameStatusContainer(gc.game, 1), p1
         )
 
-        gs.join_game(
-            IncomingMessage(
-                json.dumps({TYPE: IncomingMessageType.join_game.name, KEY: key_b}),
-                p2,
+        asyncio.run(
+            gs.join_game(
+                IncomingMessage(
+                    json.dumps({TYPE: IncomingMessageType.join_game.name, KEY: key_b}),
+                    p2,
+                )
             )
         )
         # any_order=True because the ordering of a dictionary iterator isn't
@@ -233,25 +240,27 @@ class GameStoreTestCase(unittest.TestCase):
         # mock
         player = WebSocketHandler()
         dir = tempfile.mkdtemp()
-        gs = GameStore(dir)
+        gs = asyncio.run(GameStore(dir))
         color = Color.white
         key_w, key_b = "0123456789", "9876543210"
         keys = {Color.white: key_w, Color.black: key_b}
 
-        gs.new_game(
-            IncomingMessage(
-                json.dumps(
-                    {
-                        TYPE: IncomingMessageType.new_game.name,
-                        VS: "human",
-                        COLOR: color.name,
-                        SIZE: 19,
-                        KOMI: 6.5,
-                    }
+        asyncio.run(
+            gs.new_game(
+                IncomingMessage(
+                    json.dumps(
+                        {
+                            TYPE: IncomingMessageType.new_game.name,
+                            VS: "human",
+                            COLOR: color.name,
+                            SIZE: 19,
+                            KOMI: 6.5,
+                        }
+                    ),
+                    player,
                 ),
-                player,
-            ),
-            _keys=keys,
+                _keys=keys,
+            )
         )
         gc = next(iter(gs.containers))
         self.assertTrue(gc._is_loaded())
@@ -286,15 +295,17 @@ class GameStoreTestCase(unittest.TestCase):
     def test_join_game(self, send_outgoing_message: Mock):
         p1, p2 = WebSocketHandler(), WebSocketHandler()
         key_w, key_b, dir = self.set_up_game_container()
-        gs = GameStore(dir)
+        gs = asyncio.run(GameStore(dir))
         gc = gs.keys[key_w]
 
         # join successfully and make sure message sent, game was loaded, and
         # the game status was subsequently sent via mock
-        gs.join_game(
-            IncomingMessage(
-                json.dumps({TYPE: IncomingMessageType.join_game.name, KEY: key_w}),
-                p1,
+        asyncio.run(
+            gs.join_game(
+                IncomingMessage(
+                    json.dumps({TYPE: IncomingMessageType.join_game.name, KEY: key_w}),
+                    p1,
+                )
             )
         )
         self.assertTrue(gc._is_loaded())
@@ -316,10 +327,12 @@ class GameStoreTestCase(unittest.TestCase):
             ],
         )
 
-        gs.join_game(
-            IncomingMessage(
-                json.dumps({TYPE: IncomingMessageType.join_game.name, KEY: key_b}),
-                p1,
+        asyncio.run(
+            gs.join_game(
+                IncomingMessage(
+                    json.dumps({TYPE: IncomingMessageType.join_game.name, KEY: key_b}),
+                    p1,
+                )
             )
         )
         self.assertEqual(len(gs.subscriptions), 1)
@@ -344,10 +357,14 @@ class GameStoreTestCase(unittest.TestCase):
 
         # join unsuccessfully in various ways and make sure current message sent
         bad_key = "0000000000"
-        gs.join_game(
-            IncomingMessage(
-                json.dumps({TYPE: IncomingMessageType.join_game.name, KEY: bad_key}),
-                p2,
+        asyncio.run(
+            gs.join_game(
+                IncomingMessage(
+                    json.dumps(
+                        {TYPE: IncomingMessageType.join_game.name, KEY: bad_key}
+                    ),
+                    p2,
+                )
             )
         )
         send_outgoing_message.assert_called_with(
@@ -361,10 +378,12 @@ class GameStoreTestCase(unittest.TestCase):
             ),
             p2,
         )
-        gs.join_game(
-            IncomingMessage(
-                json.dumps({TYPE: IncomingMessageType.join_game.name, KEY: key_b}),
-                p2,
+        asyncio.run(
+            gs.join_game(
+                IncomingMessage(
+                    json.dumps({TYPE: IncomingMessageType.join_game.name, KEY: key_b}),
+                    p2,
+                )
             )
         )
         send_outgoing_message.assert_called_with(
@@ -377,10 +396,12 @@ class GameStoreTestCase(unittest.TestCase):
         )
 
         # finally, join the other player successfully
-        gs.join_game(
-            IncomingMessage(
-                json.dumps({TYPE: IncomingMessageType.join_game.name, KEY: key_w}),
-                p2,
+        asyncio.run(
+            gs.join_game(
+                IncomingMessage(
+                    json.dumps({TYPE: IncomingMessageType.join_game.name, KEY: key_w}),
+                    p2,
+                )
             )
         )
         # any_order because status is also sent to p1 in unspecified order
@@ -409,30 +430,34 @@ class GameStoreTestCase(unittest.TestCase):
         # mock out GameContainer to intercept pass_message. ensure that status
         # is sent via mock on success and not sent on failure
         player = WebSocketHandler()
-        key_w, _, dir = self.set_up_game_container()
-        gs = GameStore(dir)
-        gc = gs.keys[key_w]
+        _, key_b, dir = self.set_up_game_container()
+        gs = asyncio.run(GameStore(dir))
+        gc = gs.keys[key_b]
 
-        gs.join_game(
-            IncomingMessage(
-                json.dumps({TYPE: IncomingMessageType.join_game.name, KEY: key_w}),
-                player,
+        asyncio.run(
+            gs.join_game(
+                IncomingMessage(
+                    json.dumps({TYPE: IncomingMessageType.join_game.name, KEY: key_b}),
+                    player,
+                )
             )
         )
 
         # success
         gs._send_game_status = MagicMock()
-        gc.pass_message = MagicMock(return_value=True)
-        gs.route_message(
-            IncomingMessage(
-                json.dumps(
-                    {
-                        TYPE: IncomingMessageType.game_action.name,
-                        KEY: key_w,
-                        ACTION_TYPE: ActionType.place_stone.name,
-                    }
-                ),
-                player,
+        gc.pass_message = AsyncMock(return_value=True)
+        asyncio.run(
+            gs.route_message(
+                IncomingMessage(
+                    json.dumps(
+                        {
+                            TYPE: IncomingMessageType.game_action.name,
+                            KEY: key_b,
+                            ACTION_TYPE: ActionType.place_stone.name,
+                        }
+                    ),
+                    player,
+                )
             )
         )
 
@@ -441,17 +466,19 @@ class GameStoreTestCase(unittest.TestCase):
 
         # failure
         gs._send_game_status = MagicMock()
-        gc.pass_message = MagicMock(return_value=False)
-        gs.route_message(
-            IncomingMessage(
-                json.dumps(
-                    {
-                        TYPE: IncomingMessageType.game_action.name,
-                        KEY: key_w,
-                        ACTION_TYPE: ActionType.place_stone.name,
-                    }
-                ),
-                player,
+        gc.pass_message = AsyncMock(return_value=False)
+        asyncio.run(
+            gs.route_message(
+                IncomingMessage(
+                    json.dumps(
+                        {
+                            TYPE: IncomingMessageType.game_action.name,
+                            KEY: key_b,
+                            ACTION_TYPE: ActionType.place_stone.name,
+                        }
+                    ),
+                    player,
+                )
             )
         )
 
@@ -464,47 +491,53 @@ class GameStoreTestCase(unittest.TestCase):
         # remaining subscribers is 1 and is unloaded otherwise
         p1, p2 = WebSocketHandler(), WebSocketHandler()
         key_w, key_b, dir = self.set_up_game_container()
-        gs = GameStore(dir)
+        gs = asyncio.run(GameStore(dir))
         gc = gs.keys[key_w]
 
         # one player
-        gs.join_game(
-            IncomingMessage(
-                json.dumps({TYPE: IncomingMessageType.join_game.name, KEY: key_w}),
-                p1,
+        asyncio.run(
+            gs.join_game(
+                IncomingMessage(
+                    json.dumps({TYPE: IncomingMessageType.join_game.name, KEY: key_w}),
+                    p1,
+                )
             )
         )
         self.assertTrue(gc._is_loaded())
         # reset so we can assert not called below
         send_outgoing_message.call_count = 0
         # no-op
-        gs.unsubscribe(p2)
+        asyncio.run(gs.unsubscribe(p2))
         self.assertTrue(gc._is_loaded())
         # real unsub
-        gs.unsubscribe(p1)
+        asyncio.run(gs.unsubscribe(p1))
         self.assertFalse(gc._is_loaded())
         send_outgoing_message.assert_not_called()
 
         # two players
-        gs.join_game(
-            IncomingMessage(
-                json.dumps({TYPE: IncomingMessageType.join_game.name, KEY: key_w}),
-                p1,
+        asyncio.run(
+            gs.join_game(
+                IncomingMessage(
+                    json.dumps({TYPE: IncomingMessageType.join_game.name, KEY: key_w}),
+                    p1,
+                )
             )
         )
-        gs.join_game(
-            IncomingMessage(
-                json.dumps({TYPE: IncomingMessageType.join_game.name, KEY: key_b}),
-                p2,
+        asyncio.run(
+            gs.join_game(
+                IncomingMessage(
+                    json.dumps({TYPE: IncomingMessageType.join_game.name, KEY: key_b}),
+                    p2,
+                )
             )
         )
         self.assertTrue(gc._is_loaded())
         # reset so we can assert calls below
         send_outgoing_message.call_count = 0
-        gs.unsubscribe(p1)
+        asyncio.run(gs.unsubscribe(p1))
         self.assertTrue(gc._is_loaded())
         send_outgoing_message.assert_called_once()
-        gs.unsubscribe(p2)
+        asyncio.run(gs.unsubscribe(p2))
         self.assertFalse(gc._is_loaded())
         send_outgoing_message.assert_called_once()
 
@@ -515,7 +548,7 @@ class GameStoreTestCase(unittest.TestCase):
 class GameManagerTestCase(unittest.TestCase):
     def setUp(self) -> None:
         self.dir = tempfile.mkdtemp()
-        self.gm = GameManager(self.dir)
+        self.gm = asyncio.run(GameManager(self.dir))
 
     def test_init(self):
         # test that store with correct dir is created
@@ -525,7 +558,7 @@ class GameManagerTestCase(unittest.TestCase):
     def test_unsubscribe(self, unsubscribe: Mock):
         # test that store's unsubscribe is called
         player = WebSocketHandler()
-        self.gm.unsubscribe(player)
+        asyncio.run(self.gm.unsubscribe(player))
         unsubscribe.assert_called_once_with(player)
 
     @patch.object(GameStore, "new_game")
@@ -547,14 +580,14 @@ class GameManagerTestCase(unittest.TestCase):
             ),
             player,
         )
-        self.gm.route_message(msg)
+        asyncio.run(self.gm.route_message(msg))
         new_game.assert_called_once_with(msg)
 
         msg = IncomingMessage(
             json.dumps({TYPE: IncomingMessageType.join_game.name, KEY: "0123456789"}),
             player,
         )
-        self.gm.route_message(msg)
+        asyncio.run(self.gm.route_message(msg))
         join_game.assert_called_once_with(msg)
 
         msg = IncomingMessage(
@@ -568,5 +601,5 @@ class GameManagerTestCase(unittest.TestCase):
             ),
             player,
         )
-        self.gm.route_message(msg)
+        asyncio.run(self.gm.route_message(msg))
         route_message.assert_called_once_with(msg)
