@@ -567,6 +567,7 @@ class GameManagerTestCase(unittest.TestCase):
     def test_route_message(self, route_message: Mock, join_game: Mock, new_game: Mock):
         # test that correct store methods are called for each message type
         player = WebSocketHandler()
+        key = "0123456789"
 
         msg = IncomingMessage(
             json.dumps(
@@ -584,7 +585,7 @@ class GameManagerTestCase(unittest.TestCase):
         new_game.assert_called_once_with(msg)
 
         msg = IncomingMessage(
-            json.dumps({TYPE: IncomingMessageType.join_game.name, KEY: "0123456789"}),
+            json.dumps({TYPE: IncomingMessageType.join_game.name, KEY: key}),
             player,
         )
         asyncio.run(self.gm.route_message(msg))
@@ -594,7 +595,7 @@ class GameManagerTestCase(unittest.TestCase):
             json.dumps(
                 {
                     TYPE: IncomingMessageType.game_action.name,
-                    KEY: "0123456789",
+                    KEY: key,
                     ACTION_TYPE: ActionType.place_stone.name,
                     COORDS: (0, 0),
                 }
