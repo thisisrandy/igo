@@ -100,7 +100,7 @@ class GameTestCase(unittest.TestCase):
         self.assertNotEqual(g1, g3)
         g1.take_action(
             Action(
-                ActionType.place_stone, Color.white, datetime.now().timestamp(), (1, 1)
+                ActionType.place_stone, Color.black, datetime.now().timestamp(), (1, 1)
             )
         )
         self.assertNotEqual(g1, g2)
@@ -132,46 +132,46 @@ class GameTestCase(unittest.TestCase):
         b = Board(3)
         success, _ = g.take_action(
             Action(
-                ActionType.place_stone, Color.white, datetime.now().timestamp(), (0, 0)
+                ActionType.place_stone, Color.black, datetime.now().timestamp(), (0, 0)
             )
         )
         self.assertTrue(success)
-        b[0][0].color = Color.white
+        b[0][0].color = Color.black
         self.assertEqual(g.board, b)
 
     def test_turn(self):
         g = Game(3)
         success, msg = g.take_action(
             Action(
-                ActionType.place_stone, Color.black, datetime.now().timestamp(), (0, 0)
-            )
-        )
-        self.assertFalse(success)
-        self.assertEqual(msg, "It isn't black's turn")
-        g.take_action(
-            Action(
                 ActionType.place_stone, Color.white, datetime.now().timestamp(), (0, 0)
-            )
-        )
-        success, msg = g.take_action(
-            Action(
-                ActionType.place_stone, Color.white, datetime.now().timestamp(), (0, 1)
             )
         )
         self.assertFalse(success)
         self.assertEqual(msg, "It isn't white's turn")
+        g.take_action(
+            Action(
+                ActionType.place_stone, Color.black, datetime.now().timestamp(), (0, 0)
+            )
+        )
+        success, msg = g.take_action(
+            Action(
+                ActionType.place_stone, Color.black, datetime.now().timestamp(), (0, 1)
+            )
+        )
+        self.assertFalse(success)
+        self.assertEqual(msg, "It isn't black's turn")
 
     def test_occupied(self):
         g = Game(3)
         g.take_action(
             Action(
-                ActionType.place_stone, Color.white, datetime.now().timestamp(), (0, 0)
+                ActionType.place_stone, Color.black, datetime.now().timestamp(), (0, 0)
             )
         )
         success, msg = g.take_action(
             Action(
                 ActionType.place_stone,
-                Color.black,
+                Color.white,
                 datetime.now().timestamp(),
                 (0, 0),
             )
@@ -183,12 +183,12 @@ class GameTestCase(unittest.TestCase):
         g = Game(3)
         ts = datetime.now().timestamp()
         actions = [
-            Action(ActionType.place_stone, Color.white, ts, (1, 0)),
-            Action(ActionType.place_stone, Color.black, ts, (0, 0)),
-            Action(ActionType.place_stone, Color.white, ts, (1, 1)),
-            Action(ActionType.place_stone, Color.black, ts, (0, 1)),
-            Action(ActionType.place_stone, Color.white, ts, (1, 2)),
-            Action(ActionType.place_stone, Color.black, ts, (0, 2)),
+            Action(ActionType.place_stone, Color.black, ts, (1, 0)),
+            Action(ActionType.place_stone, Color.white, ts, (0, 0)),
+            Action(ActionType.place_stone, Color.black, ts, (1, 1)),
+            Action(ActionType.place_stone, Color.white, ts, (0, 1)),
+            Action(ActionType.place_stone, Color.black, ts, (1, 2)),
+            Action(ActionType.place_stone, Color.white, ts, (0, 2)),
         ]
         for a in actions:
             success, msg = g.take_action(a)
@@ -199,15 +199,15 @@ class GameTestCase(unittest.TestCase):
         g = Game(4)
         ts = datetime.now().timestamp()
         actions = [
-            Action(ActionType.place_stone, Color.white, ts, (1, 0)),
-            Action(ActionType.place_stone, Color.black, ts, (2, 0)),
-            Action(ActionType.place_stone, Color.white, ts, (0, 1)),
-            Action(ActionType.place_stone, Color.black, ts, (3, 1)),
-            Action(ActionType.place_stone, Color.white, ts, (1, 2)),
-            Action(ActionType.place_stone, Color.black, ts, (2, 2)),
-            Action(ActionType.place_stone, Color.white, ts, (2, 1)),
-            Action(ActionType.place_stone, Color.black, ts, (1, 1)),
-            Action(ActionType.place_stone, Color.white, ts, (2, 1)),
+            Action(ActionType.place_stone, Color.black, ts, (1, 0)),
+            Action(ActionType.place_stone, Color.white, ts, (2, 0)),
+            Action(ActionType.place_stone, Color.black, ts, (0, 1)),
+            Action(ActionType.place_stone, Color.white, ts, (3, 1)),
+            Action(ActionType.place_stone, Color.black, ts, (1, 2)),
+            Action(ActionType.place_stone, Color.white, ts, (2, 2)),
+            Action(ActionType.place_stone, Color.black, ts, (2, 1)),
+            Action(ActionType.place_stone, Color.white, ts, (1, 1)),
+            Action(ActionType.place_stone, Color.black, ts, (2, 1)),
         ]
         for a in actions:
             success, msg = g.take_action(a)
@@ -218,22 +218,22 @@ class GameTestCase(unittest.TestCase):
         g = Game(5)
         ts = datetime.now().timestamp()
         actions = [
-            Action(ActionType.place_stone, Color.white, ts, (0, 0)),
-            Action(ActionType.place_stone, Color.black, ts, (1, 0)),
-            Action(ActionType.place_stone, Color.white, ts, (0, 1)),
-            Action(ActionType.place_stone, Color.black, ts, (1, 1)),
-            Action(ActionType.place_stone, Color.white, ts, (0, 2)),
-            Action(ActionType.place_stone, Color.black, ts, (2, 2)),
-            Action(ActionType.place_stone, Color.white, ts, (1, 2)),
-            Action(ActionType.place_stone, Color.black, ts, (1, 3)),
-            Action(ActionType.place_stone, Color.white, ts, (0, 3)),
-            Action(ActionType.place_stone, Color.black, ts, (0, 4)),
+            Action(ActionType.place_stone, Color.black, ts, (0, 0)),
+            Action(ActionType.place_stone, Color.white, ts, (1, 0)),
+            Action(ActionType.place_stone, Color.black, ts, (0, 1)),
+            Action(ActionType.place_stone, Color.white, ts, (1, 1)),
+            Action(ActionType.place_stone, Color.black, ts, (0, 2)),
+            Action(ActionType.place_stone, Color.white, ts, (2, 2)),
+            Action(ActionType.place_stone, Color.black, ts, (1, 2)),
+            Action(ActionType.place_stone, Color.white, ts, (1, 3)),
+            Action(ActionType.place_stone, Color.black, ts, (0, 3)),
+            Action(ActionType.place_stone, Color.white, ts, (0, 4)),
         ]
         for a in actions:
             success, msg = g.take_action(a)
         self.assertEqual(len(g.action_stack), len(actions))
-        self.assertEqual(g.prisoners[Color.white], 0)
-        self.assertEqual(g.prisoners[Color.black], 5)
+        self.assertEqual(g.prisoners[Color.black], 0)
+        self.assertEqual(g.prisoners[Color.white], 5)
 
     def test_pass_assertions(self):
         g = Game(1)
@@ -255,20 +255,20 @@ class GameTestCase(unittest.TestCase):
     def test_pass_turn(self):
         g = Game(1)
         ts = datetime.now().timestamp()
-        success, msg = g.take_action(Action(ActionType.pass_turn, Color.white, ts))
-        self.assertTrue(success)
-        self.assertEqual(msg, "White passed on their turn")
-        self.assertTrue(g.turn is Color.black)
-        self.assertTrue(g.status is GameStatus.play)
         success, msg = g.take_action(Action(ActionType.pass_turn, Color.black, ts))
         self.assertTrue(success)
         self.assertEqual(msg, "Black passed on their turn")
         self.assertTrue(g.turn is Color.white)
+        self.assertTrue(g.status is GameStatus.play)
+        success, msg = g.take_action(Action(ActionType.pass_turn, Color.white, ts))
+        self.assertTrue(success)
+        self.assertEqual(msg, "White passed on their turn")
+        self.assertTrue(g.turn is Color.black)
         self.assertTrue(g.status is GameStatus.endgame)
 
     def test_resign_assertions(self):
         g = Game(1)
-        a = Action(ActionType.resign, Color.white, datetime.now().timestamp())
+        a = Action(ActionType.resign, Color.black, datetime.now().timestamp())
 
         # wrong status
         g.status = GameStatus.endgame
@@ -287,27 +287,27 @@ class GameTestCase(unittest.TestCase):
         # test the basics
         g = Game(1)
         self.assertIsNone(g.result)
-        a = Action(ActionType.resign, Color.white, datetime.now().timestamp())
-        success, msg = g.take_action(a)
-        self.assertTrue(success)
-        self.assertEqual(msg, "White resigned")
-        self.assertEqual(g.status, GameStatus.complete)
-        self.assertIsNotNone(g.result)
-        self.assertEqual(g.result.result_type, ResultType.resignation)
-        self.assertEqual(g.result.winner, Color.black)
-
-        # test that black can resign on white's turn
-        g = Game(1)
-        a.color = Color.black
+        a = Action(ActionType.resign, Color.black, datetime.now().timestamp())
         success, msg = g.take_action(a)
         self.assertTrue(success)
         self.assertEqual(msg, "Black resigned")
+        self.assertEqual(g.status, GameStatus.complete)
+        self.assertIsNotNone(g.result)
+        self.assertEqual(g.result.result_type, ResultType.resignation)
+        self.assertEqual(g.result.winner, Color.white)
+
+        # test that white can resign on black's turn
+        g = Game(1)
+        a.color = Color.white
+        success, msg = g.take_action(a)
+        self.assertTrue(success)
+        self.assertEqual(msg, "White resigned")
 
     def test_mark_dead_assertions(self):
         g = Game(1)
 
         # no coords
-        a = Action(ActionType.mark_dead, Color.white, datetime.now().timestamp())
+        a = Action(ActionType.mark_dead, Color.black, datetime.now().timestamp())
         with self.assertRaises(AssertionError):
             g.take_action(a)
         a.coords = (0, 0)
@@ -371,7 +371,7 @@ class GameTestCase(unittest.TestCase):
 
     def test_request_draw_assertions(self):
         g = Game(1)
-        a = Action(ActionType.request_draw, Color.white, datetime.now().timestamp())
+        a = Action(ActionType.request_draw, Color.black, datetime.now().timestamp())
 
         # wrong status
         g.status = GameStatus.endgame
@@ -388,16 +388,16 @@ class GameTestCase(unittest.TestCase):
 
     def test_request_draw(self):
         g = Game(1)
-        a = Action(ActionType.request_draw, Color.white, datetime.now().timestamp())
+        a = Action(ActionType.request_draw, Color.black, datetime.now().timestamp())
 
         # test that we can request a draw
         success, msg = g.take_action(a)
         self.assertTrue(success)
-        self.assertEqual(msg, "White requested a draw. Awaiting response...")
+        self.assertEqual(msg, "Black requested a draw. Awaiting response...")
         self.assertIs(g.status, GameStatus.request_pending)
         self.assertIsNotNone(g.pending_request)
         self.assertIs(g.pending_request.request_type, RequestType.draw)
-        self.assertIs(g.pending_request.initiator, Color.white)
+        self.assertIs(g.pending_request.initiator, Color.black)
 
         # test that two requests without a response fail
         success, msg = g.take_action(a)
@@ -406,10 +406,10 @@ class GameTestCase(unittest.TestCase):
 
         # test that requesting a draw outside of one's turn fails
         g = Game(1)
-        a.color = Color.black
+        a.color = Color.white
         success, msg = g.take_action(a)
         self.assertFalse(success)
-        self.assertEqual(msg, "It isn't black's turn")
+        self.assertEqual(msg, "It isn't white's turn")
 
     def test_request_tally_score_assertions(self):
         g = Game(1)
@@ -456,7 +456,7 @@ class GameTestCase(unittest.TestCase):
 
     def test_respond_assertions(self):
         g = Game(1)
-        a = Action(ActionType.accept, Color.white, datetime.now().timestamp())
+        a = Action(ActionType.accept, Color.black, datetime.now().timestamp())
 
         # wrong status
         with self.assertRaises(AssertionError):
@@ -472,7 +472,7 @@ class GameTestCase(unittest.TestCase):
         a.action_type = ActionType.accept
 
         # trying to respond to self
-        g.pending_request = Request(RequestType.draw, Color.white)
+        g.pending_request = Request(RequestType.draw, Color.black)
         with self.assertRaises(AssertionError):
             g._respond(a)
 
@@ -480,8 +480,8 @@ class GameTestCase(unittest.TestCase):
         g = Game(1)
         ts = datetime.now().timestamp()
         for a in [
-            Action(ActionType.request_draw, Color.white, ts),
-            Action(ActionType.reject, Color.black, ts),
+            Action(ActionType.request_draw, Color.black, ts),
+            Action(ActionType.reject, Color.white, ts),
         ]:
             success, _ = g.take_action(a)
         self.assertTrue(success)
@@ -489,10 +489,10 @@ class GameTestCase(unittest.TestCase):
 
     @staticmethod
     def goto_endgame(g: Game, ts: float):
-        """Assuming that the g is in play status and it's white's turn,
+        """Assuming that the g is in play status and it's black's turn,
         transition to endgame by passing twice"""
 
-        for c in Color:
+        for c in reversed(Color):
             g.take_action(Action(ActionType.pass_turn, c, ts))
 
     def test_respond_mark_dead(self):
@@ -536,15 +536,15 @@ class GameTestCase(unittest.TestCase):
     def test_respond_draw(self):
         g = Game(1)
         ts = datetime.now().timestamp()
-        request = Action(ActionType.request_draw, Color.white, ts)
+        request = Action(ActionType.request_draw, Color.black, ts)
 
         # negative response
-        respond = Action(ActionType.reject, Color.black, ts)
+        respond = Action(ActionType.reject, Color.white, ts)
         g.take_action(request)
         success, msg = g.take_action(respond)
         self.assertIs(g.status, GameStatus.play)
         self.assertTrue(success)
-        self.assertEqual(msg, "Black rejected white's draw request")
+        self.assertEqual(msg, "White rejected black's draw request")
 
         # positive response
         respond.action_type = ActionType.accept
@@ -554,7 +554,7 @@ class GameTestCase(unittest.TestCase):
         self.assertIs(g.result.result_type, ResultType.draw)
         self.assertIsNone(g.result.winner)
         self.assertTrue(success)
-        self.assertEqual(msg, "Black accepted white's draw request")
+        self.assertEqual(msg, "White accepted black's draw request")
 
     def test_respond_tally_score(self):
         ts = datetime.now().timestamp()
@@ -632,7 +632,7 @@ class GameTestCase(unittest.TestCase):
                 "status": "request_pending",
                 "komi": 6.5,
                 "prisoners": {"white": 0, "black": 0},
-                "turn": "white",
+                "turn": "black",
                 "territory": {"white": 0, "black": 0},
                 "pendingRequest": {"requestType": "tally_score", "initiator": "white"},
                 "result": None,
@@ -653,7 +653,7 @@ class GameTestCase(unittest.TestCase):
                 "status": "complete",
                 "komi": 6.5,
                 "prisoners": {"white": 0, "black": 0},
-                "turn": "white",
+                "turn": "black",
                 "territory": {"white": 0, "black": 0},
                 "pendingRequest": None,
                 "result": {"resultType": "standard_win", "winner": "white"},
