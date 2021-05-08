@@ -103,7 +103,7 @@ class JsonifyableBase(ABC):
         raise NotImplementedError()
 
 
-def send_outgoing_message(
+async def send_outgoing_message(
     message_type: OutgoingMessageType,
     data: JsonifyableBase,
     websocket_handler: WebSocketHandler,
@@ -132,7 +132,7 @@ def send_outgoing_message(
 
     msg = json.dumps({"message_type": message_type.name, "data": data.jsonifyable()})
     try:
-        websocket_handler.write_message(msg)
+        await websocket_handler.write_message(msg)
         logging.info(f"Sent a message of type {message_type}")
         logging.debug(f"Message data: {msg}")
         return True

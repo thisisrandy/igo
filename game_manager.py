@@ -305,7 +305,7 @@ class GameContainer:
         # update time played
         await self._write()
 
-        send_outgoing_message(
+        await send_outgoing_message(
             OutgoingMessageType.game_action_response,
             ActionResponseContainer(success, explanation),
             msg.websocket_handler,
@@ -387,14 +387,14 @@ class GameStore:
         )
 
         if await self.keys[key].pass_message(msg):
-            self._send_game_status(self.keys[key])
+            await self._send_game_status(self.keys[key])
 
-    def _send_game_status(self, gc: GameContainer) -> None:
+    async def _send_game_status(self, gc: GameContainer) -> None:
         """Send a game status message to any subscribers to gc"""
 
         for key in self.containers[gc]:
             if key in self.subscriptions:
-                send_outgoing_message(
+                await send_outgoing_message(
                     OutgoingMessageType.game_status,
                     GameStatusContainer(gc.game, self._num_subscribers(gc)),
                     self.subscriptions[key],
@@ -438,7 +438,7 @@ class GameStore:
 
         # TODO: If msg.data[VS] is "computer", set up computer as second player
 
-        send_outgoing_message(
+        await send_outgoing_message(
             OutgoingMessageType.new_game_response,
             NewGameResponseContainer(
                 True,
@@ -456,7 +456,7 @@ class GameStore:
             msg.websocket_handler,
         )
 
-        self._send_game_status(gc)
+        await self._send_game_status(gc)
 
     async def join_game(self, msg: IncomingMessage) -> None:
         """Attempt to subscribe to the key specified in msg and respond
@@ -464,7 +464,7 @@ class GameStore:
 
         key = msg.data[KEY]
         if key not in self.keys:
-            send_outgoing_message(
+            await send_outgoing_message(
                 OutgoingMessageType.join_game_response,
                 JoinGameResponseContainer(
                     False,
@@ -476,7 +476,7 @@ class GameStore:
                 msg.websocket_handler,
             )
         elif key in self.subscriptions:
-            send_outgoing_message(
+            await send_outgoing_message(
                 OutgoingMessageType.join_game_response,
                 JoinGameResponseContainer(
                     False,
@@ -504,7 +504,7 @@ class GameStore:
             gc = self.keys[key]
             color = gc.colors[key]
 
-            send_outgoing_message(
+            await send_outgoing_message(
                 OutgoingMessageType.join_game_response,
                 JoinGameResponseContainer(
                     True,
@@ -520,7 +520,7 @@ class GameStore:
             if self._num_subscribers(gc) == 1:
                 await gc.load()
 
-            self._send_game_status(self.keys[key])
+            await self._send_game_status(self.keys[key])
 
     def _num_subscribers(self, gc: GameContainer) -> int:
         """Determine the number of clients actively subscribed to gc"""
@@ -543,7 +543,7 @@ class GameStore:
             if not self._num_subscribers(gc):
                 await gc.unload()
             else:
-                self._send_game_status(gc)
+                await self._send_game_status(gc)
         else:
             logging.info("Client with no active subscription dropped")
 

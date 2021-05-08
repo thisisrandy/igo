@@ -168,12 +168,14 @@ class GameStoreTestCase(unittest.TestCase):
         key_b = "9876543210"
         dir = tempfile.mkdtemp()
         asyncio.run(
-            GameContainer(
-                os.path.join(dir, f"{key_w}{key_b}"),
-                {Color.white: key_w, Color.black: key_b},
-                Game(3),
-            )
-        ).unload()
+            asyncio.run(
+                GameContainer(
+                    os.path.join(dir, f"{key_w}{key_b}"),
+                    {Color.white: key_w, Color.black: key_b},
+                    Game(3),
+                )
+            ).unload()
+        )
 
         return key_w, key_b, dir
 
@@ -425,8 +427,8 @@ class GameStoreTestCase(unittest.TestCase):
         )
         self.assertEqual(len(gs.subscriptions), 2)
 
-    @patch("game_manager.send_outgoing_message", lambda *args: None)
-    def test_route_message(self):
+    @patch("game_manager.send_outgoing_message")
+    def test_route_message(self, _):
         # mock out GameContainer to intercept pass_message. ensure that status
         # is sent via mock on success and not sent on failure
         player = WebSocketHandler()
@@ -444,7 +446,7 @@ class GameStoreTestCase(unittest.TestCase):
         )
 
         # success
-        gs._send_game_status = MagicMock()
+        gs._send_game_status = AsyncMock()
         gc.pass_message = AsyncMock(return_value=True)
         asyncio.run(
             gs.route_message(
@@ -465,7 +467,7 @@ class GameStoreTestCase(unittest.TestCase):
         gs._send_game_status.assert_called_once()
 
         # failure
-        gs._send_game_status = MagicMock()
+        gs._send_game_status = AsyncMock()
         gc.pass_message = AsyncMock(return_value=False)
         asyncio.run(
             gs.route_message(

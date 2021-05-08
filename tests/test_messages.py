@@ -7,10 +7,11 @@ from messages import (
     send_outgoing_message,
 )
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 from tornado.websocket import WebSocketHandler
 from constants import SIZE, TYPE, VS, COLOR, KOMI, KEY, ACTION_TYPE
 import json
+import asyncio
 
 
 @patch.object(WebSocketHandler, "__init__", lambda self: None)
@@ -121,12 +122,17 @@ class IncomingMessageTestCase(unittest.TestCase):
 
 
 @patch.object(WebSocketHandler, "__init__", lambda self: None)
-@patch.object(WebSocketHandler, "write_message")
 class OutgoingMessageTestCase(unittest.TestCase):
-    def test_jsonify(self, write_message: Mock):
+    # def test_jsonify(self, write_message: AsyncMock):
+    def test_jsonify(self):
+        WebSocketHandler.write_message = AsyncMock(autospec=True)
         g = Game(1)
-        send_outgoing_message(OutgoingMessageType.game_status, g, WebSocketHandler())
-        write_message.assert_called_once_with(
+        asyncio.run(
+            send_outgoing_message(
+                OutgoingMessageType.game_status, g, WebSocketHandler()
+            )
+        )
+        WebSocketHandler.write_message.assert_called_once_with(
             json.dumps(
                 {
                     "message_type": OutgoingMessageType.game_status.name,
@@ -135,8 +141,11 @@ class OutgoingMessageTestCase(unittest.TestCase):
             )
         )
 
-    def test_send(self, write_message: Mock):
-        send_outgoing_message(
-            OutgoingMessageType.game_status, Game(1), WebSocketHandler()
+    def test_send(self):
+        WebSocketHandler.write_message = AsyncMock(autospec=True)
+        asyncio.run(
+            send_outgoing_message(
+                OutgoingMessageType.game_status, Game(1), WebSocketHandler()
+            )
         )
-        write_message.assert_called()
+        WebSocketHandler.write_message.assert_called()
