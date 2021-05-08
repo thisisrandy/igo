@@ -576,7 +576,7 @@ class GameManager:
         elif not os.path.isdir(store_dir):
             raise NotADirectoryError(f"{store_dir} is not a directory")
 
-        self.store = await GameStore(store_dir)
+        self.store: GameStore = await GameStore(store_dir)
 
     async def unsubscribe(self, socket: WebSocketHandler) -> None:
         """Unsubscribe the socket from its key if it is subscribed, otherwise
