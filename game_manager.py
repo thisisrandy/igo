@@ -18,6 +18,7 @@ from datetime import datetime
 import asyncio
 import aiofiles
 from asyncinit import asyncinit
+from contextlib import AsyncExitStack
 
 
 @dataclass
@@ -253,8 +254,13 @@ class GameContainer:
 
         logging.info(f"Unloaded game {self._filename}")
 
-    async def _write(self) -> None:
-        async with self._lock:
+    async def _write(self, use_lock=True) -> None:
+        """Set use_lock to False if already holding self._lock"""
+
+        async with AsyncExitStack() as stack:
+            if use_lock:
+                await stack.enter_async_context(self._lock)
+
             self._assert_loaded("write")
 
             ts = datetime.now().timestamp()
@@ -282,28 +288,29 @@ class GameContainer:
         reply with the game's response. Return True if the action was
         successful and False otherwise"""
 
-        self._assert_loaded("pass message to")
-        assert (
-            msg.message_type is IncomingMessageType.game_action
-        ), f"{self.__class__.__name__} can only process game actions"
+        async with self._lock:
+            self._assert_loaded("pass message to")
+            assert (
+                msg.message_type is IncomingMessageType.game_action
+            ), f"{self.__class__.__name__} can only process game actions"
 
-        success, explanation = self.game.take_action(
-            Action(
-                ActionType[msg.data[ACTION_TYPE]],
-                self.colors[msg.data[KEY]],
-                msg.timestamp,
-                tuple(msg.data[COORDS]) if COORDS in msg.data else None,
+            success, explanation = self.game.take_action(
+                Action(
+                    ActionType[msg.data[ACTION_TYPE]],
+                    self.colors[msg.data[KEY]],
+                    msg.timestamp,
+                    tuple(msg.data[COORDS]) if COORDS in msg.data else None,
+                )
             )
-        )
 
-        logging.info(
-            f"Took action with result success={success}, explanation={explanation}"
-        )
-        logging.debug(f"Game state is now {self.game}")
+            logging.info(
+                f"Took action with result success={success}, explanation={explanation}"
+            )
+            logging.debug(f"Game state is now {self.game}")
 
-        # note that we want to write even after unsuccessful actions in order to
-        # update time played
-        await self._write()
+            # note that we want to write even after unsuccessful actions in order to
+            # update time played
+            await self._write(use_lock=False)
 
         await send_outgoing_message(
             OutgoingMessageType.game_action_response,
