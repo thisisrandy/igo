@@ -283,6 +283,7 @@ class Game(JsonifyableBase):
             f", pending_request={self.pending_request}"
             f", result={self.result}"
             f", time_played={self.time_played}"
+            f", _completion_time_recorded={self._completion_time_recorded}"
             f", _prev_board={self._prev_board})"
         )
 
