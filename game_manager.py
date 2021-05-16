@@ -600,3 +600,7 @@ class GameManager:
             await self.store.join_game(msg)
         elif msg.message_type is IncomingMessageType.game_action:
             await self.store.route_message(msg)
+        else:
+            raise TypeError(
+                f"Unknown incoming message type {msg.message_type} encountered"
+            )
