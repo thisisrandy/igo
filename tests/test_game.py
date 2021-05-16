@@ -4,6 +4,7 @@ from game import (
     Action,
     ActionType,
     Board,
+    ChatMessage,
     Color,
     Game,
     GameStatus,
@@ -637,9 +638,11 @@ class GameTestCase(unittest.TestCase):
                 "pendingRequest": {"requestType": "tally_score", "initiator": "white"},
                 "result": None,
                 "timePlayed": g.time_played,
+                "chatMessages": [],
             },
         )
         g.take_action(Action(ActionType.accept, Color.black, ts))
+        g.append_chat_message(ChatMessage(ts, Color.black, "hi"))
         self.assertEqual(
             g.jsonifyable(),
             {
@@ -658,5 +661,18 @@ class GameTestCase(unittest.TestCase):
                 "pendingRequest": None,
                 "result": {"resultType": "standard_win", "winner": "white"},
                 "timePlayed": g.time_played,
+                "chatMessages": [
+                    {"timestamp": ts, "color": Color.black.name, "message": "hi"}
+                ],
             },
         )
+
+    def test_append_chat_message(self):
+        g = Game(1)
+        ts = datetime.now().timestamp()
+        g.append_chat_message(ChatMessage(ts, Color.black, "hi"))
+        self.assertEqual(len(g.chat_messages), 1)
+        g.append_chat_message(ChatMessage(ts + 1, Color.white, "hi"))
+        self.assertEqual(len(g.chat_messages), 2)
+        with self.assertRaises(AssertionError):
+            g.append_chat_message(ChatMessage(ts, Color.black, "hi"))

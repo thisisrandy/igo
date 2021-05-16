@@ -219,6 +219,41 @@ class Board(JsonifyableBase):
         return {"size": self.size, "points": [r.jsonifyable() for r in self._rows]}
 
 
+@dataclass
+class ChatMessage(JsonifyableBase):
+    """
+    A container class for chat messages
+
+    Attributes:
+
+        timestamp: float - the server time, in seconds, when the message was
+        received
+
+        color: Color - the color of the player who created the message
+
+        message: str - the message contents
+    """
+
+    timestamp: float
+    color: Color
+    message: str
+
+    def jsonifyable(self) -> Dict:
+        return {
+            "timestamp": self.timestamp,
+            "color": self.color.name,
+            "message": self.message,
+        }
+
+    def __repr__(self) -> str:
+        return (
+            f"ChatMessage("
+            f"timestamp={self.timestamp}"
+            f", color={self.color}"
+            f", message={self.message})"
+        )
+
+
 class Game(JsonifyableBase):
     """
     The state and rule logic of a go game
@@ -255,6 +290,10 @@ class Game(JsonifyableBase):
         succinctly define play time as the cumulative amount of time for each
         loaded period between when the game is loaded and the last action taken
         on it
+
+        chat_messages: List[ChatMessage] - the (timestamp-ordered) list of chat
+        messages associated with this game. NB: should not be appended to
+        directly. Use append_chat_message instead
     """
 
     def __init__(self, size: int = 19, komi: float = 6.5) -> None:
@@ -268,6 +307,7 @@ class Game(JsonifyableBase):
         self.pending_request: Optional[Request] = None
         self.result: Optional[Result] = None
         self.time_played: float = 0.0
+        self.chat_messages: List[ChatMessage] = []
         self._completion_time_recorded: bool = False
         self._prev_board: Board = None
 
@@ -283,6 +323,7 @@ class Game(JsonifyableBase):
             f", pending_request={self.pending_request}"
             f", result={self.result}"
             f", time_played={self.time_played}"
+            f", chat_messages={self.chat_messages}"
             f", _completion_time_recorded={self._completion_time_recorded}"
             f", _prev_board={self._prev_board})"
         )
@@ -690,6 +731,13 @@ class Game(JsonifyableBase):
         if self.status == GameStatus.complete:
             self._completion_time_recorded = True
 
+    def append_chat_message(self, message: ChatMessage) -> None:
+        assert (
+            not self.chat_messages
+            or self.chat_messages[-1].timestamp <= message.timestamp
+        ), "Chat messages must be appended in ascending timestamp order"
+        self.chat_messages.append(message)
+
     def jsonifyable(self) -> Dict:
         """Return a representation which can be readily JSONified. In
         particular, return a dictionary with the board, game status, komi,
@@ -715,4 +763,5 @@ class Game(JsonifyableBase):
             else None,
             "result": self.result.jsonifyable() if self.result else None,
             "timePlayed": self.time_played,
+            "chatMessages": [msg.jsonifyable() for msg in self.chat_messages],
         }

@@ -1,5 +1,5 @@
 from __future__ import annotations
-from constants import ACTION_TYPE, COLOR, SIZE, VS, KOMI, KEY, TYPE
+from constants import ACTION_TYPE, COLOR, MESSAGE, SIZE, VS, KOMI, KEY, TYPE
 from datetime import datetime
 from enum import Enum, auto
 import json
@@ -13,6 +13,7 @@ class IncomingMessageType(Enum):
     new_game = auto()
     join_game = auto()
     game_action = auto()
+    chat_message = auto()
 
     @staticmethod
     def required_keys() -> Dict[IncomingMessageType, List[str]]:
@@ -23,6 +24,7 @@ class IncomingMessageType(Enum):
             IncomingMessageType.new_game: [VS, COLOR, SIZE, KOMI],
             IncomingMessageType.join_game: [KEY],
             IncomingMessageType.game_action: [KEY, ACTION_TYPE],
+            IncomingMessageType.chat_message: [KEY, MESSAGE],
         }
 
 

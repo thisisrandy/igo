@@ -18,7 +18,18 @@ from game_manager import (
 import unittest
 from unittest.mock import AsyncMock, MagicMock, Mock, call, patch
 import tempfile
-from constants import ACTION_TYPE, COLOR, COORDS, KEY, KEY_LEN, SIZE, TYPE, VS, KOMI
+from constants import (
+    ACTION_TYPE,
+    COLOR,
+    COORDS,
+    KEY,
+    KEY_LEN,
+    MESSAGE,
+    SIZE,
+    TYPE,
+    VS,
+    KOMI,
+)
 from tornado.websocket import WebSocketHandler
 import json
 import asyncio
@@ -120,9 +131,12 @@ class GameContainerTestCase(unittest.TestCase):
         with self.assertRaises(AssertionError):
             asyncio.run(gc.pass_message(msg))
 
+    @patch("game.Game.append_chat_message")
     @patch("game_manager.GameContainer._write")
     @patch("game_manager.send_outgoing_message")
-    def test_pass_message(self, send_outgoing_message: Mock, _write: Mock):
+    def test_pass_message(
+        self, send_outgoing_message: Mock, _write: Mock, append_chat_message: Mock
+    ):
         gc = asyncio.run(GameContainer(self.filepath, self.keys, Game(1)))
         # assert once here in order to assert unambiguously below that
         # pass_message will also call _write exactly once
@@ -141,6 +155,20 @@ class GameContainerTestCase(unittest.TestCase):
         self.assertEqual(_write.call_count, 2)
         send_outgoing_message.assert_called_once()
         self.assertIsNotNone(gc.game.pending_request)
+
+        msg = IncomingMessage(
+            json.dumps(
+                {
+                    TYPE: IncomingMessageType.chat_message.name,
+                    KEY: self.keys[Color.black],
+                    MESSAGE: "hi",
+                }
+            ),
+            WebSocketHandler(),
+        )
+        self.assertTrue(asyncio.run(gc.pass_message(msg)))
+        self.assertEqual(_write.call_count, 3)
+        append_chat_message.assert_called_once()
 
     def test_time_played(self):
         gc = asyncio.run(GameContainer(self.filepath, self.keys, Game(1)))
@@ -601,6 +629,16 @@ class GameManagerTestCase(unittest.TestCase):
                     ACTION_TYPE: ActionType.place_stone.name,
                     COORDS: (0, 0),
                 }
+            ),
+            player,
+        )
+        asyncio.run(self.gm.route_message(msg))
+        route_message.assert_called_once_with(msg)
+
+        route_message.call_count = 0  # so we can say "called once" below
+        msg = IncomingMessage(
+            json.dumps(
+                {TYPE: IncomingMessageType.chat_message.name, KEY: key, MESSAGE: "hi"}
             ),
             player,
         )

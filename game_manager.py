@@ -1,4 +1,4 @@
-from constants import ACTION_TYPE, COLOR, COORDS, KEY, KEY_LEN, KOMI, SIZE
+from constants import ACTION_TYPE, COLOR, COORDS, KEY, KEY_LEN, KOMI, MESSAGE, SIZE
 from messages import (
     IncomingMessage,
     IncomingMessageType,
@@ -8,7 +8,7 @@ from messages import (
 )
 from uuid import uuid4
 from typing import Any, Dict, Optional, Tuple
-from game import Action, ActionType, Color, Game
+from game import Action, ActionType, ChatMessage, Color, Game
 import os
 import logging
 from dataclasses import dataclass
@@ -284,39 +284,55 @@ class GameContainer:
         ), f"Attempted to {action} unloaded game {self._filename}"
 
     async def pass_message(self, msg: IncomingMessage) -> bool:
-        """Translate msg into a game action, attempt to take that action, and
-        reply with the game's response. Return True if the action was
-        successful and False otherwise"""
+        """If msg is a game action, translate it into one, attempt to take that
+        action, and reply with the game's response, returning True if the action
+        was successful and False otherwise. If msg is a chat message, append it
+        to the game and return True"""
 
         async with self._lock:
             self._assert_loaded("pass message to")
-            assert (
-                msg.message_type is IncomingMessageType.game_action
-            ), f"{self.__class__.__name__} can only process game actions"
+            assert msg.message_type in (
+                IncomingMessageType.game_action,
+                IncomingMessageType.chat_message,
+            ), f"{self.__class__.__name__} can only process game actions and chat messages"
 
-            success, explanation = self.game.take_action(
-                Action(
-                    ActionType[msg.data[ACTION_TYPE]],
-                    self.colors[msg.data[KEY]],
-                    msg.timestamp,
-                    tuple(msg.data[COORDS]) if COORDS in msg.data else None,
+            color = self.colors[msg.data[KEY]]
+            explanation = None
+
+            if msg.message_type is IncomingMessageType.game_action:
+                success, explanation = self.game.take_action(
+                    Action(
+                        ActionType[msg.data[ACTION_TYPE]],
+                        color,
+                        msg.timestamp,
+                        tuple(msg.data[COORDS]) if COORDS in msg.data else None,
+                    )
                 )
-            )
 
-            logging.info(
-                f"Took action with result success={success}, explanation={explanation}"
-            )
+                logging.info(
+                    f"Took action with result success={success}, explanation={explanation}"
+                )
+            else:
+                chat_message = msg.data[MESSAGE]
+                self.game.append_chat_message(
+                    ChatMessage(msg.timestamp, color, chat_message)
+                )
+                success = True
+
+                logging.info(f"Added chat message from {color}: '{chat_message}'")
+
             logging.debug(f"Game state is now {self.game}")
 
             # note that we want to write even after unsuccessful actions in order to
             # update time played
             await self._write(use_lock=False)
 
-        await send_outgoing_message(
-            OutgoingMessageType.game_action_response,
-            ActionResponseContainer(success, explanation),
-            msg.websocket_handler,
-        )
+        if explanation is not None:
+            await send_outgoing_message(
+                OutgoingMessageType.game_action_response,
+                ActionResponseContainer(success, explanation),
+                msg.websocket_handler,
+            )
 
         return success
 
@@ -598,7 +614,10 @@ class GameManager:
             await self.store.new_game(msg)
         elif msg.message_type is IncomingMessageType.join_game:
             await self.store.join_game(msg)
-        elif msg.message_type is IncomingMessageType.game_action:
+        elif msg.message_type in (
+            IncomingMessageType.game_action,
+            IncomingMessageType.chat_message,
+        ):
             await self.store.route_message(msg)
         else:
             raise TypeError(
