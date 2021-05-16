@@ -4,7 +4,6 @@ from enum import Enum, auto
 from messages import JsonifyableBase
 from typing import Dict, List, Optional, Set, Tuple
 from copy import deepcopy
-from datetime import datetime
 
 
 class Color(Enum):
