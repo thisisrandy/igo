@@ -71,7 +71,7 @@ class IncomingMessage(Message):
 
     def __init__(self, json_str: str, *args, **kwargs) -> None:
         self.data: Dict[str, object] = json.loads(json_str)
-        self.message_type: IncomingMessage = IncomingMessageType[self.data[TYPE]]
+        self.message_type: IncomingMessageType = IncomingMessageType[self.data[TYPE]]
         del self.data[TYPE]
         for rk in IncomingMessageType.required_keys()[self.message_type]:
             assert (
