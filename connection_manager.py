@@ -38,7 +38,7 @@ class IgoWebSocket(tornado.websocket.WebSocketHandler):
         preempted with the default logger settings
         """
 
-        cls.game_manager = await GameManager()
+        cls.game_manager: GameManager = await GameManager()
 
     def open(self):
         logging.info("New connection opened")
