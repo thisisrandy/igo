@@ -642,7 +642,8 @@ class GameTestCase(unittest.TestCase):
             },
         )
         g.take_action(Action(ActionType.accept, Color.black, ts))
-        g.append_chat_message(ChatMessage(ts, Color.black, "hi"))
+        cm = ChatMessage(ts, Color.black, "hi")
+        g.append_chat_message(cm)
         self.assertEqual(
             g.jsonifyable(),
             {
@@ -662,7 +663,12 @@ class GameTestCase(unittest.TestCase):
                 "result": {"resultType": "standard_win", "winner": "white"},
                 "timePlayed": g.time_played,
                 "chatMessages": [
-                    {"timestamp": ts, "color": Color.black.name, "message": "hi"}
+                    {
+                        "timestamp": ts,
+                        "color": Color.black.name,
+                        "message": "hi",
+                        "id": cm.id,
+                    }
                 ],
             },
         )

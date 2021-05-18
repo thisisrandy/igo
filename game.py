@@ -4,6 +4,7 @@ from enum import Enum, auto
 from messages import JsonifyableBase
 from typing import Dict, List, Optional, Set, Tuple
 from copy import deepcopy
+from uuid import uuid4
 
 
 class Color(Enum):
@@ -232,17 +233,24 @@ class ChatMessage(JsonifyableBase):
         color: Color - the color of the player who created the message
 
         message: str - the message contents
+
+        id: str - the message ID. NB: auto generated. DO NOT SET
     """
 
     timestamp: float
     color: Color
     message: str
+    id: Optional[str] = None
+
+    def __post_init__(self) -> None:
+        self.id = uuid4().hex
 
     def jsonifyable(self) -> Dict:
         return {
             "timestamp": self.timestamp,
             "color": self.color.name,
             "message": self.message,
+            "id": self.id,
         }
 
     def __repr__(self) -> str:
@@ -250,7 +258,8 @@ class ChatMessage(JsonifyableBase):
             f"ChatMessage("
             f"timestamp={self.timestamp}"
             f", color={self.color}"
-            f", message={self.message})"
+            f", message={self.message}"
+            f", id={self.id})"
         )
 
 
