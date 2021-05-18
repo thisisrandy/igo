@@ -680,5 +680,6 @@ class GameTestCase(unittest.TestCase):
         self.assertEqual(len(g.chat_messages), 1)
         g.append_chat_message(ChatMessage(ts + 1, Color.white, "hi"))
         self.assertEqual(len(g.chat_messages), 2)
+        # out of order message
         with self.assertRaises(AssertionError):
             g.append_chat_message(ChatMessage(ts, Color.black, "hi"))
