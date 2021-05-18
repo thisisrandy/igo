@@ -732,13 +732,19 @@ class Game(JsonifyableBase):
 
         return self.action_stack and self.action_stack[-1].timestamp > timestamp
 
-    def add_time_played(self, seconds_to_add: float) -> None:
-        assert (
-            self.status != GameStatus.complete or not self._completion_time_recorded
-        ), "Cannot add time played to a complete game except to record final time"
+    def add_time_played(self, seconds_to_add: float) -> bool:
+        """Add to time played. Once the game is complete, this can only be
+        called with effect once to record the final play time. After that, it is
+        a no-op. Return True if time is added and False otherwise"""
+
+        if self.status == GameStatus.complete and self._completion_time_recorded:
+            return False
+
         self.time_played += seconds_to_add
         if self.status == GameStatus.complete:
             self._completion_time_recorded = True
+
+        return True
 
     def append_chat_message(self, message: ChatMessage) -> None:
         assert (
