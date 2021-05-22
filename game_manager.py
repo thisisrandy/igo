@@ -509,7 +509,7 @@ class GameStore:
                             if self.subscriptions[key] is msg.websocket_handler
                             else "Someone else is"
                         )
-                        + " already playing that game and color"
+                        + f" already playing using that key ({key})"
                     ),
                 ),
                 msg.websocket_handler,
