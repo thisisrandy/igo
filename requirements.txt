@@ -3,6 +3,7 @@ aiohttp==3.7.4.post0
 appdirs==1.4.4
 async-timeout==3.0.1
 asyncinit==0.2.4
+asyncpg==0.23.0
 attrs==21.2.0
 black==21.5b1
 chardet==4.0.0
