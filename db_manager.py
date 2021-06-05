@@ -4,6 +4,7 @@ from asyncinit import asyncinit
 import asyncpg
 from hashlib import sha256
 import pickle
+import logging
 
 # TODO: handle database restarts.
 # https://github.com/MagicStack/asyncpg/issues/421 seems to indicate that
@@ -133,20 +134,35 @@ class DbManager:
         been preempted from another source
         """
 
-        return "UPDATE 1" == await self._connection.execute(
-            """
-            UPDATE game
-            SET data = $1, version = $2
-            WHERE version = $2-1 AND id = (
-                SELECT game_id
-                FROM player_key
-                WHERE key = $3
+        version = game.version()
+        log_text = f"game for player key {player_key} to version {version}"
+
+        try:
+            res = "UPDATE 1" == await self._connection.execute(
+                """
+                UPDATE game
+                SET data = $1, version = $2
+                WHERE version = $2-1 AND id = (
+                    SELECT game_id
+                    FROM player_key
+                    WHERE key = $3
+                )
+                """,
+                pickle.dumps(game),
+                version,
+                player_key,
             )
-            """,
-            pickle.dumps(game),
-            game.version(),
-            player_key,
-        )
+
+            if res:
+                logging.info(f"Successfully updated {log_text}")
+            else:
+                logging.info(f"Preempted attempting to update {log_text}")
+
+            return res
+
+        except Exception as e:
+            logging.error(f"Encountered exception attempting to update {log_text}: {e}")
+            return False
 
     async def write_chat(self, message: ChatMessage) -> bool:
         """
@@ -156,21 +172,32 @@ class DbManager:
 
         pass
 
-    async def unsubscribe(self, player_key: str) -> None:
+    async def unsubscribe(self, player_key: str) -> bool:
         """
-        Unsubscribe from channels associated with `player_key` and modify the
-        row in the `player_key` table appropriately
+        Attempt to unsubscribe from channels associated with `player_key` and
+        modify the row in the `player_key` table appropriately. Return True on
+        success and False otherwise
         """
 
-        async with self._connection.transaction():
-            await self._connection.execute(
-                """
-                UPDATE player_key
-                SET connected = false, managed_by = null
-                WHERE key = $1;
+        try:
+            async with self._connection.transaction():
+                await self._connection.execute(
+                    """
+                    UPDATE player_key
+                    SET connected = false, managed_by = null
+                    WHERE key = $1;
 
-                UNLISTEN game_status_$1;
-                UNLISTEN chat_$1;
-                """,
-                player_key,
+                    UNLISTEN game_status_$1;
+                    UNLISTEN chat_$1;
+                    """,
+                    player_key,
+                )
+
+            logging.info(f"Successfully unsubscribed player key {player_key}")
+            return True
+
+        except Exception as e:
+            logging.error(
+                f"Encountered exception while unsubscribing player key {player_key}: {e}"
             )
+            return False
