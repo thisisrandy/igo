@@ -25,6 +25,7 @@ class DbManager:
           each
         - Issuing game updates to the database and reporting success or failure
         - Issuing chat messages to the database
+        - Unsubscribing from update channels and cleaning up
         """
 
         # TODO: we probably want to use a connection pool instead of a single
@@ -140,3 +141,22 @@ class DbManager:
         """
 
         pass
+
+    async def unsubscribe(self, player_key: str) -> None:
+        """
+        Unsubscribe from channels associated with `player_key` and modify the
+        row in the `player_key` table appropriately
+        """
+
+        async with self._connection.transaction():
+            await self._connection.execute(
+                """
+                UPDATE player_key
+                SET connected = false, managed_by = null
+                WHERE key = $1;
+
+                UNLISTEN game_status_$1;
+                UNLISTEN chat_$1;
+                """,
+                player_key,
+            )
