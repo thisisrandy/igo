@@ -1,7 +1,9 @@
+from constants import KEY_LEN
 from game import ChatMessage, Color, Game
 from typing import Dict, Optional, Tuple
 from asyncinit import asyncinit
 import asyncpg
+from uuid import uuid4
 from hashlib import sha256
 import pickle
 import logging
@@ -96,14 +98,66 @@ class DbManager:
             self._machine_id,
         )
 
-    async def create_new_game(self) -> Tuple[bool, Optional[Dict[Color, str]]]:
+    async def write_new_game(
+        self,
+        game: Game,
+        player_color: Color = None,
+    ) -> Tuple[bool, Optional[Dict[Color, str]]]:
         """
-        Attempt to create a new game. Return a tuple of success or failure
-        (on key conflict) and a dictionary of Color: key pairs on success or
-        None otherwise
+        Attempt to write `game` to the database as a new game. Return a tuple of
+        success or failure (on key conflict) and a dictionary of Color: key
+        pairs on success or None otherwise. Optionally specify `player_color` to
+        start managing that color
         """
 
-        pass
+        key_w, key_b = [uuid4().hex[-KEY_LEN:] for _ in range(2)]
+        keys = {Color.white: key_w, Color.black: key_b}
+
+        transaction = self._connection.transaction()
+        await transaction.start()
+        try:
+            await self._connection.execute(
+                f"""
+                DECLARE new_id game.id%TYPE;
+
+                INSERT INTO game (data, version)
+                VALUES ($1, 0)
+                RETURNING id
+                INTO new_id;
+
+                INSERT INTO player_key
+                VALUES ($2, new_id, $3, {player_color is Color.white}, $4,
+                    {"$6" if player_color is Color.white else "null"});
+
+                INSERT INTO player_key
+                VALUES ($4, new_id, $5, {player_color is Color.black}, $2,
+                    {"$6" if player_color is Color.black else "null"});
+
+                {"" if player_color is None else (
+                        f"LISTEN game_status_{keys[player_color]}"
+                        f"LISTEN chat_{keys[player_color]}"
+                    )
+                }
+                """,
+                pickle.dumps(game),
+                key_w,
+                Color.white.name,
+                key_b,
+                Color.black.name,
+                self._machine_id,
+            )
+
+        except Exception as e:
+            transaction.rollback()
+            logging.error(
+                f"Encountered exception while attempting to write new game: {e}"
+            )
+            return False, None
+
+        else:
+            transaction.commit()
+            logging.info(f"Successfully wrote new game with keys {keys} to database")
+            return True, keys
 
     async def join_game(self, player_key: str) -> Tuple[bool, str]:
         """
