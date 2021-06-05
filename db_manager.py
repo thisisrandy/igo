@@ -154,6 +154,20 @@ class DbManager:
             )
 
             if res:
+                # TODO: this isn't wrong per se, but it feels inefficient to
+                # make another round trip to execute a separate transaction for
+                # notification. update and conditionally notify patterns
+                # probably belong in a function instead
+                await self._connection.execute(
+                    """
+                    SELECT pg_notify((
+                        SELECT CONCAT('game_status_', opponent_key)
+                        FROM player_key
+                        WHERE key = $1
+                    ), '')
+                    """,
+                    player_key,
+                )
                 logging.info(f"Successfully updated {log_text}")
             else:
                 logging.info(f"Preempted attempting to update {log_text}")
