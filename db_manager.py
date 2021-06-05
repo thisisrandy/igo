@@ -3,6 +3,7 @@ from typing import Dict, Optional, Tuple
 from asyncinit import asyncinit
 import asyncpg
 from hashlib import sha256
+import pickle
 
 # TODO: handle database restarts.
 # https://github.com/MagicStack/asyncpg/issues/421 seems to indicate that
@@ -125,14 +126,27 @@ class DbManager:
 
         pass
 
-    async def write_game(self, game: Game) -> bool:
+    async def write_game(self, player_key: str, game: Game) -> bool:
         """
         Attempt to write `game` and increment its version in the database.
         Return True on success and False on failure, i.e. when the write has
         been preempted from another source
         """
 
-        pass
+        return "UPDATE 1" == await self._connection.execute(
+            """
+            UPDATE game
+            SET data = $1, version = $2
+            WHERE version = $2-1 AND id = (
+                SELECT game_id
+                FROM player_key
+                WHERE key = $3
+            )
+            """,
+            pickle.dumps(game),
+            game.version(),
+            player_key,
+        )
 
     async def write_chat(self, message: ChatMessage) -> bool:
         """

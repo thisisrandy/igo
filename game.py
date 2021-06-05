@@ -753,6 +753,11 @@ class Game(JsonifyableBase):
         ), "Chat messages must be appended in ascending timestamp order"
         self.chat_messages.append(message)
 
+    def version(self) -> int:
+        """Return the game version, equal to the length of the action stack"""
+
+        return len(self.action_stack)
+
     def jsonifyable(self) -> Dict:
         """Return a representation which can be readily JSONified. In
         particular, return a dictionary with the board, game status, komi,
