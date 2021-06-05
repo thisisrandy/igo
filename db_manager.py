@@ -87,7 +87,7 @@ class DbManager:
             """
             UPDATE player_key
             SET connected = false, managed_by = null
-            WHERE managed_by = $1
+            WHERE managed_by = $1;
             """,
             self._machine_id,
         )
@@ -146,7 +146,7 @@ class DbManager:
                     SELECT game_id
                     FROM player_key
                     WHERE key = $3
-                )
+                );
                 """,
                 pickle.dumps(game),
                 version,
@@ -164,7 +164,7 @@ class DbManager:
                         SELECT CONCAT('game_status_', opponent_key)
                         FROM player_key
                         WHERE key = $1
-                    ), '')
+                    ), '');
                     """,
                     player_key,
                 )
