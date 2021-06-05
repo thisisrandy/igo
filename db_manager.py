@@ -54,7 +54,11 @@ class DbManager:
                 gameid integer REFERENCES game(id) NOT NULL,
                 color char(5) NOT NULL,
                 connected boolean NOT NULL,
-                opponent_key char(10) REFERENCES player_key(key) NOT NULL,
+                -- mutually referential keys are added in pairs when creating a
+                -- new game. as such, the foreign key check needs to be deferred
+                -- inside transactions
+                opponent_key char(10) REFERENCES player_key(key)
+                    DEFERRABLE INITIALLY DEFERRED NOT NULL,
                 managed_by char(64)
             );
 
