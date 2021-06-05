@@ -196,13 +196,13 @@ class DbManager:
         try:
             async with self._connection.transaction():
                 await self._connection.execute(
-                    """
+                    f"""
                     UPDATE player_key
                     SET connected = false, managed_by = null
                     WHERE key = $1;
 
-                    UNLISTEN game_status_$1;
-                    UNLISTEN chat_$1;
+                    UNLISTEN game_status_{player_key};
+                    UNLISTEN chat_{player_key};
                     """,
                     player_key,
                 )
