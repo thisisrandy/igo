@@ -178,13 +178,44 @@ class DbManager:
             logging.error(f"Encountered exception attempting to update {log_text}: {e}")
             return False
 
-    async def write_chat(self, message: ChatMessage) -> bool:
+    async def write_chat(self, player_key: str, message: ChatMessage) -> bool:
         """
         Attempt to write `message` to the database. Return True on success and
         False otherwise (unspecified network or database failure)
         """
 
-        pass
+        try:
+            async with self._connection.transaction():
+                await self._connection.execute(
+                    """
+                    INSERT INTO chat (timestamp, color, message, game_id)
+                    VALUES ($1, $2, $3, (
+                        SELECT game_id
+                        FROM player_key
+                        WHERE key = $4
+                    ));
+
+                    SELECT pg_notify((SELECT CONCAT('chat_', $4)), '');
+                    SELECT pg_notify((
+                        SELECT CONCAT('chat_', opponent_key)
+                        FROM player_key
+                        WHERE key = $4
+                    ), '');
+                    """,
+                    message.timestamp,
+                    message.color.name,
+                    message.message,
+                    player_key,
+                )
+
+            logging.info(f"Successfully wrote chat message {message}")
+            return True
+
+        except Exception as e:
+            logging.error(
+                f"Encountered exception while attempting to write chat message {message}: {e}"
+            )
+            return False
 
     async def unsubscribe(self, player_key: str) -> bool:
         """
