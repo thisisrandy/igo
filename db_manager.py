@@ -74,51 +74,29 @@ class DbManager:
         key_w, key_b = [uuid4().hex[-KEY_LEN:] for _ in range(2)]
         keys = {Color.white: key_w, Color.black: key_b}
 
-        transaction = self._connection.transaction()
-        await transaction.start()
         try:
             await self._connection.execute(
-                f"""
-                DECLARE new_id game.id%TYPE;
-
-                INSERT INTO game (data, version)
-                VALUES ($1, 0)
-                RETURNING id
-                INTO new_id;
-
-                INSERT INTO player_key
-                VALUES ($2, new_id, $3, {player_color is Color.white}, $4,
-                    {"$6" if player_color is Color.white else "null"});
-
-                INSERT INTO player_key
-                VALUES ($4, new_id, $5, {player_color is Color.black}, $2,
-                    {"$6" if player_color is Color.black else "null"});
-
-                {"" if player_color is None else (
-                        f"LISTEN game_status_{keys[player_color]}"
-                        f"LISTEN chat_{keys[player_color]}"
-                    )
-                }
+                """
+                CALL new_game($1, $2, $3, $4, $5)
                 """,
                 pickle.dumps(game),
                 key_w,
-                Color.white.name,
                 key_b,
-                Color.black.name,
+                player_color.name,
                 self._machine_id,
             )
 
         except Exception as e:
-            transaction.rollback()
             logging.error(
                 f"Encountered exception while attempting to write new game: {e}"
             )
             return False, None
 
         else:
-            transaction.commit()
             logging.info(f"Successfully wrote new game with keys {keys} to database")
             return True, keys
+
+        # TODO: subscribe to game updates/chat if player color specified
 
     async def join_game(self, player_key: str) -> Tuple[bool, str]:
         """
