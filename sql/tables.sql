@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS game (
 
 CREATE TABLE IF NOT EXISTS player_key (
   key char(10) PRIMARY KEY,
-  gameid integer REFERENCES game(id) NOT NULL,
+  game_id integer REFERENCES game(id) NOT NULL,
   color char(5) NOT NULL,
   connected boolean NOT NULL,
   -- mutually referential keys are added in pairs when creating a
