@@ -169,40 +169,20 @@ class DbManager:
         log_text = f"game for player key {player_key} to version {version}"
 
         try:
-            res = "UPDATE 1" == await self._connection.execute(
-                """
-                UPDATE game
-                SET data = $1, version = $2
-                WHERE version = $2-1 AND id = (
-                    SELECT game_id
-                    FROM player_key
-                    WHERE key = $3
-                );
-                """,
-                pickle.dumps(game),
-                version,
-                player_key,
-            )
-
-            if res:
-                # TODO: this isn't wrong per se, but it feels inefficient to
-                # make another round trip to execute a separate transaction for
-                # notification. update and conditionally notify patterns
-                # probably belong in a function instead
-                await self._connection.execute(
+            async with self._connection.transaction():
+                res = await self._connection.fetchval(
                     """
-                    SELECT pg_notify((
-                        SELECT CONCAT('game_status_', opponent_key)
-                        FROM player_key
-                        WHERE key = $1
-                    ), '');
+                    SELECT * from write_game($1, $2, $3)
                     """,
                     player_key,
+                    pickle.dumps(game),
+                    version,
                 )
+
+            if res:
                 logging.info(f"Successfully updated {log_text}")
             else:
                 logging.info(f"Preempted attempting to update {log_text}")
-
             return res
 
         except Exception as e:
