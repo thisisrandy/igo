@@ -26,3 +26,33 @@ BEGIN
 
     COMMIT;
 END; $$
+
+CREATE OR REPLACE FUNCTION join_game(
+  key_to_join char(10),
+  manager_id char(64)
+)
+  RETURNS text
+  LANGUAGE plpgsql
+AS
+$$
+DECLARE
+  other_connected player_key.connected%TYPE;
+BEGIN
+  SELECT connected
+  INTO other_connected
+  FROM player_key
+  WHERE key = key_to_join
+  FOR UPDATE;
+
+  if other_connected is null then
+    RETURN 'dne';
+  elsif other_connected then
+    RETURN 'in_use';
+  else
+    UPDATE player_key
+    SET connected = true, managed_by = manager_id
+    WHERE key = key_to_join;
+
+    RETURN 'success';
+  end if;
+END; $$

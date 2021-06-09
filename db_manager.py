@@ -1,3 +1,4 @@
+from enum import Enum, auto
 from constants import KEY_LEN
 from game import ChatMessage, Color, Game
 from typing import Dict, Optional, Tuple
@@ -11,6 +12,18 @@ import logging
 # TODO: handle database restarts.
 # https://github.com/MagicStack/asyncpg/issues/421 seems to indicate that
 # listeners aren't automatically reconnected
+
+
+class JoinResult(Enum):
+    """
+    dne - the player key requested does not exist
+    in_use - someone was already connected to the requested player key
+    success - successfully joined using the requested player key
+    """
+
+    dne = auto()
+    in_use = auto()
+    success = auto()
 
 
 @asyncinit
@@ -98,13 +111,34 @@ class DbManager:
 
         # TODO: subscribe to game updates/chat if player color specified
 
-    async def join_game(self, player_key: str) -> Tuple[bool, str]:
+    async def join_game(self, player_key: str) -> Optional[JoinResult]:
         """
-        Attempt to join a game using `player_key`. Return a tuple of success or
-        failure and an explanatory message
+        Attempt to join a game using `player_key` and return the result of the
+        operation or None if an exception occurs
         """
 
-        pass
+        try:
+            async with self._connection.transaction():
+                res = await self._connection.fetchrow(
+                    """
+                    SELECT * from join_game($1, $2);
+                    """,
+                    player_key,
+                    self._machine_id,
+                )
+
+        except Exception as e:
+            logging.error(
+                "Encountered exception while attempting to join game with key"
+                f" {player_key}: {e}"
+            )
+            return None
+
+        else:
+            logging.info(f"Attempt to join game with key {player_key} returned '{res}'")
+            return JoinResult[res]
+
+        # TODO: subscribe to game updates/chat if player color specified
 
     async def _subscribe_to_game_status(self, player_key: str) -> None:
         """
