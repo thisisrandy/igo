@@ -97,7 +97,7 @@ class DbManager:
                 pickle.dumps(game),
                 key_w,
                 key_b,
-                player_color.name,
+                player_color.name if player_color else None,
                 self._machine_id,
             )
 
