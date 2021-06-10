@@ -179,15 +179,16 @@ class DbManager:
                     version,
                 )
 
+        except Exception as e:
+            logging.error(f"Encountered exception attempting to update {log_text}: {e}")
+            return False
+
+        else:
             if res:
                 logging.info(f"Successfully updated {log_text}")
             else:
                 logging.info(f"Preempted attempting to update {log_text}")
             return res
-
-        except Exception as e:
-            logging.error(f"Encountered exception attempting to update {log_text}: {e}")
-            return False
 
     async def write_chat(self, player_key: str, message: ChatMessage) -> bool:
         """
@@ -206,6 +207,13 @@ class DbManager:
                     player_key,
                 )
 
+        except Exception as e:
+            logging.error(
+                f"Encountered exception while attempting to write chat message {message}: {e}"
+            )
+            return False
+
+        else:
             if res:
                 logging.info(f"Successfully wrote chat message {message}")
             else:
@@ -214,12 +222,6 @@ class DbManager:
                     f" {player_key}, a game associated with that key could not be found"
                 )
             return res
-
-        except Exception as e:
-            logging.error(
-                f"Encountered exception while attempting to write chat message {message}: {e}"
-            )
-            return False
 
     async def unsubscribe(self, player_key: str) -> bool:
         """
@@ -239,6 +241,14 @@ class DbManager:
                     [f"game_status_{player_key}", f"chat_{player_key}"],
                 )
 
+        except Exception as e:
+            logging.error(
+                "Encountered exception while unsubscribing from player key"
+                f" {player_key}: {e}"
+            )
+            return False
+
+        else:
             if res:
                 logging.info(f"Successfully unsubscribed player key {player_key}")
             else:
@@ -247,10 +257,3 @@ class DbManager:
                     " found of a connected player managed by this game server"
                 )
             return res
-
-        except Exception as e:
-            logging.error(
-                "Encountered exception while unsubscribing from player key"
-                f" {player_key}: {e}"
-            )
-            return False
