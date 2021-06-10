@@ -237,23 +237,27 @@ class DbManager:
 
         try:
             async with self._connection.transaction():
-                await self._connection.execute(
-                    f"""
-                    UPDATE player_key
-                    SET connected = false, managed_by = null
-                    WHERE key = $1;
-
-                    UNLISTEN game_status_{player_key};
-                    UNLISTEN chat_{player_key};
+                res = await self._connection.fetchval(
+                    """
+                    SELECT * FROM unsubscribe($1, $2, $3);
                     """,
                     player_key,
+                    self._machine_id,
+                    [f"game_status_{player_key}", f"chat_{player_key}"],
                 )
 
-            logging.info(f"Successfully unsubscribed player key {player_key}")
-            return True
+            if res:
+                logging.info(f"Successfully unsubscribed player key {player_key}")
+            else:
+                logging.warn(
+                    f"When unsubscribing from player key {player_key}, no record was"
+                    " found of a connected player managed by this game server"
+                )
+            return res
 
         except Exception as e:
             logging.error(
-                f"Encountered exception while unsubscribing player key {player_key}: {e}"
+                "Encountered exception while unsubscribing from player key"
+                f" {player_key}: {e}"
             )
             return False

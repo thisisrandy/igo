@@ -91,3 +91,35 @@ BEGIN
 
   RETURN false;
 END; $$
+
+CREATE OR REPLACE FUNCTION unsubscribe(
+  key_to_unsubscribe char(10),
+  currently_managed_by char(64),
+  -- unfortunately, postgres doesn't appear to provide an unlisten analog to
+  -- pg_notify (which allows channel names to be specified as strings), so we
+  -- have to build the channel names on the client side
+  channels_to_unlisten text[]
+)
+  RETURNS boolean
+  LANGUAGE plpgsql
+AS
+$$
+DECLARE
+  update_count integer;
+  channel text;
+BEGIN
+  UPDATE player_key
+  SET connected = false, managed_by = null
+  WHERE key = key_to_unsubscribe
+    and managed_by = currently_managed_by
+    and connected = true;
+
+  GET DIAGNOSTICS update_count := ROW_COUNT;
+
+  foreach channel in array channels_to_unlisten
+  loop
+    UNLISTEN channel;
+  end loop;
+
+  RETURN update_count = 1;
+END; $$
