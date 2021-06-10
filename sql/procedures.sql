@@ -17,11 +17,11 @@ BEGIN
     INTO new_id;
 
     INSERT INTO player_key
-    VALUES (key_w, new_id, 'white', COALESCE(player_color = 'white', false), key_b,
+    VALUES (key_w, new_id, 'white', key_b,
       CASE WHEN player_color = 'white' THEN managed_by ELSE null END);
 
     INSERT INTO player_key
-    VALUES (key_b, new_id, 'black', COALESCE(player_color = 'black', false), key_w,
+    VALUES (key_b, new_id, 'black', key_w,
       CASE WHEN player_color = 'black' THEN managed_by ELSE null END);
 
     COMMIT;

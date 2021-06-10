@@ -7,9 +7,9 @@ CREATE OR REPLACE FUNCTION join_game(
 AS
 $$
 DECLARE
-  other_connected player_key.connected%TYPE;
+  other_connected boolean;
 BEGIN
-  SELECT connected
+  SELECT managed_by IS NOT NULL
   INTO other_connected
   FROM player_key
   WHERE key = key_to_join
@@ -21,7 +21,7 @@ BEGIN
     RETURN 'in_use';
   else
     UPDATE player_key
-    SET connected = true, managed_by = manager_id
+    SET managed_by = manager_id
     WHERE key = key_to_join;
 
     RETURN 'success';
@@ -80,10 +80,9 @@ DECLARE
   channel text;
 BEGIN
   UPDATE player_key
-  SET connected = false, managed_by = null
+  SET managed_by = null
   WHERE key = key_to_unsubscribe
-    and managed_by = currently_managed_by
-    and connected = true;
+    and managed_by = currently_managed_by;
 
   GET DIAGNOSTICS update_count := ROW_COUNT;
 

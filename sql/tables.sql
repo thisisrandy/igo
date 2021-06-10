@@ -8,7 +8,6 @@ CREATE TABLE IF NOT EXISTS player_key (
   key char(10) PRIMARY KEY,
   game_id integer REFERENCES game(id) NOT NULL,
   color char(5) NOT NULL,
-  connected boolean NOT NULL,
   -- mutually referential keys are added in pairs when creating a
   -- new game. as such, the foreign key check needs to be deferred
   -- inside transactions

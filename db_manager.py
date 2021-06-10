@@ -53,9 +53,9 @@ class DbManager:
             self._machine_id = sha256(r.readline().strip()).hexdigest()
 
         # if we get restarted while a client is connected to a game, the
-        # database will still reflect that the client is connected and that we
-        # are managing their connection. it is the responsibility of each game
-        # server to clean up after itself on restart
+        # database will still reflect that we are managing their connection. it
+        # is the responsibility of each game server to clean up after itself on
+        # restart
         #
         # NOTE: this logic breaks down if a game server never restarts or is
         # replaced by another machine, meaning that a game key can become
@@ -66,7 +66,7 @@ class DbManager:
         await self._connection.execute(
             """
             UPDATE player_key
-            SET connected = false, managed_by = null
+            SET managed_by = null
             WHERE managed_by = $1;
             """,
             self._machine_id,
