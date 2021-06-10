@@ -236,11 +236,10 @@ class DbManager:
             async with self._connection.transaction():
                 res = await self._connection.fetchval(
                     """
-                    SELECT * FROM unsubscribe($1, $2, $3);
+                    SELECT * FROM unsubscribe($1, $2);
                     """,
                     player_key,
                     self._machine_id,
-                    [f"game_status_{player_key}", f"chat_{player_key}"],
                 )
 
         except Exception as e:
