@@ -197,30 +197,23 @@ class DbManager:
 
         try:
             async with self._connection.transaction():
-                await self._connection.execute(
+                res = await self._connection.fetchval(
                     """
-                    INSERT INTO chat (timestamp, color, message, game_id)
-                    VALUES ($1, $2, $3, (
-                        SELECT game_id
-                        FROM player_key
-                        WHERE key = $4
-                    ));
-
-                    SELECT pg_notify((SELECT CONCAT('chat_', $4)), '');
-                    SELECT pg_notify((
-                        SELECT CONCAT('chat_', opponent_key)
-                        FROM player_key
-                        WHERE key = $4
-                    ), '');
+                    SELECT * FROM write_chat($1, $2, $3);
                     """,
                     message.timestamp,
-                    message.color.name,
                     message.message,
                     player_key,
                 )
 
-            logging.info(f"Successfully wrote chat message {message}")
-            return True
+            if res:
+                logging.info(f"Successfully wrote chat message {message}")
+            else:
+                logging.warn(
+                    f"When attempting to write chat message {message} from player key"
+                    f" {player_key}, a game associated with that key could not be found"
+                )
+            return res
 
         except Exception as e:
             logging.error(

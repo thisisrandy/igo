@@ -123,3 +123,38 @@ BEGIN
 
   RETURN update_count = 1;
 END; $$
+
+CREATE OR REPLACE FUNCTION write_chat(
+  msg_timestamp real,
+  msg_text text,
+  author_key char(10)
+)
+  RETURNS boolean
+  LANGUAGE plpgsql
+AS
+$$
+DECLARE
+  target_game_id integer;
+  author_color char(5);
+BEGIN
+  SELECT game_id, color
+  FROM player_key
+  WHERE key = author_key
+  INTO target_game_id, author_color;
+
+  if target_game_id is null then
+    RETURN false;
+  end if;
+
+  INSERT INTO chat (timestamp, color, message, game_id)
+  VALUES (msg_timestamp, author_color, msg_text, target_game_id);
+
+  PERFORM pg_notify((SELECT CONCAT('chat_', author_key)), '');
+  PERFORM pg_notify((
+      SELECT CONCAT('chat_', opponent_key)
+      FROM player_key
+      WHERE key = author_key
+  ), '');
+
+  RETURN true;
+END; $$
