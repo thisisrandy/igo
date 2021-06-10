@@ -63,14 +63,16 @@ class DbManager:
         # certain environments, where some external janitorial watcher would
         # need to be present. for now, we are assuming that the worst that
         # happens to any game server is an unexpected restart
-        await self._connection.execute(
-            """
-            UPDATE player_key
-            SET managed_by = null
-            WHERE managed_by = $1;
-            """,
-            self._machine_id,
-        )
+        try:
+            await self._connection.execute(
+                """
+                CALL do_cleanup($1);
+                """,
+                self._machine_id,
+            )
+
+        except Exception as e:
+            logging.error(f"Encountered exception during restart cleanup: {e}")
 
     async def write_new_game(
         self,

@@ -1,3 +1,15 @@
+CREATE OR REPLACE PROCEDURE do_cleanup(
+  manager_id char(64)
+)
+  LANGUAGE plpgsql
+AS
+$$
+BEGIN
+  UPDATE player_key
+  SET managed_by = null
+  WHERE managed_by = manager_id;
+END; $$
+
 CREATE OR REPLACE PROCEDURE new_game(
   game_data bytea,
   key_w char(10),
