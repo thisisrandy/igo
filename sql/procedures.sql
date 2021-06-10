@@ -7,7 +7,8 @@ CREATE OR REPLACE PROCEDURE new_game(
   IN managed_by char(64) DEFAULT null
 )
   LANGUAGE plpgsql
-AS $$
+AS
+$$
 DECLARE
     new_id game.id%TYPE;
 BEGIN
