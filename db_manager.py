@@ -1,7 +1,7 @@
 from enum import Enum, auto
 from constants import KEY_LEN
 from game import ChatMessage, Color, Game
-from typing import Any, Callable, Dict, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 from asyncinit import asyncinit
 import asyncpg
 from uuid import uuid4
@@ -121,10 +121,8 @@ class DbManager:
             logging.info(f"Successfully wrote new game with keys {keys} to database")
 
             if player_color:
-                # TODO: these can probably be reasonably combined
                 # TODO: use real callbacks
-                await self._subscribe_to_game_status(keys[player_color], None)
-                await self._subcribe_to_chat_feed(keys[player_color], None)
+                await self._subscribe_to_updates(keys[player_color], None, None)
 
             return True, keys
 
@@ -157,38 +155,49 @@ class DbManager:
             res = JoinResult[res]
             if res is JoinResult.success:
                 # TODO: use real callbacks
-                await self._subscribe_to_game_status(player_key, None)
-                await self._subcribe_to_chat_feed(player_key, None)
+                await self._subscribe_to_updates(player_key, None, None)
                 # TODO: need to read in game status and chat feed. one (somewhat
                 # inefficient) way would be to simply issue a notification on
                 # the channels we are now listening on
 
             return res
 
-    async def _subscribe_to_game_status(
-        self, player_key: str, update_callback: Callable[[Game], None]
+    async def _subscribe_to_updates(
+        self,
+        player_key: str,
+        game_callback: Callable[[str, Game], None],
+        chat_callback: Callable[[str, List[ChatMessage]], None],
     ) -> None:
         """
-        Subscribe to the game status channel corresponding to `player_key` and
-        register `update_callback` to receive game status updates. Should be
-        called only after successfully creating or joining a game
+        Subscribe to the update channels corresponding to `player_key` and
+        register the provided callbacks to receive updates. Should be called
+        only after successfully creating or joining a game
         """
 
-        def listener_callback(*_):
-            self._update_queue.put_nowait(
-                (_UpdateType.game_status, player_key, update_callback)
+        def listener_callback(
+            update_type: _UpdateType, callback: Callable[[str, Any], None]
+        ):
+            return lambda *_: self._update_queue.put_nowait(
+                (update_type, player_key, callback)
             )
 
         try:
-            await self._connection.add_listener(
-                f"game_status_{player_key}", listener_callback
-            )
+            for prefix, update_type, callback in (
+                ("game_status_", _UpdateType.game_status, game_callback),
+                ("chat_", _UpdateType.chat, chat_callback),
+            ):
+                await self._connection.add_listener(
+                    f"{prefix}{player_key}", listener_callback(update_type, callback)
+                )
 
         except Exception as e:
             logging.error(
-                "Encountered exception when subscribing to game status updates for"
+                "Encountered exception when subscribing to status updates for"
                 f" player key {player_key}"
             )
+
+        else:
+            logging.info(f"Successfully subscribed to status updates for {player_key}")
 
     async def _update_consumer(self) -> None:
         """
@@ -199,7 +208,7 @@ class DbManager:
         while True:
             update_type: _UpdateType
             player_key: str
-            callback: Callable[[Any], None]
+            callback: Callable[[str, Any], None]
             update_type, player_key, callback = await self._update_queue.get()
 
             if update_type is _UpdateType.game_status:
@@ -216,40 +225,14 @@ class DbManager:
             self._update_queue.task_done()
 
     async def _game_status_consumer(
-        self, player_key: str, callback: Callable[[Game], None]
+        self, player_key: str, callback: Callable[[str, Game], None]
     ) -> None:
         # TODO: stub. need to go to db for latest version and invoke callback
         # with the result
         print(f"In game status consumer with key {player_key}")
 
-    async def _subcribe_to_chat_feed(
-        # TODO: what is update_callback's signature?
-        self,
-        player_key: int,
-        update_callback: Callable[[Any], None],
-    ) -> None:
-        """
-        Subscribe to the chat feed channel corresponding to `player_key` and
-        register a callback to receive chat feed updates. Should be called only
-        after successfully creating or joining a game
-        """
-
-        def listener_callback(*_):
-            self._update_queue.put_nowait(
-                (_UpdateType.chat, player_key, update_callback)
-            )
-
-        try:
-            await self._connection.add_listener(f"chat_{player_key}", listener_callback)
-
-        except Exception as e:
-            logging.error(
-                "Encountered exception when subscribing to chat updates for"
-                f" player key {player_key}"
-            )
-
     async def _chat_consumer(
-        self, player_key: str, callback: Callable[[ChatMessage], None]
+        self, player_key: str, callback: Callable[[str, List[ChatMessage]], None]
     ) -> None:
         # TODO: stub. need to go to db for updates since last known id and
         # invoke callback with the result
