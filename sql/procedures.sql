@@ -22,20 +22,20 @@ CREATE OR REPLACE PROCEDURE new_game(
 AS
 $$
 DECLARE
-    new_id game.id%TYPE;
+  new_id game.id%TYPE;
 BEGIN
-    INSERT INTO game (data, version)
-    VALUES (game_data, 0)
-    RETURNING id
-    INTO new_id;
+  INSERT INTO game (data, version)
+  VALUES (game_data, 0)
+  RETURNING id
+  INTO new_id;
 
-    INSERT INTO player_key
-    VALUES (key_w, new_id, 'white', key_b,
-      CASE WHEN player_color = 'white' THEN manager_id ELSE null END);
+  INSERT INTO player_key
+  VALUES (key_w, new_id, 'white', key_b,
+    CASE WHEN player_color = 'white' THEN manager_id ELSE null END);
 
-    INSERT INTO player_key
-    VALUES (key_b, new_id, 'black', key_w,
-      CASE WHEN player_color = 'black' THEN manager_id ELSE null END);
+  INSERT INTO player_key
+  VALUES (key_b, new_id, 'black', key_w,
+    CASE WHEN player_color = 'black' THEN manager_id ELSE null END);
 
-    COMMIT;
+  COMMIT;
 END; $$
