@@ -16,7 +16,7 @@ CREATE OR REPLACE PROCEDURE new_game(
   key_b char(10),
   -- provide these args to join a player to the game
   player_color char(5) DEFAULT null,
-  managed_by char(64) DEFAULT null
+  manager_id char(64) DEFAULT null
 )
   LANGUAGE plpgsql
 AS
@@ -31,11 +31,11 @@ BEGIN
 
     INSERT INTO player_key
     VALUES (key_w, new_id, 'white', key_b,
-      CASE WHEN player_color = 'white' THEN managed_by ELSE null END);
+      CASE WHEN player_color = 'white' THEN manager_id ELSE null END);
 
     INSERT INTO player_key
     VALUES (key_b, new_id, 'black', key_w,
-      CASE WHEN player_color = 'black' THEN managed_by ELSE null END);
+      CASE WHEN player_color = 'black' THEN manager_id ELSE null END);
 
     COMMIT;
 END; $$
