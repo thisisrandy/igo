@@ -82,10 +82,16 @@ BEGIN
 
   GET DIAGNOSTICS update_count := ROW_COUNT;
 
-  EXECUTE format('UNLISTEN game_status_%s', key_to_unsubscribe);
-  EXECUTE format('UNLISTEN chat_%s', key_to_unsubscribe);
+  if update_count = 1 then
+    -- it's a good idea to guard dynamic sql calls inside a check that the player_key
+    -- update succeeded, because in here, we know that key_to_unsubscribe is a real key in
+    -- player_key and not arbitrary code. otherwise, we're open to injection
+    EXECUTE format('UNLISTEN game_status_%s', key_to_unsubscribe);
+    EXECUTE format('UNLISTEN chat_%s', key_to_unsubscribe);
+    RETURN true;
+  end if;
 
-  RETURN update_count = 1;
+  RETURN false;
 END; $$
 
 CREATE OR REPLACE FUNCTION write_chat(
