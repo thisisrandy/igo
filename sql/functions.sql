@@ -149,3 +149,40 @@ BEGIN
 
   RETURN;
 END; $$
+
+CREATE OR REPLACE FUNCTION get_chat_updates(
+  associated_player_key char(10),
+  last_id integer DEFAULT -1
+)
+  RETURNS TABLE (
+    id integer,
+    time_stamp real,
+    color char(5),
+    message text
+  )
+  LANGUAGE plpgsql
+AS
+$$
+BEGIN
+  PERFORM 1
+  FROM player_key
+  WHERE key = associated_player_key;
+
+  if not found then
+    raise 'Player key % not found', associated_player_key;
+  end if;
+
+  RETURN QUERY
+    SELECT c.id, c.timestamp, c.color, c.message
+    FROM chat c, player_key pk
+    WHERE pk.key = associated_player_key
+      AND pk.game_id = c.game_id
+      AND c.id > last_id
+    ORDER BY c.timestamp;
+
+  -- NOTE: having the above return nothing is a perfectly normal occurence when
+  -- we join a game with no chat messages, so no need to raise any exceptions if
+  -- nothing is found
+
+  RETURN;
+END; $$
