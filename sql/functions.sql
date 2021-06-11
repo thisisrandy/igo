@@ -125,3 +125,27 @@ BEGIN
 
   RETURN true;
 END; $$
+
+CREATE OR REPLACE FUNCTION get_game_status(
+  associated_player_key char(10)
+)
+  RETURNS TABLE (
+    game_data bytea,
+    version integer
+  )
+  LANGUAGE plpgsql
+AS
+$$
+BEGIN
+  RETURN QUERY
+    SELECT g.data, g.version
+    FROM game g, player_key pk
+    WHERE pk.key = associated_player_key
+      AND pk.game_id = g.id;
+
+  if not found then
+    raise 'Game associated with player key % not found', associated_player_key;
+  end if;
+
+  RETURN;
+END; $$
