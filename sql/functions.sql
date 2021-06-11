@@ -186,3 +186,26 @@ BEGIN
 
   RETURN;
 END; $$
+
+CREATE OR REPLACE FUNCTION get_opponent_connected(
+  my_player_key char(10)
+)
+  RETURNS boolean
+  LANGUAGE plpgsql
+AS
+$$
+DECLARE
+  opponent_connected boolean;
+BEGIN
+  SELECT op.managed_by is not null
+  INTO opponent_connected
+  FROM player_key self, player_key op
+  WHERE self.key = my_player_key
+    AND self.opponent_key = op.key;
+
+  if not found then
+    raise 'Player key % not found', my_player_key;
+  end if;
+
+  RETURN opponent_connected;
+END; $$
