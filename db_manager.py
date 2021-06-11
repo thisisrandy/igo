@@ -30,6 +30,7 @@ class JoinResult(Enum):
 class _UpdateType(Enum):
     game_status = auto()
     chat = auto()
+    opponent_connected = auto()
 
 
 @asyncinit
@@ -122,7 +123,7 @@ class DbManager:
 
             if player_color:
                 # TODO: use real callbacks
-                await self._subscribe_to_updates(keys[player_color], None, None)
+                await self._subscribe_to_updates(keys[player_color], None, None, None)
 
             return True, keys
 
@@ -155,7 +156,7 @@ class DbManager:
             res = JoinResult[res]
             if res is JoinResult.success:
                 # TODO: use real callbacks
-                await self._subscribe_to_updates(player_key, None, None)
+                await self._subscribe_to_updates(player_key, None, None, None)
                 # TODO: need to read in game status and chat feed. one (somewhat
                 # inefficient) way would be to simply issue a notification on
                 # the channels we are now listening on
@@ -167,6 +168,7 @@ class DbManager:
         player_key: str,
         game_callback: Callable[[str, Game], None],
         chat_callback: Callable[[str, List[ChatMessage]], None],
+        opponent_connected_callback: Callable[[str, bool], None],
     ) -> None:
         """
         Subscribe to the update channels corresponding to `player_key` and
@@ -185,6 +187,11 @@ class DbManager:
             for prefix, update_type, callback in (
                 ("game_status_", _UpdateType.game_status, game_callback),
                 ("chat_", _UpdateType.chat, chat_callback),
+                (
+                    "opponent_connected_",
+                    _UpdateType.opponent_connected,
+                    opponent_connected_callback,
+                ),
             ):
                 # TODO: we need to track { key: [(channel, callback), ...], ... } so
                 # that we can call self._connection.remove_listener on
@@ -221,6 +228,8 @@ class DbManager:
                 await self._game_status_consumer(player_key, callback)
             elif update_type is _UpdateType.chat:
                 await self._chat_consumer(player_key, callback)
+            elif update_type is _UpdateType.opponent_connected:
+                await self._opponent_connected_consumer(player_key, callback)
             else:
                 logging.error(f"Found unknown update type {update_type} in queue")
 
@@ -243,6 +252,13 @@ class DbManager:
         # TODO: stub. need to go to db for updates since last known id and
         # invoke callback with the result
         print(f"In chat consumer with key {player_key}")
+
+    async def _opponent_connected_consumer(
+        self, player_key: str, callback: Callable[[str, bool], None]
+    ) -> None:
+        # TODO: stub. need to go to db for status and invoke callback with the
+        # result
+        print(f"In opponent connected consumer with key {player_key}")
 
     async def write_game(self, player_key: str, game: Game) -> bool:
         """
