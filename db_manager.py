@@ -186,6 +186,12 @@ class DbManager:
                 ("game_status_", _UpdateType.game_status, game_callback),
                 ("chat_", _UpdateType.chat, chat_callback),
             ):
+                # TODO: we need to track { key: [(channel, callback), ...], ... } so
+                # that we can call self._connection.remove_listener on
+                # unsubscribe. this is kind of annoying in that we are more or
+                # less duplicating asyncpg's internal storage, but if we
+                # manually unlisten channels as we do currently, asyncpg's store
+                # will act like a memory leak over time
                 await self._connection.add_listener(
                     f"{prefix}{player_key}", listener_callback(update_type, callback)
                 )
