@@ -15,7 +15,7 @@ BEGIN
   WHERE key = key_to_join
   FOR UPDATE;
 
-  if other_connected is null then
+  if not found then
     RETURN 'dne';
   elsif other_connected then
     RETURN 'in_use';
