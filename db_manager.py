@@ -135,7 +135,7 @@ class DbManager:
 
         try:
             async with self._connection.transaction():
-                res = await self._connection.fetchrow(
+                res = await self._connection.fetchval(
                     """
                     SELECT * from join_game($1, $2);
                     """,
