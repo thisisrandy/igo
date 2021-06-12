@@ -24,6 +24,12 @@ BEGIN
     SET managed_by = manager_id
     WHERE key = key_to_join;
 
+    PERFORM pg_notify((
+      SELECT CONCAT('opponent_connected_', opponent_key)
+      FROM player_key
+      WHERE key = key_to_join
+      ), 'true');
+
     RETURN 'success';
   end if;
 END; $$
@@ -81,10 +87,13 @@ BEGIN
     -- player_key and not arbitrary code. otherwise, we're open to injection
     EXECUTE format('UNLISTEN game_status_%s', key_to_unsubscribe);
     EXECUTE format('UNLISTEN chat_%s', key_to_unsubscribe);
-    -- TODO: need to notify opponent that we are no longer connected. there
-    -- should be a dedicated channel on which to do this, and since the
-    -- information to transmit is minimal, messages should include a payload.
-    -- Use also in new/join game
+
+    PERFORM pg_notify((
+      SELECT CONCAT('opponent_connected_', opponent_key)
+      FROM player_key
+      WHERE key = key_to_unsubscribe
+      ), 'false');
+
     RETURN true;
   end if;
 
