@@ -179,8 +179,8 @@ class DbManager:
         def listener_callback(
             update_type: _UpdateType, callback: Callable[[str, Any], None]
         ):
-            return lambda *_: self._update_queue.put_nowait(
-                (update_type, player_key, callback)
+            return lambda _, _1, _2, payload: self._update_queue.put_nowait(
+                (update_type, player_key, callback, payload)
             )
 
         try:
@@ -222,14 +222,15 @@ class DbManager:
             update_type: _UpdateType
             player_key: str
             callback: Callable[[str, Any], None]
-            update_type, player_key, callback = await self._update_queue.get()
+            payload: str
+            update_type, player_key, callback, payload = await self._update_queue.get()
 
             if update_type is _UpdateType.game_status:
                 await self._game_status_consumer(player_key, callback)
             elif update_type is _UpdateType.chat:
                 await self._chat_consumer(player_key, callback)
             elif update_type is _UpdateType.opponent_connected:
-                await self._opponent_connected_consumer(player_key, callback)
+                await self._opponent_connected_consumer(player_key, callback, payload)
             else:
                 logging.error(f"Found unknown update type {update_type} in queue")
 
@@ -254,11 +255,13 @@ class DbManager:
         print(f"In chat consumer with key {player_key}")
 
     async def _opponent_connected_consumer(
-        self, player_key: str, callback: Callable[[str, bool], None]
+        self, player_key: str, callback: Callable[[str, bool], None], payload: str
     ) -> None:
-        # TODO: stub. need to go to db for status and invoke callback with the
-        # result
-        print(f"In opponent connected consumer with key {player_key}")
+        # TODO: stub. if payload is not empty, use it, otherwise go to db for
+        # status, and then invoke callback with the result
+        print(
+            f"In opponent connected consumer with key {player_key} and payload {payload}"
+        )
 
     async def write_game(self, player_key: str, game: Game) -> bool:
         """
