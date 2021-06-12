@@ -15,8 +15,6 @@ CREATE TABLE IF NOT EXISTS player_key (
   managed_by char(64)
 );
 
-CREATE INDEX IF NOT EXISTS player_key_managed_by_index ON player_key(managed_by);
-
 CREATE TABLE IF NOT EXISTS chat (
   id serial PRIMARY KEY,
   timestamp real NOT NULL,
@@ -24,5 +22,3 @@ CREATE TABLE IF NOT EXISTS chat (
   message text NOT NULL,
   game_id integer REFERENCES game(id)
 );
-
-CREATE INDEX IF NOT EXISTS chat_id_game_id_index ON chat(game_id, id);
