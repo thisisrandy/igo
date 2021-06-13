@@ -82,12 +82,6 @@ BEGIN
     and managed_by = currently_managed_by;
 
   if found then
-    -- it's a good idea to guard dynamic sql calls inside a check that the player_key
-    -- update succeeded, because in here, we know that key_to_unsubscribe is a real key in
-    -- player_key and not arbitrary code. otherwise, we're open to injection
-    EXECUTE format('UNLISTEN game_status_%s', key_to_unsubscribe);
-    EXECUTE format('UNLISTEN chat_%s', key_to_unsubscribe);
-
     PERFORM pg_notify((
       SELECT CONCAT('opponent_connected_', opponent_key)
       FROM player_key

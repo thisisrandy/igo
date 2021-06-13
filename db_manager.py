@@ -1,7 +1,8 @@
+from collections import defaultdict
 from enum import Enum, auto
 from constants import KEY_LEN
 from game import ChatMessage, Color, Game
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, DefaultDict, Dict, List, Optional, Tuple
 from asyncinit import asyncinit
 import asyncpg
 from uuid import uuid4
@@ -35,7 +36,7 @@ class _UpdateType(Enum):
 
 @asyncinit
 class DbManager:
-    __slots__ = ("_connection", "_machine_id", "_update_queue")
+    __slots__ = ("_connection", "_machine_id", "_update_queue", "_listening_channels")
 
     async def __init__(self, dsn: str = "postgres://randy@localhost/randy") -> None:
         """
@@ -55,6 +56,17 @@ class DbManager:
         # TODO: we probably want to use a connection pool instead of a single
         # connection. look into best practices
         self._connection: asyncpg.connection.Connection = await asyncpg.connect(dsn)
+
+        # { player_key: [(channel, callback), ...], ...}
+        # populate whenever adding listeners and lookup/delete record when
+        # unlistening
+        #
+        # TODO: if multiple listener connections are used, the connection
+        # associated with each channel will also need to be stored. this will
+        # also be useful for handling reconnect logic (db restart, etc.)
+        self._listening_channels: DefaultDict[
+            str, List[Tuple[str, Callable]]
+        ] = defaultdict(list)
 
         # machine-id is a reboot persistent unique identifier that should not be
         # shared externally. the following mimics sd_id128_get_machine_app_specific()
@@ -195,20 +207,15 @@ class DbManager:
                     opponent_connected_callback,
                 ),
             ):
-                # TODO: we need to track { key: [(channel, callback), ...], ... } so
-                # that we can call self._connection.remove_listener on
-                # unsubscribe. this is kind of annoying in that we are more or
-                # less duplicating asyncpg's internal storage, but if we
-                # manually unlisten channels as we do currently, asyncpg's store
-                # will act like a memory leak over time
-                await self._connection.add_listener(
-                    f"{prefix}{player_key}", listener_callback(update_type, callback)
-                )
+                channel = f"{prefix}{player_key}"
+                partial_callback = listener_callback(update_type, callback)
+                await self._connection.add_listener(channel, partial_callback)
+                self._listening_channels[player_key].append((channel, partial_callback))
 
         except Exception as e:
             logging.error(
                 "Encountered exception when subscribing to status updates for"
-                f" player key {player_key}"
+                f" player key {player_key}: {e}"
             )
 
         else:
@@ -357,6 +364,22 @@ class DbManager:
         else:
             if res:
                 logging.info(f"Successfully unsubscribed player key {player_key}")
+
+                try:
+                    for channel, callback in self._listening_channels[player_key]:
+                        await self._connection.remove_listener(channel, callback)
+                    del self._listening_channels[player_key]
+
+                except Exception as e:
+                    logging.error(
+                        "Encountered exception while removing listeners for player key"
+                        f" {player_key}: {e}"
+                    )
+
+                else:
+                    logging.info(
+                        f"Successfully removed listeners for player key {player_key}"
+                    )
             else:
                 logging.warn(
                     f"When unsubscribing from player key {player_key}, no record was"
