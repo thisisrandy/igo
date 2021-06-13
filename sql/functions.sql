@@ -119,6 +119,14 @@ BEGIN
   INSERT INTO chat (timestamp, color, message, game_id)
   VALUES (msg_timestamp, author_color, msg_text, target_game_id);
 
+  -- we notify ourselves here because new infomation (the row id) has been added
+  -- during the insertion process, and also because our opponent could have
+  -- added one or more messages while we were adding this one. it's much cleaner
+  -- to instruct the game server to go to the db to get in order messages rather
+  -- than trying to work it out from several sources. this is in contrast to
+  -- game updates, where we know that if we successfully wrote our update, it is
+  -- in fact the latest version, so there's no need to go back to the db to
+  -- uselessly read in what we just wrote out
   PERFORM pg_notify((SELECT CONCAT('chat_', author_key)), '');
   PERFORM pg_notify((
       SELECT CONCAT('chat_', opponent_key)
