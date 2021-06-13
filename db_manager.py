@@ -35,6 +35,8 @@ class _UpdateType(Enum):
 
 @asyncinit
 class DbManager:
+    __slots__ = ("_connection", "_machine_id", "_update_queue")
+
     async def __init__(self, dsn: str = "postgres://randy@localhost/randy") -> None:
         """
         Interface to the postgres database store. Responsibilities include:
