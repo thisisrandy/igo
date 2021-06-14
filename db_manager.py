@@ -171,9 +171,25 @@ class DbManager:
             if res is JoinResult.success:
                 # TODO: use real callbacks
                 await self._subscribe_to_updates(player_key, None, None, None)
-                # TODO: need to read in game status and chat feed. one (somewhat
-                # inefficient) way would be to simply issue a notification on
-                # the channels we are now listening on
+                try:
+                    await self._connection.execute(
+                        """
+                        CALL trigger_update_all($1);
+                        """,
+                        player_key,
+                    )
+
+                except Exception as e:
+                    logging.error(
+                        "Encountered exception while triggering status update for"
+                        f"player key {player_key}: {e}"
+                    )
+
+                else:
+                    logging.info(
+                        "Successfully triggered status update for player key"
+                        f" {player_key}"
+                    )
 
             return res
 

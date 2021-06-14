@@ -39,3 +39,15 @@ BEGIN
 
   COMMIT;
 END; $$
+
+CREATE OR REPLACE PROCEDURE trigger_update_all(
+  key_to_notify char(10)
+)
+  LANGUAGE plpgsql
+AS
+$$
+BEGIN
+  PERFORM pg_notify((SELECT CONCAT('game_status_', key_to_notify)), '');
+  PERFORM pg_notify((SELECT CONCAT('chat_', key_to_notify)), '');
+  PERFORM pg_notify((SELECT CONCAT('opponent_connected_', key_to_notify)), '');
+END; $$
