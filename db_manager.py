@@ -46,8 +46,7 @@ class DbManager:
           managing any connections
         - Handling new game creation
         - Handling joining a connected player to an existing game
-        - Subscribing to game and chat update channels and registering callbacks for
-          each
+        - Subscribing to and registering callbacks for various update channels
         - Issuing game updates to the database and reporting success or failure
         - Issuing chat messages to the database
         - Unsubscribing from update channels and cleaning up
