@@ -115,16 +115,22 @@ class DbManager:
         keys = {Color.white: key_w, Color.black: key_b}
 
         try:
-            await self._connection.execute(
-                """
-                CALL new_game($1, $2, $3, $4, $5)
-                """,
-                pickle.dumps(game),
-                key_w,
-                key_b,
-                player_color.name if player_color else None,
-                self._machine_id,
-            )
+            async with self._connection.transaction():
+                await self._connection.execute(
+                    """
+                    CALL new_game($1, $2, $3, $4, $5)
+                    """,
+                    pickle.dumps(game),
+                    key_w,
+                    key_b,
+                    player_color.name if player_color else None,
+                    self._machine_id,
+                )
+                if player_color:
+                    # TODO: use real callbacks
+                    await self._subscribe_to_updates(
+                        keys[player_color], None, None, None
+                    )
 
         except Exception as e:
             logging.error(
@@ -134,11 +140,6 @@ class DbManager:
 
         else:
             logging.info(f"Successfully wrote new game with keys {keys} to database")
-
-            if player_color:
-                # TODO: use real callbacks
-                await self._subscribe_to_updates(keys[player_color], None, None, None)
-
             return True, keys
 
     async def join_game(self, player_key: str) -> Optional[JoinResult]:
