@@ -233,6 +233,7 @@ class DbManager:
                 "Encountered exception when subscribing to status updates for"
                 f" player key {player_key}: {e}"
             )
+            raise e
 
         else:
             logging.info(f"Successfully subscribed to status updates for {player_key}")
