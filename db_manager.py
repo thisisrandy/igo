@@ -370,6 +370,10 @@ class DbManager:
                     player_key,
                     self._machine_id,
                 )
+                if res:
+                    for channel, callback in self._listening_channels[player_key]:
+                        await self._connection.remove_listener(channel, callback)
+                    del self._listening_channels[player_key]
 
         except Exception as e:
             logging.error(
@@ -381,22 +385,6 @@ class DbManager:
         else:
             if res:
                 logging.info(f"Successfully unsubscribed player key {player_key}")
-
-                try:
-                    for channel, callback in self._listening_channels[player_key]:
-                        await self._connection.remove_listener(channel, callback)
-                    del self._listening_channels[player_key]
-
-                except Exception as e:
-                    logging.error(
-                        "Encountered exception while removing listeners for player key"
-                        f" {player_key}: {e}"
-                    )
-
-                else:
-                    logging.info(
-                        f"Successfully removed listeners for player key {player_key}"
-                    )
             else:
                 logging.warn(
                     f"When unsubscribing from player key {player_key}, no record was"
