@@ -1,10 +1,12 @@
-CREATE TABLE IF NOT EXISTS game (
+DROP TABLE IF EXISTS game, player_key, chat CASCADE;
+
+CREATE TABLE game (
   id serial PRIMARY KEY,
   data bytea NOT NULL,
   version integer NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS player_key (
+CREATE TABLE player_key (
   key char(10) PRIMARY KEY,
   game_id integer REFERENCES game(id) NOT NULL,
   color char(5) NOT NULL,
@@ -15,7 +17,7 @@ CREATE TABLE IF NOT EXISTS player_key (
   managed_by char(64)
 );
 
-CREATE TABLE IF NOT EXISTS chat (
+CREATE TABLE chat (
   id serial PRIMARY KEY,
   timestamp real NOT NULL,
   color char(5) NOT NULL,
