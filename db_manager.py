@@ -38,7 +38,11 @@ class _UpdateType(Enum):
 class DbManager:
     __slots__ = ("_connection", "_machine_id", "_update_queue", "_listening_channels")
 
-    async def __init__(self, dsn: str = "postgres://randy@localhost/randy") -> None:
+    async def __init__(
+        self,
+        dsn: str = "postgres://randy@localhost/randy",
+        do_setup: bool = False,
+    ) -> None:
         """
         Interface to the postgres database store. Responsibilities include:
 
@@ -50,6 +54,11 @@ class DbManager:
         - Issuing game updates to the database and reporting success or failure
         - Issuing chat messages to the database
         - Unsubscribing from update channels and cleaning up
+
+        :param str dsn: data source name url
+
+        :param bool do_setup: if True, run all table/index/function/etc.
+        creation scripts as if using a fresh database. useful for testing
         """
 
         # TODO: we probably want to use a connection pool instead of a single
@@ -71,6 +80,21 @@ class DbManager:
         # shared externally. the following mimics sd_id128_get_machine_app_specific()
         with open("/etc/machine-id", "rb") as r:
             self._machine_id = sha256(r.readline().strip()).hexdigest()
+
+        if do_setup:
+            try:
+                # NOTE: tables must be executed first. otherwise, it would be
+                # sufficient to list the directory and execute each file
+                for fn in ("tables", "indices", "views", "procedures", "functions"):
+                    with open(f"./sql/{fn}.sql", "r") as r:
+                        sql = r.read()
+                    await self._connection.execute(sql)
+
+            except Exception as e:
+                logging.error(
+                    f"Encountered exception while running db setup scripts: {e}"
+                )
+                raise e
 
         # if we get restarted while a client is connected to a game, the
         # database will still reflect that we are managing their connection. it
