@@ -103,12 +103,11 @@ class DbManager:
         self,
         game: Game,
         player_color: Color = None,
-    ) -> Tuple[bool, Optional[Dict[Color, str]]]:
+    ) -> Optional[Dict[Color, str]]:
         """
-        Attempt to write `game` to the database as a new game. Return a tuple of
-        success or failure (on key conflict) and a dictionary of Color: key
-        pairs on success or None otherwise. Optionally specify `player_color` to
-        start managing that color
+        Attempt to write `game` to the database as a new game. Return a
+        dictionary of Color: key pairs on success or None otherwise. Optionally
+        specify `player_color` to start managing that color
         """
 
         key_w, key_b = [uuid4().hex[-KEY_LEN:] for _ in range(2)]
@@ -136,11 +135,11 @@ class DbManager:
             logging.error(
                 f"Encountered exception while attempting to write new game: {e}"
             )
-            return False, None
+            return None
 
         else:
             logging.info(f"Successfully wrote new game with keys {keys} to database")
-            return True, keys
+            return keys
 
     async def join_game(self, player_key: str) -> Optional[JoinResult]:
         """
