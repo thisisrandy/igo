@@ -8,7 +8,7 @@ BEGIN
   UPDATE player_key
   SET managed_by = null
   WHERE managed_by = manager_id;
-END; $$
+END $$;
 
 CREATE OR REPLACE PROCEDURE new_game(
   game_data bytea,
@@ -36,7 +36,7 @@ BEGIN
   INSERT INTO player_key
   VALUES (key_b, new_id, 'black', key_w,
     CASE WHEN player_color = 'black' THEN manager_id ELSE null END);
-END; $$
+END $$;
 
 CREATE OR REPLACE PROCEDURE trigger_update_all(
   key_to_notify char(10)
@@ -48,4 +48,4 @@ BEGIN
   PERFORM pg_notify((SELECT CONCAT('game_status_', key_to_notify)), '');
   PERFORM pg_notify((SELECT CONCAT('chat_', key_to_notify)), '');
   PERFORM pg_notify((SELECT CONCAT('opponent_connected_', key_to_notify)), '');
-END; $$
+END $$;

@@ -32,7 +32,7 @@ BEGIN
 
     RETURN 'success';
   end if;
-END; $$
+END $$;
 
 CREATE OR REPLACE FUNCTION write_game(
   key_to_write char(10),
@@ -63,7 +63,7 @@ BEGIN
   end if;
 
   RETURN false;
-END; $$
+END $$;
 
 CREATE OR REPLACE FUNCTION unsubscribe(
   key_to_unsubscribe char(10),
@@ -92,7 +92,7 @@ BEGIN
   end if;
 
   RETURN false;
-END; $$
+END $$;
 
 CREATE OR REPLACE FUNCTION write_chat(
   msg_timestamp real,
@@ -135,7 +135,7 @@ BEGIN
   ), '');
 
   RETURN true;
-END; $$
+END $$;
 
 CREATE OR REPLACE FUNCTION get_game_status(
   associated_player_key char(10)
@@ -159,7 +159,7 @@ BEGIN
   end if;
 
   RETURN;
-END; $$
+END $$;
 
 CREATE OR REPLACE FUNCTION get_chat_updates(
   associated_player_key char(10),
@@ -196,7 +196,7 @@ BEGIN
   -- nothing is found
 
   RETURN;
-END; $$
+END $$;
 
 CREATE OR REPLACE FUNCTION get_opponent_connected(
   my_player_key char(10)
@@ -219,4 +219,4 @@ BEGIN
   end if;
 
   RETURN opponent_connected;
-END; $$
+END $$;
