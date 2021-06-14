@@ -156,6 +156,16 @@ class DbManager:
                     player_key,
                     self._machine_id,
                 )
+                res = JoinResult[res]
+                if res is JoinResult.success:
+                    # TODO: use real callbacks
+                    await self._subscribe_to_updates(player_key, None, None, None)
+                    await self._connection.execute(
+                        """
+                        CALL trigger_update_all($1);
+                        """,
+                        player_key,
+                    )
 
         except Exception as e:
             logging.error(
@@ -165,32 +175,9 @@ class DbManager:
             return None
 
         else:
-            logging.info(f"Attempt to join game with key {player_key} returned '{res}'")
-
-            res = JoinResult[res]
-            if res is JoinResult.success:
-                # TODO: use real callbacks
-                await self._subscribe_to_updates(player_key, None, None, None)
-                try:
-                    await self._connection.execute(
-                        """
-                        CALL trigger_update_all($1);
-                        """,
-                        player_key,
-                    )
-
-                except Exception as e:
-                    logging.error(
-                        "Encountered exception while triggering status update for"
-                        f"player key {player_key}: {e}"
-                    )
-
-                else:
-                    logging.info(
-                        "Successfully triggered status update for player key"
-                        f" {player_key}"
-                    )
-
+            logging.info(
+                f"Attempt to join game with key {player_key} returned '{res.name}'"
+            )
             return res
 
     async def _subscribe_to_updates(
