@@ -140,7 +140,7 @@ class DbManager:
             async with self._connection.transaction():
                 await self._connection.execute(
                     """
-                    CALL new_game($1, $2, $3, $4, $5)
+                    CALL new_game($1, $2, $3, $4, $5);
                     """,
                     pickle.dumps(game),
                     key_w,
@@ -313,7 +313,7 @@ class DbManager:
             async with self._connection.transaction():
                 res = await self._connection.fetchval(
                     """
-                    SELECT * from write_game($1, $2, $3)
+                    SELECT * from write_game($1, $2, $3);
                     """,
                     player_key,
                     pickle.dumps(game),
