@@ -224,16 +224,15 @@ class DbManager:
             )
 
         try:
-            for prefix, update_type, callback in (
-                ("game_status_", _UpdateType.game_status, game_callback),
-                ("chat_", _UpdateType.chat, chat_callback),
+            for update_type, callback in (
+                (_UpdateType.game_status, game_callback),
+                (_UpdateType.chat, chat_callback),
                 (
-                    "opponent_connected_",
                     _UpdateType.opponent_connected,
                     opponent_connected_callback,
                 ),
             ):
-                channel = f"{prefix}{player_key}"
+                channel = f"{update_type.name}_{player_key}"
                 partial_callback = listener_callback(update_type, callback)
                 await self._connection.add_listener(channel, partial_callback)
                 self._listening_channels[player_key].append((channel, partial_callback))
