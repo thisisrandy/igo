@@ -1,3 +1,4 @@
+import pickle
 from typing import Dict
 from game import Color, Game
 from db_manager import DbManager
@@ -49,8 +50,45 @@ class DbManagerTestCase(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(row.get("managed_by"))
 
     async def test_write_new_game(self):
-        # TODO: stub
-        pass
+        manager = self.manager
+        game = Game()
+        keys: Dict[Color, str] = await manager.write_new_game(game, Color.white)
+
+        row = await manager._connection.fetchrow(
+            """
+            SELECT key, game_id, color, opponent_key
+            FROM player_key
+            WHERE managed_by = $1
+            """,
+            manager._machine_id,
+        )
+        game_id = row.get("game_id")
+        self.assertEqual(keys[Color.white], row.get("key"))
+        self.assertEqual(Color.white.name, row.get("color"))
+        self.assertEqual(keys[Color.black], row.get("opponent_key"))
+
+        row = await manager._connection.fetchrow(
+            """
+            SELECT key, game_id, color, managed_by
+            FROM player_key
+            WHERE opponent_key = $1
+            """,
+            keys[Color.white],
+        )
+        self.assertEqual(keys[Color.black], row.get("key"))
+        self.assertEqual(game_id, row.get("game_id"))
+        self.assertEqual(Color.black.name, row.get("color"))
+        self.assertIsNone(row.get("managed_by"))
+
+        row = await manager._connection.fetchrow(
+            """
+            SELECT game_data, version
+            FROM get_game_status($1);
+            """,
+            keys[Color.white],
+        )
+        self.assertEqual(game.version(), row.get("version"))
+        self.assertEqual(pickle.loads(row.get("game_data")), game)
 
     async def test_join_game(self):
         # TODO: stub
