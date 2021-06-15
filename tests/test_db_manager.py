@@ -47,3 +47,27 @@ class DbManagerTestCase(unittest.IsolatedAsyncioTestCase):
             keys[Color.white],
         )
         self.assertIsNone(row.get("managed_by"))
+
+    async def test_write_new_game(self):
+        # TODO: stub
+        pass
+
+    async def test_join_game(self):
+        # TODO: stub
+        pass
+
+    async def test_subscribe_to_updates(self):
+        # TODO: stub
+        pass
+
+    async def test_write_game(self):
+        # TODO: stub
+        pass
+
+    async def test_write_chat(self):
+        # TODO: stub
+        pass
+
+    async def test_unsubscribe(self):
+        # TODO: stub
+        pass
