@@ -1,7 +1,7 @@
 import pickle
 from typing import Dict
 from game import Color, Game
-from db_manager import DbManager
+from db_manager import DbManager, JoinResult
 import testing.postgresql
 import unittest
 
@@ -91,7 +91,12 @@ class DbManagerTestCase(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(pickle.loads(row.get("game_data")), game)
 
     async def test_join_game(self):
-        # TODO: stub
+        manager = self.manager
+        keys: Dict[Color, str] = await manager.write_new_game(Game(), Color.white)
+        self.assertEqual(await manager.join_game("0000000000"), JoinResult.dne)
+        self.assertEqual(await manager.join_game(keys[Color.white]), JoinResult.in_use)
+        self.assertEqual(await manager.join_game(keys[Color.black]), JoinResult.success)
+        # TODO: pass in mock callbacks and check that all are fired once
         pass
 
     async def test_subscribe_to_updates(self):
