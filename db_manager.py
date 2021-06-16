@@ -1,3 +1,4 @@
+import string
 from collections import defaultdict
 from enum import Enum, auto
 from constants import KEY_LEN
@@ -32,6 +33,41 @@ class _UpdateType(Enum):
     game_status = auto()
     chat = auto()
     opponent_connected = auto()
+
+
+ALPHANUM_CHARS = "".join(str(x) for x in range(10)) + string.ascii_letters
+
+
+def alphanum_uuid(desired_length: int = KEY_LEN) -> str:
+    """
+    Produce a alpha-numeric uuid (each char in [0-9a-zA-Z], i.e. base 62) of
+    `desired_length` using uuid4 under the hood. As uuid4 is 128 bits long,
+    possible values range between 0 and 2**128 = 7N42dgm5tFLK9N8MT7fHC8 in base
+    62, so `desired_length` must be <= 22 (and at least 1).
+
+    In the context of game ids, choosing a large base means that we can have
+    short, easy to type keys while still maintaining a practically zero
+    collision rate. 62**10, for example, is nearly 1 quintillion, far beyond any
+    practical number of games played at which we would see collisions, whereas
+    if we used hexadecimal and the same key length, 16**10 is only slightly over
+    1 trillion, meaning we would start seeing regular collisions after less than
+    1 billion games. Obviously this is a hobby project and will never be played
+    at that scale, but a real-world game could be, so this is a legitimate
+    concern, unless we wanted to do something about handling collisions
+    (currently, we assume it never happens and simply blow up if it does)
+    """
+
+    assert isinstance(desired_length, int) and 0 < desired_length <= 22
+
+    base_10 = uuid4().int
+    res = ""
+    while base_10 and desired_length:
+        res += ALPHANUM_CHARS[base_10 % 62]
+        desired_length -= 1
+        base_10 //= 62
+    # the fact that this is backwards is immaterial in the context of generating
+    # a unique id, so we choose not to reverse it
+    return res
 
 
 @asyncinit
@@ -133,7 +169,7 @@ class DbManager:
         specify `player_color` to start managing that color
         """
 
-        key_w, key_b = [uuid4().hex[-KEY_LEN:] for _ in range(2)]
+        key_w, key_b = [alphanum_uuid() for _ in range(2)]
         keys = {Color.white: key_w, Color.black: key_b}
 
         try:
