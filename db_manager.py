@@ -153,6 +153,7 @@ class DbManager:
 
         except Exception as e:
             logging.error(f"Encountered exception during restart cleanup: {e}")
+            raise e
 
         # set up the notifications queue and consumer
         self._update_queue = asyncio.Queue()
