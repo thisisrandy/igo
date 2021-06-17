@@ -127,8 +127,8 @@ class DbManager:
                     await self._connection.execute(sql)
 
             except Exception as e:
-                logging.error(
-                    f"Encountered exception while running db setup scripts: {e}"
+                logging.exception(
+                    "Encountered exception while running db setup scripts"
                 )
                 raise e
 
@@ -152,7 +152,7 @@ class DbManager:
             )
 
         except Exception as e:
-            logging.error(f"Encountered exception during restart cleanup: {e}")
+            logging.exception("Encountered exception during restart cleanup")
             raise e
 
         # set up the notifications queue and consumer
@@ -191,9 +191,9 @@ class DbManager:
                         keys[player_color], None, None, None
                     )
 
-        except Exception as e:
-            logging.error(
-                f"Encountered exception while attempting to write new game: {e}"
+        except Exception:
+            logging.exception(
+                "Encountered exception while attempting to write new game"
             )
             return None
 
@@ -227,10 +227,10 @@ class DbManager:
                         player_key,
                     )
 
-        except Exception as e:
-            logging.error(
+        except Exception:
+            logging.exception(
                 "Encountered exception while attempting to join game with key"
-                f" {player_key}: {e}"
+                f" {player_key}"
             )
             return None
 
@@ -275,9 +275,9 @@ class DbManager:
                 self._listening_channels[player_key].append((channel, partial_callback))
 
         except Exception as e:
-            logging.error(
+            logging.exception(
                 "Encountered exception when subscribing to status updates for"
-                f" player key {player_key}: {e}"
+                f" player key {player_key}"
             )
             raise e
 
@@ -356,8 +356,8 @@ class DbManager:
                     version,
                 )
 
-        except Exception as e:
-            logging.error(f"Encountered exception attempting to update {log_text}: {e}")
+        except Exception:
+            logging.exception(f"Encountered exception attempting to update {log_text}")
             return False
 
         else:
@@ -384,9 +384,9 @@ class DbManager:
                     player_key,
                 )
 
-        except Exception as e:
-            logging.error(
-                f"Encountered exception while attempting to write chat message {message}: {e}"
+        except Exception:
+            logging.exception(
+                f"Encountered exception while attempting to write chat message {message}"
             )
             return False
 
@@ -421,10 +421,10 @@ class DbManager:
                         await self._connection.remove_listener(channel, callback)
                     del self._listening_channels[player_key]
 
-        except Exception as e:
-            logging.error(
+        except Exception:
+            logging.exception(
                 "Encountered exception while unsubscribing from player key"
-                f" {player_key}: {e}"
+                f" {player_key}"
             )
             return False
 
