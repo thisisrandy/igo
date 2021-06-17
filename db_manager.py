@@ -2,7 +2,8 @@ import string
 from collections import defaultdict
 from enum import Enum, auto
 from constants import KEY_LEN
-from game import ChatMessage, Color, Game
+from game import Color, Game
+from chat import ChatMessage
 from typing import Any, Callable, DefaultDict, Dict, List, Optional, Tuple
 from asyncinit import asyncinit
 import asyncpg
