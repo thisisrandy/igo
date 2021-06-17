@@ -53,10 +53,10 @@ class ChatThread(JsonifyableBase):
 
     Attributes:
 
-        thread: List[ChatMessage] - the complete thread of messages
+        thread: List[ChatMessage] = [] - the complete thread of messages
     """
 
-    thread: List[ChatMessage]
+    thread: List[ChatMessage] = []
 
     def jsonifyable(self) -> List[Dict]:
         return [msg.jsonifyable() for msg in self.thread]
