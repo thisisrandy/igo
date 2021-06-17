@@ -128,10 +128,7 @@ class DbManager:
                     await self._connection.execute(sql)
 
             except Exception as e:
-                logging.exception(
-                    "Encountered exception while running db setup scripts"
-                )
-                raise e
+                raise Exception("Failed to run db setup scripts") from e
 
         # if we get restarted while a client is connected to a game, the
         # database will still reflect that we are managing their connection. it
@@ -153,8 +150,7 @@ class DbManager:
             )
 
         except Exception as e:
-            logging.exception("Encountered exception during restart cleanup")
-            raise e
+            raise Exception("Failed to execute restart database cleanup") from e
 
         # set up the notifications queue and consumer
         self._update_queue = asyncio.Queue()
@@ -164,7 +160,7 @@ class DbManager:
         self,
         game: Game,
         player_color: Color = None,
-    ) -> Optional[Dict[Color, str]]:
+    ) -> Dict[Color, str]:
         """
         Attempt to write `game` to the database as a new game. Return a
         dictionary of Color: key pairs on success or None otherwise. Optionally
@@ -192,17 +188,14 @@ class DbManager:
                         keys[player_color], None, None, None
                     )
 
-        except Exception:
-            logging.exception(
-                "Encountered exception while attempting to write new game"
-            )
-            return None
+        except Exception as e:
+            raise Exception("Failed to write new game") from e
 
         else:
             logging.info(f"Successfully wrote new game with keys {keys} to database")
             return keys
 
-    async def join_game(self, player_key: str) -> Optional[JoinResult]:
+    async def join_game(self, player_key: str) -> JoinResult:
         """
         Attempt to join a game using `player_key` and return the result of the
         operation or None if an exception occurs
@@ -228,12 +221,8 @@ class DbManager:
                         player_key,
                     )
 
-        except Exception:
-            logging.exception(
-                "Encountered exception while attempting to join game with key"
-                f" {player_key}"
-            )
-            return None
+        except Exception as e:
+            raise Exception(f"Failed to join game with key {player_key}") from e
 
         else:
             logging.info(
@@ -276,11 +265,9 @@ class DbManager:
                 self._listening_channels[player_key].append((channel, partial_callback))
 
         except Exception as e:
-            logging.exception(
-                "Encountered exception when subscribing to status updates for"
-                f" player key {player_key}"
-            )
-            raise e
+            raise Exception(
+                f"Failed to subscribe to status updates for player key {player_key}"
+            ) from e
 
         else:
             logging.info(f"Successfully subscribed to status updates for {player_key}")
@@ -357,9 +344,8 @@ class DbManager:
                     version,
                 )
 
-        except Exception:
-            logging.exception(f"Encountered exception attempting to update {log_text}")
-            return False
+        except Exception as e:
+            raise Exception(f"Failed to update {log_text}") from e
 
         else:
             if res:
@@ -385,11 +371,8 @@ class DbManager:
                     player_key,
                 )
 
-        except Exception:
-            logging.exception(
-                f"Encountered exception while attempting to write chat message {message}"
-            )
-            return False
+        except Exception as e:
+            raise Exception(f"Failed to write chat message '{message}'") from e
 
         else:
             if res:
@@ -422,12 +405,10 @@ class DbManager:
                         await self._connection.remove_listener(channel, callback)
                     del self._listening_channels[player_key]
 
-        except Exception:
-            logging.exception(
-                "Encountered exception while unsubscribing from player key"
-                f" {player_key}"
-            )
-            return False
+        except Exception as e:
+            raise Exception(
+                f"Failed to unsubscribe from player key {player_key}"
+            ) from e
 
         else:
             if res:
