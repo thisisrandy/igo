@@ -50,10 +50,11 @@ class GameStore:
     """
     GameStore is the guts of the in-memory storage and management of games. It
     maps connected clients, identified by their web socket handler, one-to-one
-    to all of the data they are concerned with. Although it is possible and
-    indeed likely that two clients playing the same game will be connected to
-    the same game server, no attempt is made to share data between them above
-    the database level.
+    to all of the data they are concerned with, routes messages, and issues
+    responses on the client socket. Although it is possible and indeed likely
+    that two clients playing the same game will be connected to the same game
+    server, no attempt is made to share data between them above the database
+    level.
     """
 
     async def __init__(self, store_dsn: str) -> None:
