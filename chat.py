@@ -84,3 +84,11 @@ class ChatThread(JsonifyableBase):
         """
 
         self.thread.extend(messages)
+
+    def extend(self, other_thread: ChatThread) -> None:
+        """
+        Append `other_thread` to the end of the current thread. See
+        `ChatThread.append` for caveats
+        """
+
+        self.thread.extend(other_thread.thread)
