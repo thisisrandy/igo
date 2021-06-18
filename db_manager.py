@@ -3,8 +3,8 @@ from collections import defaultdict
 from enum import Enum, auto
 from constants import KEY_LEN
 from game import Color, Game
-from chat import ChatMessage
-from typing import Any, Callable, DefaultDict, Dict, List, Optional, Tuple
+from chat import ChatMessage, ChatThread
+from typing import Callable, Coroutine, DefaultDict, Dict, List, Tuple
 from asyncinit import asyncinit
 import asyncpg
 from uuid import uuid4
@@ -77,6 +77,9 @@ class DbManager:
 
     async def __init__(
         self,
+        game_status_callback: Callable[[str, Game], Coroutine],
+        chat_callback: Callable[[str, ChatThread], Coroutine],
+        opponent_connected_callback: Callable[[str, bool], Coroutine],
         dsn: str = "postgres://randy@localhost/randy",
         do_setup: bool = False,
     ) -> None:
@@ -92,11 +95,29 @@ class DbManager:
         - Issuing chat messages to the database
         - Unsubscribing from update channels and cleaning up
 
+        :param Callable[[str, Game], Coroutine] game_status_callback: an async
+        callback to be invoked when a notification is received on a game status
+        channel. must take a player key string and a Game object as arguments
+
+        :param Callable[[str, ChatThread], Coroutine] chat_callback: an async
+        callback to be invoked when a notification is received on a chat
+        channel. must take a player key string and a ChatThread object as
+        arguments
+
+        :param Callable[[str, bool], Coroutine] opponent_connected_callback: an
+        async callback to be invoked when a notification is received on an
+        opponent connected channel. must take a player key string and a bool
+        indicator of connectedness as arguments
+
         :param str dsn: data source name url
 
         :param bool do_setup: if True, run all table/index/function/etc.
         creation scripts as if using a fresh database. useful for testing
         """
+
+        self._game_status_callback = game_status_callback
+        self._chat_callback = chat_callback
+        self._opponent_connected_callback = opponent_connected_callback
 
         # TODO: we probably want to use a connection pool instead of a single
         # connection. look into best practices
@@ -183,10 +204,7 @@ class DbManager:
                     self._machine_id,
                 )
                 if player_color:
-                    # TODO: use real callbacks
-                    await self._subscribe_to_updates(
-                        keys[player_color], None, None, None
-                    )
+                    await self._subscribe_to_updates(keys[player_color])
 
         except Exception as e:
             raise Exception("Failed to write new game") from e
@@ -212,8 +230,7 @@ class DbManager:
                 )
                 res = JoinResult[res]
                 if res is JoinResult.success:
-                    # TODO: use real callbacks
-                    await self._subscribe_to_updates(player_key, None, None, None)
+                    await self._subscribe_to_updates(player_key)
                     await self._connection.execute(
                         """
                         CALL trigger_update_all($1);
@@ -230,37 +247,22 @@ class DbManager:
             )
             return res
 
-    async def _subscribe_to_updates(
-        self,
-        player_key: str,
-        game_callback: Callable[[str, Game], None],
-        chat_callback: Callable[[str, List[ChatMessage]], None],
-        opponent_connected_callback: Callable[[str, bool], None],
-    ) -> None:
+    async def _subscribe_to_updates(self, player_key: str) -> None:
         """
         Subscribe to the update channels corresponding to `player_key` and
-        register the provided callbacks to receive updates. Should be called
-        only after successfully creating or joining a game
+        register callbacks to receive updates. Should be called only after
+        successfully creating or joining a game
         """
 
-        def listener_callback(
-            update_type: _UpdateType, callback: Callable[[str, Any], None]
-        ):
+        def listener_callback(update_type: _UpdateType):
             return lambda _, _1, _2, payload: self._update_queue.put_nowait(
-                (update_type, player_key, callback, payload)
+                (update_type, player_key, payload)
             )
 
         try:
-            for update_type, callback in (
-                (_UpdateType.game_status, game_callback),
-                (_UpdateType.chat, chat_callback),
-                (
-                    _UpdateType.opponent_connected,
-                    opponent_connected_callback,
-                ),
-            ):
+            for update_type in _UpdateType:
                 channel = f"{update_type.name}_{player_key}"
-                partial_callback = listener_callback(update_type, callback)
+                partial_callback = listener_callback(update_type)
                 await self._connection.add_listener(channel, partial_callback)
                 self._listening_channels[player_key].append((channel, partial_callback))
 
@@ -281,16 +283,15 @@ class DbManager:
         while True:
             update_type: _UpdateType
             player_key: str
-            callback: Callable[[str, Any], None]
             payload: str
-            update_type, player_key, callback, payload = await self._update_queue.get()
+            update_type, player_key, payload = await self._update_queue.get()
 
             if update_type is _UpdateType.game_status:
-                await self._game_status_consumer(player_key, callback)
+                await self._game_status_consumer(player_key)
             elif update_type is _UpdateType.chat:
-                await self._chat_consumer(player_key, callback)
+                await self._chat_consumer(player_key)
             elif update_type is _UpdateType.opponent_connected:
-                await self._opponent_connected_consumer(player_key, callback, payload)
+                await self._opponent_connected_consumer(player_key, payload)
             else:
                 logging.error(f"Found unknown update type {update_type} in queue")
 
@@ -300,23 +301,17 @@ class DbManager:
             # reason to join the queue later on
             self._update_queue.task_done()
 
-    async def _game_status_consumer(
-        self, player_key: str, callback: Callable[[str, Game], None]
-    ) -> None:
+    async def _game_status_consumer(self, player_key: str) -> None:
         # TODO: stub. need to go to db for latest version and invoke callback
         # with the result
         print(f"In game status consumer with key {player_key}")
 
-    async def _chat_consumer(
-        self, player_key: str, callback: Callable[[str, List[ChatMessage]], None]
-    ) -> None:
+    async def _chat_consumer(self, player_key: str) -> None:
         # TODO: stub. need to go to db for updates since last known id and
         # invoke callback with the result
         print(f"In chat consumer with key {player_key}")
 
-    async def _opponent_connected_consumer(
-        self, player_key: str, callback: Callable[[str, bool], None], payload: str
-    ) -> None:
+    async def _opponent_connected_consumer(self, player_key: str, payload: str) -> None:
         # TODO: stub. if payload is not empty, use it, otherwise go to db for
         # status, and then invoke callback with the result
         print(
