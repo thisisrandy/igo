@@ -189,7 +189,7 @@ BEGIN
     WHERE pk.key = associated_player_key
       AND pk.game_id = c.game_id
       AND c.id > last_id
-    ORDER BY c.timestamp;
+    ORDER BY c.id;
 
   -- NOTE: having the above return nothing is a perfectly normal occurence when
   -- we join a game with no chat messages, so no need to raise any exceptions if
