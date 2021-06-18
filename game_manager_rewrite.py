@@ -9,7 +9,7 @@ import logging
 from chat import ChatThread
 from dataclasses import dataclass
 from game import Color, Game
-from typing import Dict, Optional
+from typing import Callable, Coroutine, Dict
 from tornado.websocket import WebSocketHandler
 from messages import (
     IncomingMessage,
@@ -102,6 +102,28 @@ class GameStore:
             ),
             msg.websocket_handler,
         )
+
+    def get_game_updater(self) -> Callable[[str, Game], Coroutine]:
+        """
+        Return a function which takes a player key string and a Game object,
+        updates the in-memory store, and alerts the client of the change. May be
+        readily used to generate a subscription callback
+        """
+
+        async def callback(player_key: str, game: Game) -> None:
+            if player_key not in self._keys:
+                logging.warn(
+                    f"Player key {player_key} is not being managed by this store"
+                )
+                return
+
+            client = self._keys[player_key]
+            self._clients[client].game = game
+            logging.info(f"Successfully updated game for player key {player_key}")
+
+            await send_outgoing_message(OutgoingMessageType.game_status, game, client)
+
+        return callback
 
     async def join_game(self, msg: IncomingMessage) -> None:
         pass
