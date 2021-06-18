@@ -33,6 +33,8 @@ class OutgoingMessageType(Enum):
     join_game_response = auto()
     game_action_response = auto()
     game_status = auto()
+    chat = auto()
+    opponent_connected = auto()
 
 
 class Message:
