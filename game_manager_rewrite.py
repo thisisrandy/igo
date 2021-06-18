@@ -9,11 +9,12 @@ import logging
 from chat import ChatThread
 from dataclasses import dataclass
 from game import Color, Game
-from typing import Callable, Coroutine, Dict
+from typing import Callable, Coroutine, Dict, Optional
 from tornado.websocket import WebSocketHandler
 from messages import (
     IncomingMessage,
     IncomingMessageType,
+    JsonifyableBase,
     OutgoingMessageType,
     send_outgoing_message,
 )
@@ -45,6 +46,18 @@ class ClientData:
     opponent_connected: bool
 
 
+@dataclass
+class OpponentConnectedContainer(JsonifyableBase):
+    """
+    Simple container for opponent's connectedness indicator which implements jsonifyable
+    """
+
+    opponent_connected: bool
+
+    def jsonifyable(self) -> Dict:
+        return {"opponentConnected": self.opponent_connected}
+
+
 @asyncinit
 class GameStore:
     """
@@ -60,7 +73,12 @@ class GameStore:
     async def __init__(self, store_dsn: str) -> None:
         self._clients: Dict[WebSocketHandler, ClientData] = {}
         self._keys: Dict[str, WebSocketHandler] = {}
-        self._db_manager: DbManager = await DbManager(store_dsn)
+        self._db_manager: DbManager = await DbManager(
+            self._get_game_updater,
+            self._get_chat_updater,
+            self._get_opponent_connected_updater,
+            store_dsn,
+        )
 
     async def new_game(self, msg: IncomingMessage) -> None:
         """
@@ -103,7 +121,7 @@ class GameStore:
             msg.websocket_handler,
         )
 
-    def get_game_updater(self) -> Callable[[str, Game], Coroutine]:
+    def _get_game_updater(self) -> Callable[[str, Game], Coroutine]:
         """
         Return a function which takes a player key string and a Game object,
         updates the in-memory store, and alerts the client of the change. May be
@@ -111,19 +129,71 @@ class GameStore:
         """
 
         async def callback(player_key: str, game: Game) -> None:
-            if player_key not in self._keys:
-                logging.warn(
-                    f"Player key {player_key} is not being managed by this store"
+            client = self._updater_callback_preamble(player_key)
+            if client:
+                self._clients[client].game = game
+                logging.info(f"Successfully updated game for player key {player_key}")
+
+                await send_outgoing_message(
+                    OutgoingMessageType.game_status, game, client
                 )
-                return
-
-            client = self._keys[player_key]
-            self._clients[client].game = game
-            logging.info(f"Successfully updated game for player key {player_key}")
-
-            await send_outgoing_message(OutgoingMessageType.game_status, game, client)
 
         return callback
+
+    def _get_chat_updater(self) -> Callable[[str, ChatThread], Coroutine]:
+        """
+        Return a function which takes a player key string and a ChatThread
+        object, updates the in-memory store, and alerts the client of the
+        change. Maybe be readily used to generate a subscription callback
+        """
+
+        async def callback(player_key: str, thread: ChatThread) -> None:
+            client = self._updater_callback_preamble(player_key)
+            if client:
+                self._clients[client].chat_thread.extend(thread)
+                logging.info(
+                    f"Successfully updated chat thread for player key {player_key}"
+                )
+
+                await send_outgoing_message(OutgoingMessageType.chat, thread, client)
+
+        return callback
+
+    def _get_opponent_connected_updater(self) -> Callable[[str, bool], Coroutine]:
+        """
+        Return a function which takes a player key string and a bool, updates
+        the in-memory store, and alerts the client of the change. Maybe be
+        readily used to generate a subscription callback
+        """
+
+        async def callback(player_key: str, opponent_connected: bool) -> None:
+            client = self._updater_callback_preamble(player_key)
+            if client:
+                self._clients[client].opponent_connected = opponent_connected
+                logging.info(
+                    "Successfully updated opponent connected status to"
+                    f" {opponent_connected} for player key {player_key}"
+                )
+
+                await send_outgoing_message(
+                    OutgoingMessageType.opponent_connected,
+                    OpponentConnectedContainer(opponent_connected),
+                    client,
+                )
+
+        return callback
+
+    def _updater_callback_preamble(self, player_key: str) -> Optional[WebSocketHandler]:
+        """
+        All updater callbacks begin by doing the same couple things. Rather than
+        copy-pasting, call this preamble instead
+        """
+
+        if player_key not in self._keys:
+            logging.warn(f"Player key {player_key} is not being managed by this store")
+            return None
+
+        return self._keys[player_key]
 
     async def join_game(self, msg: IncomingMessage) -> None:
         pass
