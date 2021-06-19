@@ -3,11 +3,11 @@ Temporary file to hold rewrite of game_manager. Once fleshed out, overwrite
 game_manager and remove this file
 """
 
-from constants import COLOR, KEY, KOMI, SIZE
+from constants import ACTION_TYPE, COLOR, COORDS, KEY, KOMI, MESSAGE, SIZE
 import logging
-from chat import ChatThread
+from chat import ChatMessage, ChatThread
 from dataclasses import dataclass
-from game import Color, Game
+from game import Action, ActionType, Color, Game
 from typing import Callable, Coroutine, Dict, Optional
 from tornado.websocket import WebSocketHandler
 from messages import (
@@ -19,6 +19,7 @@ from messages import (
 import asyncinit
 from db_manager import DbManager, JoinResult
 from containers import (
+    ActionResponseContainer,
     JoinGameResponseContainer,
     NewGameResponseContainer,
     OpponentConnectedContainer,
@@ -271,7 +272,49 @@ class GameStore:
                 raise TypeError(f"Unknown JoinResult {res} encountered")
 
     async def route_message(self, msg: IncomingMessage) -> None:
-        pass
+        key = msg.data[KEY]
+        client = msg.websocket_handler
+
+        assert key in self._keys, f"Received message with unknown key {key}"
+        assert (
+            client in self._clients
+        ), f"Received message from a client who isn't subscribed to anything"
+        assert self._clients[client].key == key, (
+            f"Received message with key {key} from a client who isn't subscribed to"
+            " that key"
+        )
+
+        client_data = self._clients[client]
+        color = client_data.color
+
+        if msg.message_type is IncomingMessageType.game_action:
+            success, explanation = client_data.game.take_action(
+                Action(
+                    ActionType[msg.data[ACTION_TYPE]],
+                    color,
+                    msg.timestamp,
+                    tuple(msg.data[COORDS]) if COORDS in msg.data else None,
+                )
+            )
+            logging.info(
+                f"Took action with result success={success}, explanation={explanation}"
+            )
+
+            if success:
+                await self._db_manager.write_game(client_data.key, client_data.game)
+
+            await send_outgoing_message(
+                OutgoingMessageType.game_action_response,
+                ActionResponseContainer(success, explanation),
+                client,
+            )
+        elif msg.message_type is IncomingMessageType.chat_message:
+            message_text = msg.data[MESSAGE]
+            await self._db_manager.write_chat(
+                client_data.key, ChatMessage(msg.timestamp, color, message_text)
+            )
+        else:
+            raise TypeError(f"Cannot handle messages of type {msg.message_type}")
 
     async def unsubscribe(self, socket: WebSocketHandler) -> None:
         if socket in self._clients:
