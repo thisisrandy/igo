@@ -277,7 +277,14 @@ class GameStore:
         pass
 
     async def unsubscribe(self, socket: WebSocketHandler) -> None:
-        pass
+        if socket in self._clients:
+            key = self._clients[socket].key
+            del self._clients[socket]
+            del self._keys[key]
+            await self._db_manager.unsubscribe(key)
+            logging.info(f"Unsubscribed client from key {key}")
+        else:
+            logging.info("Client with no active subscriptions dropped")
 
 
 class GameManager:
