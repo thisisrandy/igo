@@ -46,6 +46,9 @@ class ClientData:
 
     key: str
     game: Optional[Game] = None
+    # TODO: add write/load timestamp for keeping track of time played. this
+    # might be a bit complicated as we are no longer the sole game manager.
+    # possibly this goes in the db, but will need to think it through
     chat_thread: Optional[ChatThread] = None
     opponent_connected: Optional[bool] = None
 
