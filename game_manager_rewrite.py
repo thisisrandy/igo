@@ -35,6 +35,8 @@ class ClientData:
 
         key: str - the client's player key
 
+        color: Color - the client's color
+
         game: Optional[Game] = None - the current game
 
         chat_thread: Optional[ChatThread] = None - the chat thread associated
@@ -45,6 +47,7 @@ class ClientData:
     """
 
     key: str
+    color: Color
     game: Optional[Game] = None
     # TODO: add write/load timestamp for keeping track of time played. this
     # might be a bit complicated as we are no longer the sole game manager.
@@ -95,7 +98,7 @@ class GameStore:
         client_key = keys[requested_color]
         client = msg.websocket_handler
         self._clients[client] = ClientData(
-            client_key, game, chat_thread, opponent_connected
+            client_key, requested_color, game, chat_thread, opponent_connected
         )
         self._keys[client_key] = client
 
@@ -248,9 +251,9 @@ class GameStore:
                     )
                     await self.unsubscribe(client)
 
-                self._clients[client] = ClientData(key)
-                self._keys[key] = client
                 color = Color.white if keys[Color.white] == key else Color.black
+                self._clients[client] = ClientData(key, color)
+                self._keys[key] = client
 
                 await send_outgoing_message(
                     OutgoingMessageType.join_game_response,
