@@ -4,7 +4,7 @@ from enum import Enum, auto
 from constants import KEY_LEN
 from game import Color, Game
 from chat import ChatMessage, ChatThread
-from typing import Callable, Coroutine, DefaultDict, Dict, List, Tuple
+from typing import Callable, Coroutine, DefaultDict, Dict, List, Tuple, Optional
 from asyncinit import asyncinit
 import asyncpg
 from uuid import uuid4
