@@ -308,6 +308,11 @@ class GameStore:
                 ActionResponseContainer(success, explanation),
                 client,
             )
+
+            if success:
+                await send_outgoing_message(
+                    OutgoingMessageType.game_status, client_data.game, client
+                )
         elif msg.message_type is IncomingMessageType.chat_message:
             message_text = msg.data[MESSAGE]
             await self._db_manager.write_chat(
