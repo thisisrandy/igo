@@ -73,9 +73,9 @@ class GameStore:
         self._clients: Dict[WebSocketHandler, ClientData] = {}
         self._keys: Dict[str, WebSocketHandler] = {}
         self._db_manager: DbManager = await DbManager(
-            self._get_game_updater,
-            self._get_chat_updater,
-            self._get_opponent_connected_updater,
+            self._get_game_updater(),
+            self._get_chat_updater(),
+            self._get_opponent_connected_updater(),
             store_dsn,
         )
 
