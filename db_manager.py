@@ -73,7 +73,15 @@ def alphanum_uuid(desired_length: int = KEY_LEN) -> str:
 
 @asyncinit
 class DbManager:
-    __slots__ = ("_connection", "_machine_id", "_update_queue", "_listening_channels")
+    __slots__ = (
+        "_connection",
+        "_machine_id",
+        "_update_queue",
+        "_listening_channels",
+        "_game_status_callback",
+        "_chat_callback",
+        "_opponent_connected_callback",
+    )
 
     async def __init__(
         self,
