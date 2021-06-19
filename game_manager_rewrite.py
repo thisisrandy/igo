@@ -327,6 +327,7 @@ class GameStore:
             logging.info("Client with no active subscriptions dropped")
 
 
+@asyncinit
 class GameManager:
     """
     GameManager is the simplified Game API to the connection_manager module.
