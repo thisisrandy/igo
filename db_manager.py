@@ -330,9 +330,23 @@ class DbManager:
             self._update_queue.task_done()
 
     async def _game_status_consumer(self, player_key: str) -> None:
-        # TODO: stub. need to go to db for latest version and invoke callback
-        # with the result
-        print(f"In game status consumer with key {player_key}")
+        try:
+            game: Game = pickle.loads(
+                await self._connection.fetchval(
+                    """
+                    SELECT game_data from get_game_status($1);
+                    """,
+                    player_key,
+                )
+            )
+
+        except Exception as e:
+            raise Exception(
+                f"Failed to fetch game data for player key {player_key}"
+            ) from e
+
+        else:
+            await self._game_status_callback(player_key, game)
 
     async def _chat_consumer(self, player_key: str) -> None:
         # TODO: stub. need to go to db for updates since last known id and
