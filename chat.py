@@ -64,10 +64,10 @@ class ChatThread(JsonifyableBase):
     def __repr__(self) -> str:
         return repr(self.thread)
 
-    def get_after(self, after_id: int = -1) -> ChatThread:
+    def get_after(self, after_id: int = 0) -> ChatThread:
         """
         Return a thread consisting of all messages with an id strictly greater
-        than `after_id`. As ids begin at 0, a value of -1 for `after_id`
+        than `after_id`. As ids begin at 1, a value of 0 for `after_id`
         guarantees that the full thread is returned and is thus equivalent to
         the current object
         """
