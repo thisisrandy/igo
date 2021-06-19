@@ -91,15 +91,18 @@ class GameStore:
             await self.unsubscribe(msg.websocket_handler)
 
         game = Game(msg.data[SIZE], msg.data[KOMI])
+        chat_thread = ChatThread()
+        opponent_connected = False
         requested_color = Color[msg.data[COLOR]]
         keys: Dict[Color, str] = await self._db_manager.write_new_game(
             game, requested_color
         )
         client_key = keys[requested_color]
-        self._clients[msg.websocket_handler] = ClientData(
-            client_key, game, ChatThread()
+        client = msg.websocket_handler
+        self._clients[client] = ClientData(
+            client_key, game, chat_thread, opponent_connected
         )
-        self._keys[client_key] = msg.websocket_handler
+        self._keys[client_key] = client
 
         # TODO: If msg.data[VS] is "computer", set up computer as second player
 
@@ -118,7 +121,23 @@ class GameStore:
                 keys,
                 requested_color,
             ),
-            msg.websocket_handler,
+            client,
+        )
+        await send_outgoing_message(OutgoingMessageType.game_status, game, client)
+        # NOTE: while it might seem like sending an empty chat thread and
+        # obviously false connectedness for the client's component could be
+        # avoided with defaults on the client side, this is only the case if the
+        # client hadn't previously been playing another game. the frontend
+        # design strategy is for it to know as little as possible about what's
+        # going on, instead just receiving state updates and adjusting its
+        # display accordingly. without sending these updates, we require the
+        # client to understand that a new game has started and set its own state
+        # independently, which breaks the design strategy
+        await send_outgoing_message(OutgoingMessageType.chat, chat_thread, client)
+        await send_outgoing_message(
+            OutgoingMessageType.opponent_connected,
+            OpponentConnectedContainer(opponent_connected),
+            client,
         )
 
     def _get_game_updater(self) -> Callable[[str, Game], Coroutine]:
