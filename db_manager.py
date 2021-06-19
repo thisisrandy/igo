@@ -217,7 +217,10 @@ class DbManager:
     async def join_game(self, player_key: str) -> JoinResult:
         """
         Attempt to join a game using `player_key` and return the result of the
-        operation or raise an Exception otherwise
+        operation or raise an Exception otherwise. Note that a successful call
+        to this method should always be followed by `trigger_update_all`. They
+        are separated in order to allow the caller to set up any necessary state
+        to allow update callbacks to succeed
         """
 
         try:
@@ -232,12 +235,6 @@ class DbManager:
                 res = JoinResult[res]
                 if res is JoinResult.success:
                     await self._subscribe_to_updates(player_key)
-                    await self._connection.execute(
-                        """
-                        CALL trigger_update_all($1);
-                        """,
-                        player_key,
-                    )
 
         except Exception as e:
             raise Exception(f"Failed to join game with key {player_key}") from e
@@ -247,6 +244,21 @@ class DbManager:
                 f"Attempt to join game with key {player_key} returned '{res.name}'"
             )
             return res
+
+    async def trigger_update_all(self, player_key: str) -> None:
+        try:
+            async with self._connection.transaction():
+                await self._connection.execute(
+                    """
+                    CALL trigger_update_all($1);
+                    """,
+                    player_key,
+                )
+
+        except Exception as e:
+            raise Exception(
+                f"Failed to trigger update all for player key {player_key}"
+            ) from e
 
     async def _subscribe_to_updates(self, player_key: str) -> None:
         """
