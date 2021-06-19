@@ -184,8 +184,9 @@ class DbManager:
     ) -> Dict[Color, str]:
         """
         Attempt to write `game` to the database as a new game. Return a
-        dictionary of Color: key pairs on success or None otherwise. Optionally
-        specify `player_color` to start managing that color
+        dictionary of Color: key pairs on success or raise an Exception
+        otherwise. Optionally specify `player_color` to start managing that
+        color
         """
 
         key_w, key_b = [alphanum_uuid() for _ in range(2)]
@@ -216,7 +217,7 @@ class DbManager:
     async def join_game(self, player_key: str) -> JoinResult:
         """
         Attempt to join a game using `player_key` and return the result of the
-        operation or None if an exception occurs
+        operation or raise an Exception otherwise
         """
 
         try:
@@ -322,7 +323,7 @@ class DbManager:
         """
         Attempt to write `game` and increment its version in the database.
         Return True on success and False on failure, i.e. when the write has
-        been preempted from another source
+        been preempted from another source, or raise an Exception otherwise
         """
 
         version = game.version()
@@ -351,8 +352,9 @@ class DbManager:
 
     async def write_chat(self, player_key: str, message: ChatMessage) -> bool:
         """
-        Attempt to write `message` to the database. Return True on success and
-        False otherwise (unspecified network or database failure)
+        Attempt to write `message` to the database. Return True on success,
+        False if a game associated with `player_key` could not be found, and
+        raise an Exception otherwise
         """
 
         try:
@@ -383,7 +385,8 @@ class DbManager:
         """
         Attempt to unsubscribe from channels associated with `player_key` and
         modify the row in the `player_key` table appropriately. Return True on
-        success and False otherwise
+        success, False if the database shows that this server is not managing
+        `player_key`, and raise an Exception otherwise
         """
 
         try:
