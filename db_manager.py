@@ -396,14 +396,18 @@ class DbManager:
                 )
 
         except Exception as e:
-            raise Exception(f"Failed to write chat message '{message}'") from e
+            raise Exception(
+                f"Failed to write chat message from {player_key}: '{message}'"
+            ) from e
 
         else:
             if res:
-                logging.info(f"Successfully wrote chat message {message}")
+                logging.info(
+                    f"Successfully wrote chat message from {player_key}: '{message}'"
+                )
             else:
                 logging.warn(
-                    f"When attempting to write chat message {message} from player key"
+                    f"When attempting to write chat message '{message}' from player key"
                     f" {player_key}, a game associated with that key could not be found"
                 )
             return res
