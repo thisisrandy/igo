@@ -3,7 +3,6 @@ Temporary file to hold rewrite of game_manager. Once fleshed out, overwrite
 game_manager and remove this file
 """
 
-from game_manager import NewGameResponseContainer
 from constants import COLOR, KOMI, SIZE
 import logging
 from chat import ChatThread
@@ -14,12 +13,12 @@ from tornado.websocket import WebSocketHandler
 from messages import (
     IncomingMessage,
     IncomingMessageType,
-    JsonifyableBase,
     OutgoingMessageType,
     send_outgoing_message,
 )
 import asyncinit
 from db_manager import DbManager
+from containers import NewGameResponseContainer, OpponentConnectedContainer
 
 
 @dataclass
@@ -44,18 +43,6 @@ class ClientData:
     game: Game
     chat_thread: ChatThread
     opponent_connected: bool
-
-
-@dataclass
-class OpponentConnectedContainer(JsonifyableBase):
-    """
-    Simple container for opponent's connectedness indicator which implements jsonifyable
-    """
-
-    opponent_connected: bool
-
-    def jsonifyable(self) -> Dict:
-        return {"opponentConnected": self.opponent_connected}
 
 
 @asyncinit
