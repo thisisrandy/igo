@@ -354,11 +354,23 @@ class DbManager:
         print(f"In chat consumer with key {player_key}")
 
     async def _opponent_connected_consumer(self, player_key: str, payload: str) -> None:
-        # TODO: stub. if payload is not empty, use it, otherwise go to db for
-        # status, and then invoke callback with the result
-        print(
-            f"In opponent connected consumer with key {player_key} and payload {payload}"
-        )
+        if payload:
+            connected = payload == "true"
+        else:
+            try:
+                connected: bool = await self._connection.fetchval(
+                    """
+                    SELECT * from get_opponent_connected($1);
+                    """,
+                    player_key,
+                )
+
+            except Exception as e:
+                raise Exception(
+                    f"Failed to get opponent connected for {player_key}"
+                ) from e
+
+        await self._opponent_connected_callback(player_key, connected)
 
     async def write_game(self, player_key: str, game: Game) -> bool:
         """
