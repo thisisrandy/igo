@@ -16,7 +16,7 @@ from messages import (
     OutgoingMessageType,
     send_outgoing_message,
 )
-import asyncinit
+from asyncinit import asyncinit
 from db_manager import DbManager, JoinResult
 from containers import (
     ActionResponseContainer,
