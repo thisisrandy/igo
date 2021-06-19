@@ -2,7 +2,11 @@ CREATE OR REPLACE FUNCTION join_game(
   key_to_join char(10),
   manager_id char(64)
 )
-  RETURNS text
+  RETURNS TABLE (
+    result text,
+    white_key char(10),
+    black_key char(10)
+  )
   LANGUAGE plpgsql
 AS
 $$
@@ -16,9 +20,12 @@ BEGIN
   FOR UPDATE;
 
   if not found then
-    RETURN 'dne';
+    -- NOTE: null apparently registers as type text without an explicit cast,
+    -- which then causes an error about the return type not matching the
+    -- declared type, hence the casts here and below
+    RETURN QUERY SELECT 'dne', null::char(10), null::char(10);
   elsif other_connected then
-    RETURN 'in_use';
+    RETURN QUERY SELECT 'in_use', null::char(10), null::char(10);
   else
     UPDATE player_key
     SET managed_by = manager_id
@@ -30,8 +37,16 @@ BEGIN
       WHERE key = key_to_join
       ), 'true');
 
-    RETURN 'success';
+    RETURN QUERY
+      SELECT
+        'success'
+        , CASE WHEN color = 'white' THEN key ELSE opponent_key END
+        , CASE WHEN color = 'black' THEN key ELSE opponent_key END
+      FROM player_key
+      WHERE key = key_to_join;
   end if;
+
+  RETURN;
 END $$;
 
 CREATE OR REPLACE FUNCTION write_game(

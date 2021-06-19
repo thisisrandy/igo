@@ -214,18 +214,22 @@ class DbManager:
             logging.info(f"Successfully wrote new game with keys {keys} to database")
             return keys
 
-    async def join_game(self, player_key: str) -> JoinResult:
+    async def join_game(
+        self, player_key: str
+    ) -> Tuple[JoinResult, Optional[Dict[Color, str]]]:
         """
         Attempt to join a game using `player_key` and return the result of the
-        operation or raise an Exception otherwise. Note that a successful call
-        to this method should always be followed by `trigger_update_all`. They
-        are separated in order to allow the caller to set up any necessary state
-        to allow update callbacks to succeed
+        operation or raise an Exception otherwise. If the result is
+        `JoinResult.success`, also return a dictionary of { Color: player key,
+        ... } for the joined game. Note that a successful call to this method
+        should always be followed by `trigger_update_all`. They are separated in
+        order to allow the caller to set up any necessary state to allow update
+        callbacks to succeed
         """
 
         try:
             async with self._connection.transaction():
-                res = await self._connection.fetchval(
+                res, key_w, key_b = await self._connection.fetchrow(
                     """
                     SELECT * from join_game($1, $2);
                     """,
@@ -234,7 +238,10 @@ class DbManager:
                 )
                 res = JoinResult[res]
                 if res is JoinResult.success:
+                    keys = {Color.white: key_w, Color.black: key_b}
                     await self._subscribe_to_updates(player_key)
+                else:
+                    keys = None
 
         except Exception as e:
             raise Exception(f"Failed to join game with key {player_key}") from e
@@ -243,7 +250,7 @@ class DbManager:
             logging.info(
                 f"Attempt to join game with key {player_key} returned '{res.name}'"
             )
-            return res
+            return res, keys
 
     async def trigger_update_all(self, player_key: str) -> None:
         try:
