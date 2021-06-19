@@ -178,7 +178,9 @@ END $$;
 
 CREATE OR REPLACE FUNCTION get_chat_updates(
   associated_player_key char(10),
-  last_id integer DEFAULT -1
+  -- get a single message if message_id is specified, otherwise get all messages
+  -- for this key
+  message_id integer DEFAULT null
 )
   RETURNS TABLE (
     id integer,
@@ -198,12 +200,22 @@ BEGIN
     raise 'Player key % not found', associated_player_key;
   end if;
 
+  if message_id is not null then
+    PERFORM 1
+    FROM chat c
+    WHERE c.id = message_id;
+
+    if not found then
+      raise 'Message id % not found', message_id;
+    end if;
+  end if;
+
   RETURN QUERY
     SELECT c.id, c.timestamp, c.color, c.message
     FROM chat c, player_key pk
     WHERE pk.key = associated_player_key
       AND pk.game_id = c.game_id
-      AND c.id > last_id
+      AND CASE WHEN message_id is not null THEN c.id = message_id ELSE true END
     ORDER BY c.id;
 
   -- NOTE: having the above return nothing is a perfectly normal occurence when
