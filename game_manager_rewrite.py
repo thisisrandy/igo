@@ -31,18 +31,19 @@ class ClientData:
 
         key: str - the client's player key
 
-        game: Game - the current game
+        game: Optional[Game] = None - the current game
 
-        chat_thread: ChatThread - the chat thread associated with the current game
+        chat_thread: Optional[ChatThread] = None - the chat thread associated
+        with the current game
 
-        opponent_connected: bool - whether or not the client's opponent in the
-        current game is connected to a game server
+        opponent_connected: Optional[bool] = None - whether or not the client's
+        opponent in the current game is connected to a game server
     """
 
     key: str
-    game: Game
-    chat_thread: ChatThread
-    opponent_connected: bool
+    game: Optional[Game] = None
+    chat_thread: Optional[ChatThread] = None
+    opponent_connected: Optional[bool] = None
 
 
 @asyncinit
