@@ -3,7 +3,7 @@ Temporary file to hold rewrite of game_manager. Once fleshed out, overwrite
 game_manager and remove this file
 """
 
-from constants import COLOR, KOMI, SIZE
+from constants import COLOR, KEY, KOMI, SIZE
 import logging
 from chat import ChatThread
 from dataclasses import dataclass
@@ -17,8 +17,12 @@ from messages import (
     send_outgoing_message,
 )
 import asyncinit
-from db_manager import DbManager
-from containers import NewGameResponseContainer, OpponentConnectedContainer
+from db_manager import DbManager, JoinResult
+from containers import (
+    JoinGameResponseContainer,
+    NewGameResponseContainer,
+    OpponentConnectedContainer,
+)
 
 
 @dataclass
@@ -203,7 +207,68 @@ class GameStore:
         return self._keys[player_key]
 
     async def join_game(self, msg: IncomingMessage) -> None:
-        pass
+        key: str = msg.data[KEY]
+        client: WebSocketHandler = msg.websocket_handler
+        if client in self._clients and self._clients[client].key == key:
+            await send_outgoing_message(
+                OutgoingMessageType.join_game_response,
+                JoinGameResponseContainer(
+                    False,
+                    f"You are already playing using that key ({key})",
+                ),
+                client,
+            )
+        else:
+            res: JoinResult
+            keys: Optional[Dict[Color, str]]
+            res, keys = await self._db_manager.join_game(key)
+            if res is JoinResult.dne:
+                await send_outgoing_message(
+                    OutgoingMessageType.join_game_response,
+                    JoinGameResponseContainer(
+                        False,
+                        (
+                            f"A game corresponding to key {key} was not found. Please"
+                            " double-check and try again"
+                        ),
+                    ),
+                    client,
+                )
+            elif res is JoinResult.in_use:
+                await send_outgoing_message(
+                    OutgoingMessageType.join_game_response,
+                    JoinGameResponseContainer(
+                        False,
+                        f"Someone else is already playing using that key ({key})",
+                    ),
+                    client,
+                )
+            elif res is JoinResult.success:
+                if client in self._clients:
+                    old_key = self._clients[client].key
+                    logging.info(
+                        f"Client requesting join game already subscribed to {old_key}"
+                    )
+                    await self.unsubscribe(client)
+
+                self._clients[client] = ClientData(key)
+                self._keys[key] = client
+                color = Color.white if keys[Color.white] == key else Color.black
+
+                await send_outgoing_message(
+                    OutgoingMessageType.join_game_response,
+                    JoinGameResponseContainer(
+                        True,
+                        f"Successfully (re)joined the game as {color.name}",
+                        keys,
+                        color,
+                    ),
+                    client,
+                )
+
+                await self._db_manager.trigger_update_all(key)
+            else:
+                raise TypeError(f"Unknown JoinResult {res} encountered")
 
     async def route_message(self, msg: IncomingMessage) -> None:
         pass
