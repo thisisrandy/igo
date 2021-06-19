@@ -1,6 +1,6 @@
 from __future__ import annotations
 from bisect import bisect_right
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 from game import Color
 from messages import JsonifyableBase
@@ -56,7 +56,10 @@ class ChatThread(JsonifyableBase):
         thread: List[ChatMessage] = [] - the complete thread of messages
     """
 
-    thread: List[ChatMessage] = []
+    thread: List[ChatMessage] = field(init=False)
+
+    def __post_init__(self):
+        self.thread = []
 
     def jsonifyable(self) -> List[Dict]:
         return [msg.jsonifyable() for msg in self.thread]
