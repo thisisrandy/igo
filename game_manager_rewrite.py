@@ -144,13 +144,10 @@ class GameStore:
 
         async def callback(player_key: str, game: Game) -> None:
             client = self._updater_callback_preamble(player_key)
-            if client:
-                self._clients[client].game = game
-                logging.info(f"Successfully updated game for player key {player_key}")
+            self._clients[client].game = game
+            logging.info(f"Successfully updated game for player key {player_key}")
 
-                await send_outgoing_message(
-                    OutgoingMessageType.game_status, game, client
-                )
+            await send_outgoing_message(OutgoingMessageType.game_status, game, client)
 
         return callback
 
@@ -163,13 +160,12 @@ class GameStore:
 
         async def callback(player_key: str, thread: ChatThread) -> None:
             client = self._updater_callback_preamble(player_key)
-            if client:
-                self._clients[client].chat_thread.extend(thread)
-                logging.info(
-                    f"Successfully updated chat thread for player key {player_key}"
-                )
+            self._clients[client].chat_thread.extend(thread)
+            logging.info(
+                f"Successfully updated chat thread for player key {player_key}"
+            )
 
-                await send_outgoing_message(OutgoingMessageType.chat, thread, client)
+            await send_outgoing_message(OutgoingMessageType.chat, thread, client)
 
         return callback
 
@@ -182,31 +178,29 @@ class GameStore:
 
         async def callback(player_key: str, opponent_connected: bool) -> None:
             client = self._updater_callback_preamble(player_key)
-            if client:
-                self._clients[client].opponent_connected = opponent_connected
-                logging.info(
-                    "Successfully updated opponent connected status to"
-                    f" {opponent_connected} for player key {player_key}"
-                )
+            self._clients[client].opponent_connected = opponent_connected
+            logging.info(
+                "Successfully updated opponent connected status to"
+                f" {opponent_connected} for player key {player_key}"
+            )
 
-                await send_outgoing_message(
-                    OutgoingMessageType.opponent_connected,
-                    OpponentConnectedContainer(opponent_connected),
-                    client,
-                )
+            await send_outgoing_message(
+                OutgoingMessageType.opponent_connected,
+                OpponentConnectedContainer(opponent_connected),
+                client,
+            )
 
         return callback
 
-    def _updater_callback_preamble(self, player_key: str) -> Optional[WebSocketHandler]:
+    def _updater_callback_preamble(self, player_key: str) -> WebSocketHandler:
         """
         All updater callbacks begin by doing the same couple things. Rather than
         copy-pasting, call this preamble instead
         """
 
-        if player_key not in self._keys:
-            logging.warn(f"Player key {player_key} is not being managed by this store")
-            return None
-
+        assert (
+            player_key in self._keys
+        ), f"Player key {player_key} is not being managed by this store"
         return self._keys[player_key]
 
     async def join_game(self, msg: IncomingMessage) -> None:
