@@ -20,7 +20,7 @@ class ChatMessage(JsonifyableBase):
 
         message: str - the message contents
 
-        id: str - the message ID. NB: auto generated. DO NOT SET
+        id: str - the message ID. NB: auto generated. only set from source
     """
 
     timestamp: float
