@@ -56,6 +56,9 @@ class ClientData:
     chat_thread: Optional[ChatThread] = None
     opponent_connected: Optional[bool] = None
 
+    def __post_init__(self) -> None:
+        self.chat_thread = ChatThread()
+
 
 @asyncinit
 class GameStore:
