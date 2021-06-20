@@ -317,7 +317,7 @@ class DbManager:
             if update_type is _UpdateType.game_status:
                 await self._game_status_consumer(player_key)
             elif update_type is _UpdateType.chat:
-                await self._chat_consumer(player_key)
+                await self._chat_consumer(player_key, payload)
             elif update_type is _UpdateType.opponent_connected:
                 await self._opponent_connected_consumer(player_key, payload)
             else:
@@ -348,10 +348,29 @@ class DbManager:
         else:
             await self._game_status_callback(player_key, game)
 
-    async def _chat_consumer(self, player_key: str) -> None:
-        # TODO: stub. need to go to db for updates since last known id and
-        # invoke callback with the result
-        print(f"In chat consumer with key {player_key}")
+    async def _chat_consumer(self, player_key: str, payload: str) -> None:
+        message_id = int(payload) if payload else None
+
+        try:
+            rows: List[asyncpg.Record] = await self._connection.fetch(
+                """
+                SELECT * FROM get_chat_updates($1, $2);
+                """,
+                player_key,
+                message_id,
+            )
+
+        except Exception as e:
+            raise Exception(
+                f"Failed to get chat updates for player key {player_key}"
+                + (f" and message id {message_id}" if message_id else "")
+            ) from e
+
+        else:
+            thread = ChatThread()
+            for id, timestamp, color, message in rows:
+                thread.append(ChatMessage(timestamp, Color[color], message, id))
+            await self._chat_callback(player_key, thread)
 
     async def _opponent_connected_consumer(self, player_key: str, payload: str) -> None:
         if payload:
