@@ -239,7 +239,7 @@ class DbManager:
             async with self._connection.transaction():
                 res, key_w, key_b = await self._connection.fetchrow(
                     """
-                    SELECT * from join_game($1, $2);
+                    SELECT * FROM join_game($1, $2);
                     """,
                     player_key,
                     self._machine_id,
@@ -334,7 +334,7 @@ class DbManager:
             game: Game = pickle.loads(
                 await self._connection.fetchval(
                     """
-                    SELECT game_data from get_game_status($1);
+                    SELECT game_data FROM get_game_status($1);
                     """,
                     player_key,
                 )
@@ -360,7 +360,7 @@ class DbManager:
             try:
                 connected: bool = await self._connection.fetchval(
                     """
-                    SELECT * from get_opponent_connected($1);
+                    SELECT * FROM get_opponent_connected($1);
                     """,
                     player_key,
                 )
@@ -386,7 +386,7 @@ class DbManager:
             async with self._connection.transaction():
                 res = await self._connection.fetchval(
                     """
-                    SELECT * from write_game($1, $2, $3);
+                    SELECT * FROM write_game($1, $2, $3);
                     """,
                     player_key,
                     pickle.dumps(game),
