@@ -121,6 +121,7 @@ $$
 DECLARE
   target_game_id integer;
   author_color char(5);
+  message_id text;
 BEGIN
   SELECT game_id, color
   FROM player_key
@@ -132,7 +133,8 @@ BEGIN
   end if;
 
   INSERT INTO chat (timestamp, color, message, game_id)
-  VALUES (msg_timestamp, author_color, msg_text, target_game_id);
+  VALUES (msg_timestamp, author_color, msg_text, target_game_id)
+  RETURNING id::text INTO message_id;
 
   -- we notify ourselves here because new infomation (the row id) has been added
   -- during the insertion process, and also because our opponent could have
@@ -142,12 +144,12 @@ BEGIN
   -- game updates, where we know that if we successfully wrote our update, it is
   -- in fact the latest version, so there's no need to go back to the db to
   -- uselessly read in what we just wrote out
-  PERFORM pg_notify((SELECT CONCAT('chat_', author_key)), '');
+  PERFORM pg_notify((SELECT CONCAT('chat_', author_key)), message_id);
   PERFORM pg_notify((
       SELECT CONCAT('chat_', opponent_key)
       FROM player_key
       WHERE key = author_key
-  ), '');
+  ), message_id);
 
   RETURN true;
 END $$;
