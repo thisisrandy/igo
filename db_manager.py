@@ -129,6 +129,12 @@ class DbManager:
 
         # TODO: we probably want to use a connection pool instead of a single
         # connection. look into best practices
+        # FIXME: in fact, it looks like asyncpg doesn't know how to wait for the
+        # connection to be available if another operation is in progress.
+        # asyncpg.exceptions._base.InterfaceError: cannot perform operation:
+        # another operation is in progress can happen e.g. if two players try to
+        # rejoin at the same time. this will definitely need to be handled in
+        # some fashion
         self._connection: asyncpg.connection.Connection = await asyncpg.connect(dsn)
 
         # { player_key: [(channel, callback), ...], ...}
