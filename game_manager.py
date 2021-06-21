@@ -133,24 +133,13 @@ class GameStore:
             ),
             client,
         )
+
+        # NOTE: it is the client's responsibility to reset chat and opponent
+        # connected state when a successful new/join game response is received.
+        # as such, we do not send either here
         await send_outgoing_message(
             OutgoingMessageType.game_status,
             GameStatusContainer(game, time_played),
-            client,
-        )
-        # NOTE: while it might seem like sending an empty chat thread and
-        # obviously false connectedness for the client's component could be
-        # avoided with defaults on the client side, this is only the case if the
-        # client hadn't previously been playing another game. the frontend
-        # design strategy is for it to know as little as possible about what's
-        # going on, instead just receiving state updates and adjusting its
-        # display accordingly. without sending these updates, we require the
-        # client to understand that a new game has started and set its own state
-        # independently, which breaks the design strategy
-        await send_outgoing_message(OutgoingMessageType.chat, chat_thread, client)
-        await send_outgoing_message(
-            OutgoingMessageType.opponent_connected,
-            OpponentConnectedContainer(opponent_connected),
             client,
         )
 
