@@ -4,7 +4,6 @@ from game import (
     Action,
     ActionType,
     Board,
-    ChatMessage,
     Color,
     Game,
     GameStatus,
@@ -602,19 +601,6 @@ class GameTestCase(unittest.TestCase):
         self.assertIsNotNone(g.result.winner)
         self.assertIs(g.result.winner, Color.white)
 
-    def test_add_time_played(self):
-        g = Game(1)
-        self.assertEqual(g.time_played, 0.0)
-        g.add_time_played(1.0)
-        self.assertEqual(g.time_played, 1.0)
-        g.status = GameStatus.complete
-        # we should be able to record completion time
-        self.assertTrue(g.add_time_played(1.0))
-        self.assertEqual(g.time_played, 2.0)
-        # but further calls should have no effet
-        self.assertFalse(g.add_time_played(1.0))
-        self.assertEqual(g.time_played, 2.0)
-
     def test_jsonifyable(self):
         g = Game(2)
         ts = datetime.now().timestamp()
@@ -637,13 +623,9 @@ class GameTestCase(unittest.TestCase):
                 "territory": {"white": 0, "black": 0},
                 "pendingRequest": {"requestType": "tally_score", "initiator": "white"},
                 "result": None,
-                "timePlayed": g.time_played,
-                "chatMessages": [],
             },
         )
         g.take_action(Action(ActionType.accept, Color.black, ts))
-        cm = ChatMessage(ts, Color.black, "hi")
-        g.append_chat_message(cm)
         self.assertEqual(
             g.jsonifyable(),
             {
@@ -661,25 +643,5 @@ class GameTestCase(unittest.TestCase):
                 "territory": {"white": 0, "black": 0},
                 "pendingRequest": None,
                 "result": {"resultType": "standard_win", "winner": "white"},
-                "timePlayed": g.time_played,
-                "chatMessages": [
-                    {
-                        "timestamp": ts,
-                        "color": Color.black.name,
-                        "message": "hi",
-                        "id": cm.id,
-                    }
-                ],
             },
         )
-
-    def test_append_chat_message(self):
-        g = Game(1)
-        ts = datetime.now().timestamp()
-        g.append_chat_message(ChatMessage(ts, Color.black, "hi"))
-        self.assertEqual(len(g.chat_messages), 1)
-        g.append_chat_message(ChatMessage(ts + 1, Color.white, "hi"))
-        self.assertEqual(len(g.chat_messages), 2)
-        # out of order message
-        with self.assertRaises(AssertionError):
-            g.append_chat_message(ChatMessage(ts, Color.black, "hi"))
