@@ -3,7 +3,13 @@ DROP TABLE IF EXISTS game, player_key, chat CASCADE;
 CREATE TABLE game (
   id serial PRIMARY KEY,
   data bytea NOT NULL,
-  version integer NOT NULL
+  version integer NOT NULL DEFAULT 0,
+  players_connected integer NOT NULL DEFAULT 0,
+  -- in seconds
+  time_played real NOT NULL DEFAULT 0.0,
+  -- unix time, set when loaded if not already loaded elsewhere and whenever
+  -- written, unset when last client unsubs
+  write_load_timestamp double precision DEFAULT null
 );
 
 CREATE TABLE player_key (

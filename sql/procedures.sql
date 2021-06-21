@@ -4,7 +4,24 @@ CREATE OR REPLACE PROCEDURE do_cleanup(
   LANGUAGE plpgsql
 AS
 $$
+DECLARE
+  gid integer;
 BEGIN
+  for gid in SELECT game_id
+              FROM player_key
+              WHERE managed_by = manager_id
+              FOR UPDATE
+  loop
+    UPDATE game
+    SET players_connected = players_connected - 1
+      , write_load_timestamp =
+          CASE WHEN players_connected = 1
+          THEN null
+          ELSE write_load_timestamp
+          END
+    WHERE id = gid;
+  end loop;
+
   UPDATE player_key
   SET managed_by = null
   WHERE managed_by = manager_id;
@@ -24,8 +41,12 @@ $$
 DECLARE
   new_id game.id%TYPE;
 BEGIN
-  INSERT INTO game (data, version)
-  VALUES (game_data, 0)
+  INSERT INTO game (data, players_connected, write_load_timestamp)
+  VALUES (
+    game_data
+    , CASE WHEN player_color IS NOT null THEN 1 ELSE 0 END
+    , CASE WHEN player_color IS NOT null THEN extract(epoch from now()) ELSE null END
+    )
   RETURNING id
   INTO new_id;
 

@@ -1,5 +1,5 @@
 from typing import Dict, Optional
-from game import Color
+from game import Color, Game
 from dataclasses import dataclass
 from messages import JsonifyableBase
 
@@ -132,3 +132,17 @@ class OpponentConnectedContainer(JsonifyableBase):
 
     def jsonifyable(self) -> Dict:
         return {"opponentConnected": self.opponent_connected}
+
+
+@dataclass
+class GameStatusContainer(JsonifyableBase):
+    """
+    A container for transmitting game status which implements jsonifyable.
+    Combines a Game object with its time played value.
+    """
+
+    game: Game
+    time_played: float
+
+    def jsonifyable(self) -> Dict:
+        return {**self.game.jsonifyable(), "timePlayed": self.time_played}

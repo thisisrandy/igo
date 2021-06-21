@@ -246,15 +246,6 @@ class Game(JsonifyableBase):
 
         result: Optional[Result] - the result of the game, set only once it
         has been resolved
-
-        time_played: float - the time, in seconds, that this game has been
-        actively played. note that this is externally managed via the
-        add_time_played method: Game does not have any concept of whether or not
-        anyone is looking at it, so we must handle that at a higher level of
-        abstraction, namely in game_manager's GameContainer, where we can
-        succinctly define play time as the cumulative amount of time for each
-        loaded period between when the game is loaded and the last action taken
-        on it
     """
 
     def __init__(self, size: int = 19, komi: float = 6.5) -> None:
@@ -267,8 +258,6 @@ class Game(JsonifyableBase):
         self.territory: Dict[Color, int] = {Color.white: 0, Color.black: 0}
         self.pending_request: Optional[Request] = None
         self.result: Optional[Result] = None
-        self.time_played: float = 0.0
-        self._completion_time_recorded: bool = False
         self._prev_board: Board = None
 
     def __repr__(self) -> str:
@@ -282,8 +271,6 @@ class Game(JsonifyableBase):
             f", territory={self.territory}"
             f", pending_request={self.pending_request}"
             f", result={self.result}"
-            f", time_played={self.time_played}"
-            f", _completion_time_recorded={self._completion_time_recorded}"
             f", _prev_board={self._prev_board})"
         )
 
@@ -682,20 +669,6 @@ class Game(JsonifyableBase):
 
         return self.action_stack and self.action_stack[-1].timestamp > timestamp
 
-    def add_time_played(self, seconds_to_add: float) -> bool:
-        """Add to time played. Once the game is complete, this can only be
-        called with effect once to record the final play time. After that, it is
-        a no-op. Return True if time is added and False otherwise"""
-
-        if self.status == GameStatus.complete and self._completion_time_recorded:
-            return False
-
-        self.time_played += seconds_to_add
-        if self.status == GameStatus.complete:
-            self._completion_time_recorded = True
-
-        return True
-
     def version(self) -> int:
         """Return the game version, equal to the length of the action stack"""
 
@@ -725,5 +698,4 @@ class Game(JsonifyableBase):
             if self.pending_request
             else None,
             "result": self.result.jsonifyable() if self.result else None,
-            "timePlayed": self.time_played,
         }

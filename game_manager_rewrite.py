@@ -20,6 +20,7 @@ from asyncinit import asyncinit
 from db_manager import DbManager, JoinResult
 from containers import (
     ActionResponseContainer,
+    GameStatusContainer,
     JoinGameResponseContainer,
     NewGameResponseContainer,
     OpponentConnectedContainer,
@@ -40,6 +41,9 @@ class ClientData:
 
         game: Optional[Game] = None - the current game
 
+        time_played: Optional[float] = None - the time in seconds that the game
+        has been actively played thus far
+
         chat_thread: Optional[ChatThread] = None - the chat thread associated
         with the current game
 
@@ -50,9 +54,7 @@ class ClientData:
     key: str
     color: Color
     game: Optional[Game] = None
-    # TODO: add write/load timestamp for keeping track of time played. this
-    # might be a bit complicated as we are no longer the sole game manager.
-    # possibly this goes in the db, but will need to think it through
+    time_played: Optional[float] = None
     chat_thread: Optional[ChatThread] = None
     opponent_connected: Optional[bool] = None
 
@@ -93,6 +95,7 @@ class GameStore:
             await self.unsubscribe(msg.websocket_handler)
 
         game = Game(msg.data[SIZE], msg.data[KOMI])
+        time_played = 0.0
         chat_thread = ChatThread()
         opponent_connected = False
         requested_color = Color[msg.data[COLOR]]
@@ -102,7 +105,12 @@ class GameStore:
         client_key = keys[requested_color]
         client = msg.websocket_handler
         self._clients[client] = ClientData(
-            client_key, requested_color, game, chat_thread, opponent_connected
+            client_key,
+            requested_color,
+            game,
+            time_played,
+            chat_thread,
+            opponent_connected,
         )
         self._keys[client_key] = client
 
@@ -125,7 +133,11 @@ class GameStore:
             ),
             client,
         )
-        await send_outgoing_message(OutgoingMessageType.game_status, game, client)
+        await send_outgoing_message(
+            OutgoingMessageType.game_status,
+            GameStatusContainer(game, time_played),
+            client,
+        )
         # NOTE: while it might seem like sending an empty chat thread and
         # obviously false connectedness for the client's component could be
         # avoided with defaults on the client side, this is only the case if the
@@ -142,19 +154,25 @@ class GameStore:
             client,
         )
 
-    def _get_game_updater(self) -> Callable[[str, Game], Coroutine]:
+    def _get_game_updater(self) -> Callable[[str, Game, float], Coroutine]:
         """
-        Return a function which takes a player key string and a Game object,
-        updates the in-memory store, and alerts the client of the change. May be
-        readily used to generate a subscription callback
+        Return a function which takes a player key string, a Game object, and
+        the time in seconds that the game has been played thus far, updates the
+        in-memory store, and alerts the client of the change. May be readily
+        used to generate a subscription callback
         """
 
-        async def callback(player_key: str, game: Game) -> None:
+        async def callback(player_key: str, game: Game, time_played: float) -> None:
             client = self._updater_callback_preamble(player_key)
             self._clients[client].game = game
+            self._clients[client].time_played = time_played
             logging.info(f"Successfully updated game for player key {player_key}")
 
-            await send_outgoing_message(OutgoingMessageType.game_status, game, client)
+            await send_outgoing_message(
+                OutgoingMessageType.game_status,
+                GameStatusContainer(game, time_played),
+                client,
+            )
 
         return callback
 
@@ -304,7 +322,14 @@ class GameStore:
             )
 
             if success:
-                await self._db_manager.write_game(client_data.key, client_data.game)
+                time_played: Optional[float] = await self._db_manager.write_game(
+                    client_data.key, client_data.game
+                )
+                if time_played is None:
+                    success = False
+                    explanation = "Game action was preempted by other player"
+                else:
+                    client_data.time_played = time_played
 
             await send_outgoing_message(
                 OutgoingMessageType.game_action_response,
@@ -314,7 +339,9 @@ class GameStore:
 
             if success:
                 await send_outgoing_message(
-                    OutgoingMessageType.game_status, client_data.game, client
+                    OutgoingMessageType.game_status,
+                    GameStatusContainer(client_data.game, time_played),
+                    client,
                 )
         elif msg.message_type is IncomingMessageType.chat_message:
             message_text = msg.data[MESSAGE]

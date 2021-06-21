@@ -31,6 +31,19 @@ BEGIN
     SET managed_by = manager_id
     WHERE key = key_to_join;
 
+    UPDATE game
+    SET players_connected = players_connected + 1
+      , write_load_timestamp =
+          CASE WHEN write_load_timestamp IS NULL
+          THEN extract(epoch from now())
+          ELSE write_load_timestamp
+          END
+    WHERE id = (
+      SELECT game_id
+      FROM player_key
+      WHERE key = key_to_join
+    );
+
     PERFORM pg_notify((
       SELECT CONCAT('opponent_connected_', opponent_key)
       FROM player_key
@@ -54,18 +67,31 @@ CREATE OR REPLACE FUNCTION write_game(
   data_to_write bytea,
   version_to_write integer
 )
-  RETURNS boolean
+  RETURNS real
   LANGUAGE plpgsql
 AS
 $$
+DECLARE
+  epoch_now double precision;
+  updated_time_played real;
+  gid integer;
 BEGIN
+  SELECT extract(epoch from now())
+  INTO epoch_now;
+
   UPDATE game
-  SET data = data_to_write, version = version_to_write
-  WHERE version = version_to_write-1 AND id = (
-    SELECT game_id
-    FROM player_key
-    WHERE key = key_to_write
-  );
+  SET data = data_to_write
+    , version = version_to_write
+    , time_played = time_played + (epoch_now - write_load_timestamp)
+    , write_load_timestamp = epoch_now
+  WHERE version = version_to_write - 1
+    AND id = (
+      SELECT game_id
+      FROM player_key
+      WHERE key = key_to_write
+    )
+  RETURNING time_played
+  INTO updated_time_played;
 
   if found then
     PERFORM pg_notify((
@@ -74,10 +100,10 @@ BEGIN
       WHERE key = key_to_write
     ), '');
 
-    RETURN true;
+    RETURN updated_time_played;
   end if;
 
-  RETURN false;
+  RETURN null::real;
 END $$;
 
 CREATE OR REPLACE FUNCTION unsubscribe(
@@ -97,6 +123,20 @@ BEGIN
     and managed_by = currently_managed_by;
 
   if found then
+    UPDATE game
+    SET players_connected = players_connected - 1
+      , write_load_timestamp =
+          CASE WHEN players_connected = 1
+          THEN null
+          ELSE write_load_timestamp
+          END
+    WHERE id = (
+      SELECT game_id
+      FROM player_key
+      WHERE key = key_to_unsubscribe
+    );
+
+
     PERFORM pg_notify((
       SELECT CONCAT('opponent_connected_', opponent_key)
       FROM player_key
@@ -159,6 +199,7 @@ CREATE OR REPLACE FUNCTION get_game_status(
 )
   RETURNS TABLE (
     game_data bytea,
+    time_played real,
     version integer
   )
   LANGUAGE plpgsql
@@ -166,7 +207,7 @@ AS
 $$
 BEGIN
   RETURN QUERY
-    SELECT g.data, g.version
+    SELECT g.data, g.time_played, g.version
     FROM game g, player_key pk
     WHERE pk.key = associated_player_key
       AND pk.game_id = g.id;

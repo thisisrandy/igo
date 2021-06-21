@@ -331,14 +331,15 @@ class DbManager:
 
     async def _game_status_consumer(self, player_key: str) -> None:
         try:
-            game: Game = pickle.loads(
-                await self._connection.fetchval(
-                    """
-                    SELECT game_data FROM get_game_status($1);
-                    """,
-                    player_key,
-                )
+            game_data: bytes
+            time_played: float
+            game_data, time_played = await self._connection.fetchrow(
+                """
+                SELECT game_data, time_played FROM get_game_status($1);
+                """,
+                player_key,
             )
+            game: Game = pickle.loads(game_data)
 
         except Exception as e:
             raise Exception(
@@ -346,7 +347,7 @@ class DbManager:
             ) from e
 
         else:
-            await self._game_status_callback(player_key, game)
+            await self._game_status_callback(player_key, game, time_played)
 
     async def _chat_consumer(self, player_key: str, payload: str) -> None:
         message_id = int(payload) if payload else None
@@ -391,11 +392,12 @@ class DbManager:
 
         await self._opponent_connected_callback(player_key, connected)
 
-    async def write_game(self, player_key: str, game: Game) -> bool:
+    async def write_game(self, player_key: str, game: Game) -> Optional[float]:
         """
         Attempt to write `game` and increment its version in the database.
-        Return True on success and False on failure, i.e. when the write has
-        been preempted from another source, or raise an Exception otherwise
+        Return the updated time played on success and None on failure, i.e. when
+        the write has been preempted from another source, or raise an Exception
+        otherwise
         """
 
         version = game.version()
@@ -403,7 +405,8 @@ class DbManager:
 
         try:
             async with self._connection.transaction():
-                res = await self._connection.fetchval(
+                time_played: Optional[float]
+                time_played = await self._connection.fetchval(
                     """
                     SELECT * FROM write_game($1, $2, $3);
                     """,
@@ -416,11 +419,11 @@ class DbManager:
             raise Exception(f"Failed to update {log_text}") from e
 
         else:
-            if res:
+            if time_played is not None:
                 logging.info(f"Successfully updated {log_text}")
             else:
                 logging.info(f"Preempted attempting to update {log_text}")
-            return res
+            return time_played
 
     async def write_chat(self, player_key: str, message: ChatMessage) -> bool:
         """
