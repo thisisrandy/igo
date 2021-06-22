@@ -92,10 +92,11 @@ class GameStore:
         Create and write out a new game and then respond appropriately
         """
 
-        if msg.websocket_handler in self._clients:
-            old_key = self._clients[msg.websocket_handler].key
+        client = msg.websocket_handler
+        if client in self._clients:
+            old_key = self._clients[client].key
             logging.info(f"Client requesting new game already subscribed to {old_key}")
-            await self.unsubscribe(msg.websocket_handler)
+            await self.unsubscribe(client)
 
         game = Game(msg.data[SIZE], msg.data[KOMI])
         time_played = 0.0
@@ -106,7 +107,6 @@ class GameStore:
             game, requested_color
         )
         client_key = keys[requested_color]
-        client = msg.websocket_handler
         self._clients[client] = ClientData(
             client_key,
             requested_color,
