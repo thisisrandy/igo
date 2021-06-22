@@ -28,6 +28,9 @@ class DbManagerTestCase(unittest.IsolatedAsyncioTestCase):
             True,
         )
 
+    async def asyncTearDown(self) -> None:
+        await self.manager._connection.close()
+
     async def test_startup_cleans_orphaned_rows(self):
         manager = self.manager
         keys: Dict[Color, str] = await manager.write_new_game(Game(), Color.white)
@@ -101,6 +104,8 @@ class DbManagerTestCase(unittest.IsolatedAsyncioTestCase):
         )
         self.assertEqual(players_connected, 0)
         self.assertIsNone(write_load_timestamp)
+
+        await manager._connection.close()
 
     async def test_write_new_game(self):
         manager = self.manager
