@@ -165,7 +165,10 @@ class DbManagerTestCase(unittest.IsolatedAsyncioTestCase):
         res, keys = await manager.join_game(new_game_keys[Color.black])
         self.assertEqual(res, JoinResult.success)
         self.assertIsNotNone(keys)
-        pass
+
+        # see note elsewhere about timing-dependent tests
+        await asyncio.sleep(0.1)
+        self.opponent_connected_callback.assert_awaited_once()
 
     async def test_subscribe_to_updates(self):
         manager = self.manager
