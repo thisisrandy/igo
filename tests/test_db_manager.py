@@ -1,3 +1,5 @@
+from datetime import datetime
+from chat import ChatMessage, ChatThread
 import pickle
 from typing import Dict
 from game import Color, Game
@@ -222,8 +224,26 @@ class DbManagerTestCase(unittest.IsolatedAsyncioTestCase):
         self.game_status_callback.assert_awaited_once()
 
     async def test_write_chat(self):
-        # TODO: stub
-        pass
+        manager = self.manager
+        timestamp = datetime.now().timestamp()
+        msg_text = "hi bob"
+        keys: Dict[Color, str] = await manager.write_new_game(Game(), Color.white)
+        message = ChatMessage(timestamp, Color.white, msg_text)
+
+        self.assertTrue(await manager.write_chat(keys[Color.white], message))
+        message.id = 1
+        thread = ChatThread([message])
+        # see note elsewhere about timing-dependent tests
+        await asyncio.sleep(0.1)
+        self.chat_callback.assert_awaited_once_with(keys[Color.white], thread)
+
+        # make sure that both players receive updates
+        await manager._subscribe_to_updates(keys[Color.black])
+        self.assertTrue(await manager.write_chat(keys[Color.black], message))
+        await asyncio.sleep(0.1)
+        # once for the first message, twice for the second after having subbed
+        # to the other player's updates
+        self.assertEqual(self.chat_callback.await_count, 3)
 
     async def test_unsubscribe(self):
         # TODO: stub
