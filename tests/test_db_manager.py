@@ -42,6 +42,25 @@ class DbManagerTestCase(unittest.IsolatedAsyncioTestCase):
                 manager._machine_id,
             ),
         )
+        (
+            players_connected,
+            time_played,
+            write_load_timestamp,
+        ) = await manager._connection.fetchrow(
+            """
+            SELECT players_connected, time_played, write_load_timestamp
+            FROM game
+            WHERE id = (
+                SELECT game_id
+                FROM player_key
+                WHERE managed_by = $1
+            )
+            """,
+            manager._machine_id,
+        )
+        self.assertEqual(players_connected, 1)
+        self.assertEqual(time_played, 0)
+        self.assertIsNotNone(write_load_timestamp)
 
         del manager
         manager: DbManager = await DbManager(
@@ -64,6 +83,24 @@ class DbManagerTestCase(unittest.IsolatedAsyncioTestCase):
             keys[Color.white],
         )
         self.assertIsNone(row.get("managed_by"))
+        (
+            players_connected,
+            _,
+            write_load_timestamp,
+        ) = await manager._connection.fetchrow(
+            """
+            SELECT players_connected, time_played, write_load_timestamp
+            FROM game
+            WHERE id = (
+                SELECT game_id
+                FROM player_key
+                WHERE key = $1
+            )
+            """,
+            keys[Color.white],
+        )
+        self.assertEqual(players_connected, 0)
+        self.assertIsNone(write_load_timestamp)
 
     async def test_write_new_game(self):
         manager = self.manager
