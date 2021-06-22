@@ -56,10 +56,11 @@ class ChatThread(JsonifyableBase):
         thread: List[ChatMessage] = [] - the complete thread of messages
     """
 
-    thread: List[ChatMessage] = field(init=False)
+    thread: List[ChatMessage] = None
 
     def __post_init__(self):
-        self.thread = []
+        if self.thread is None:
+            self.thread = []
 
     def jsonifyable(self) -> List[Dict]:
         return [msg.jsonifyable() for msg in self.thread]
