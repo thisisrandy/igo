@@ -1,600 +1,51 @@
-from messages import (
-    IncomingMessage,
-    IncomingMessageType,
-    OutgoingMessageType,
-)
-import os
-from uuid import uuid4
-from game import ActionType, Color, Game
-from game_manager import (
-    ActionResponseContainer,
-    GameContainer,
-    GameManager,
-    GameStatusContainer,
-    GameStore,
-    JoinGameResponseContainer,
-    NewGameResponseContainer,
-)
+from db_manager import DbManager
 import unittest
-from unittest.mock import AsyncMock, MagicMock, Mock, call, patch
-import tempfile
-from constants import (
-    ACTION_TYPE,
-    COLOR,
-    COORDS,
-    KEY,
-    KEY_LEN,
-    MESSAGE,
-    SIZE,
-    TYPE,
-    VS,
-    KOMI,
-)
+from unittest.mock import AsyncMock, patch, Mock, MagicMock
 from tornado.websocket import WebSocketHandler
+from game_manager import GameStore, GameManager
 import json
-import asyncio
-
-
-class ResponseContainerTestCase(unittest.TestCase):
-    def test_new_game(self):
-        new_game = NewGameResponseContainer(
-            True, "Success", {Color.white: "1234", Color.black: "5678"}, Color.white
-        )
-        self.assertEqual(
-            new_game.jsonifyable(),
-            {
-                "success": True,
-                "explanation": "Success",
-                "keys": {"white": "1234", "black": "5678"},
-                "your_color": Color.white.name,
-            },
-        )
-
-    def test_join_game(self):
-        join_game = JoinGameResponseContainer(
-            True, "because", {Color.white: "1234", Color.black: "5678"}, Color.white
-        )
-        self.assertEqual(
-            join_game.jsonifyable(),
-            {
-                "success": True,
-                "explanation": "because",
-                "keys": {"white": "1234", "black": "5678"},
-                "your_color": Color.white.name,
-            },
-        )
-
-    def test_action_response(self):
-        action_response = ActionResponseContainer(False, "jesus made me do it")
-        self.assertEqual(
-            action_response.jsonifyable(),
-            {"success": False, "explanation": "jesus made me do it"},
-        )
-
-
-@patch.object(WebSocketHandler, "__init__", lambda self: None)
-class GameContainerTestCase(unittest.TestCase):
-    def assertFileExists(self, path: str) -> None:
-        if not os.path.isfile(path):
-            raise AssertionError(f"File '{path}' does not exist")
-
-    def assertFileDoesNotExists(self, path: str) -> None:
-        if os.path.isfile(path):
-            raise AssertionError(f"File '{path}' exists")
-
-    def setUp(self) -> None:
-        key_w, key_b = [uuid4().hex[-KEY_LEN:] for _ in range(2)]
-        self.keys = {Color.white: key_w, Color.black: key_b}
-        self.filepath = os.path.join(tempfile.mkdtemp(), f"{key_w}{key_b}")
-
-    def tearDown(self) -> None:
-        if os.path.isfile(self.filepath):
-            os.remove(self.filepath)
-
-    def test_new_game(self):
-        self.assertFileDoesNotExists(self.filepath)
-        asyncio.run(GameContainer(self.filepath, self.keys, Game(1)))
-        self.assertFileExists(self.filepath)
-
-    def test_load_unload(self):
-        gc = asyncio.run(GameContainer(self.filepath, self.keys, Game(1)))
-        self.assertTrue(gc._is_loaded())
-        board = gc.game.board
-        asyncio.run(gc.unload())
-        self.assertFalse(gc._is_loaded())
-        asyncio.run(gc.load())
-        # make sure nothing's changed
-        self.assertEqual(gc.game.board, board)
-        self.assertTrue(gc._is_loaded())
-
-    def test_pass_message_assertions(self):
-        gc = asyncio.run(GameContainer(self.filepath, self.keys, Game(1)))
-        msg = IncomingMessage(
-            json.dumps(
-                {
-                    TYPE: IncomingMessageType.game_action.name,
-                    KEY: self.keys[Color.white],
-                    ACTION_TYPE: ActionType.place_stone.name,
-                }
-            ),
-            WebSocketHandler(),
-        )
-
-        # test must be loaded
-        asyncio.run(gc.unload())
-        with self.assertRaises(AssertionError):
-            asyncio.run(gc.pass_message(msg))
-        asyncio.run(gc.load())
-
-        # test correct message type
-        msg.message_type = IncomingMessageType.join_game
-        with self.assertRaises(AssertionError):
-            asyncio.run(gc.pass_message(msg))
-
-    @patch("game.Game.append_chat_message")
-    @patch("game_manager.GameContainer._write")
-    @patch("game_manager.send_outgoing_message")
-    def test_pass_message(
-        self, send_outgoing_message: Mock, _write: Mock, append_chat_message: Mock
-    ):
-        gc = asyncio.run(GameContainer(self.filepath, self.keys, Game(1)))
-        # assert once here in order to assert unambiguously below that
-        # pass_message will also call _write exactly once
-        _write.assert_called_once()
-        msg = IncomingMessage(
-            json.dumps(
-                {
-                    TYPE: IncomingMessageType.game_action.name,
-                    KEY: self.keys[Color.black],
-                    ACTION_TYPE: ActionType.request_draw.name,
-                }
-            ),
-            WebSocketHandler(),
-        )
-        self.assertTrue(asyncio.run(gc.pass_message(msg)))
-        self.assertEqual(_write.call_count, 2)
-        send_outgoing_message.assert_called_once()
-        self.assertIsNotNone(gc.game.pending_request)
-
-        msg = IncomingMessage(
-            json.dumps(
-                {
-                    TYPE: IncomingMessageType.chat_message.name,
-                    KEY: self.keys[Color.black],
-                    MESSAGE: "hi",
-                }
-            ),
-            WebSocketHandler(),
-        )
-        self.assertTrue(asyncio.run(gc.pass_message(msg)))
-        self.assertEqual(_write.call_count, 3)
-        append_chat_message.assert_called_once()
-
-    def test_time_played(self):
-        gc = asyncio.run(GameContainer(self.filepath, self.keys, Game(1)))
-        self.assertIsNotNone(gc._write_load_timestamp)
-        self.assertEqual(gc.game.time_played, 0.0)
-        asyncio.run(gc._write())
-        self.assertGreater(gc.game.time_played, 0.0)
-        prev_time_played = gc.game.time_played
-        asyncio.run(gc.unload())
-        self.assertIsNone(gc._write_load_timestamp)
-        asyncio.run(gc.load())
-        self.assertEqual(gc.game.time_played, prev_time_played)
+from messages import IncomingMessage, IncomingMessageType
+from game import Color, ActionType
+from constants import TYPE, VS, COLOR, SIZE, KOMI, KEY, ACTION_TYPE, COORDS, MESSAGE
+import testing.postgresql
 
 
 @patch.object(WebSocketHandler, "__init__", lambda self: None)
 @patch.object(WebSocketHandler, "__hash__", lambda self: 1)
 @patch.object(WebSocketHandler, "__eq__", lambda self, o: o is self)
-class GameStoreTestCase(unittest.TestCase):
-    """NOTE: the object patches above allow us to parameterlessly create
-    multiple WebSocketHandlers and use them as unique dictionary keys, which
-    is how they are used in GameContainer's client attribute"""
+class GameManagerUnitTestCase(unittest.IsolatedAsyncioTestCase):
+    """
+    Mock GameStore and just test that GameManager routes things to the correct
+    methods
+    """
 
-    def set_up_game_container(self) -> str:
-        key_w = "0123456789"
-        key_b = "9876543210"
-        dir = tempfile.mkdtemp()
-        asyncio.run(
-            asyncio.run(
-                GameContainer(
-                    os.path.join(dir, f"{key_w}{key_b}"),
-                    {Color.white: key_w, Color.black: key_b},
-                    Game(3),
-                )
-            ).unload()
-        )
-
-        return key_w, key_b, dir
-
-    def test_hydrate(self):
-        # pickle a game, then start the store and make sure it's correctly
-        # loaded
-        key_w, key_b, dir = self.set_up_game_container()
-
-        with patch.object(GameStore, "_hydrate_games") as _hydrate_games:
-            asyncio.run(GameStore(dir))
-            _hydrate_games.assert_called_once()
-
-        gs = asyncio.run(GameStore(dir))
-        self.assertIn(key_w, gs.keys)
-        self.assertIn(key_b, gs.keys)
-        self.assertEqual(len(gs.containers), 1)
-
-    @patch("game_manager.send_outgoing_message")
-    def test_send_game_status(self, send_outgoing_message: Mock):
-        # subscribe two players and ensure status sent to both
-        p1, p2 = WebSocketHandler(), WebSocketHandler()
-        key_w, key_b, dir = self.set_up_game_container()
-        gs = asyncio.run(GameStore(dir))
-        gc = gs.keys[key_w]
-
-        asyncio.run(
-            gs.join_game(
-                IncomingMessage(
-                    json.dumps({TYPE: IncomingMessageType.join_game.name, KEY: key_w}),
-                    p1,
-                )
-            )
-        )
-        send_outgoing_message.assert_called_with(
-            OutgoingMessageType.game_status, GameStatusContainer(gc.game, 1), p1
-        )
-
-        asyncio.run(
-            gs.join_game(
-                IncomingMessage(
-                    json.dumps({TYPE: IncomingMessageType.join_game.name, KEY: key_b}),
-                    p2,
-                )
-            )
-        )
-        # any_order=True because the ordering of a dictionary iterator isn't
-        # defined, so we don't know which player was sent status first
-        send_outgoing_message.assert_has_calls(
-            [
-                call(
-                    OutgoingMessageType.game_status, GameStatusContainer(gc.game, 2), p1
-                ),
-                call(
-                    OutgoingMessageType.game_status, GameStatusContainer(gc.game, 2), p2
-                ),
-            ],
-            any_order=True,
-        )
-
-    @patch("game_manager.send_outgoing_message")
-    def test_new_game(self, send_outgoing_message: Mock):
-        # create a game, make sure the correct type of response was sent, the
-        # game is loaded, and that the game status was subsequently sent via
-        # mock
-        player = WebSocketHandler()
-        dir = tempfile.mkdtemp()
-        gs = asyncio.run(GameStore(dir))
-        color = Color.white
-        key_w, key_b = "0123456789", "9876543210"
-        keys = {Color.white: key_w, Color.black: key_b}
-
-        asyncio.run(
-            gs.new_game(
-                IncomingMessage(
-                    json.dumps(
-                        {
-                            TYPE: IncomingMessageType.new_game.name,
-                            VS: "human",
-                            COLOR: color.name,
-                            SIZE: 19,
-                            KOMI: 6.5,
-                        }
-                    ),
-                    player,
-                ),
-                _keys=keys,
-            )
-        )
-        gc = next(iter(gs.containers))
-        self.assertTrue(gc._is_loaded())
-        send_outgoing_message.assert_has_calls(
-            [
-                call(
-                    OutgoingMessageType.new_game_response,
-                    NewGameResponseContainer(
-                        True,
-                        (
-                            f"Successfully created new game. Make sure to give the"
-                            f" {color.inverse().name} player key"
-                            f" ({keys[color.inverse()]}) to your opponent so that"
-                            f" they can join the game. Your key is {keys[color]}."
-                            f" Make sure to write it down in case you want to pause the game"
-                            f" and resume it later, or if you want to view it once complete"
-                        ),
-                        keys,
-                        color,
-                    ),
-                    player,
-                ),
-                call(
-                    OutgoingMessageType.game_status,
-                    GameStatusContainer(gc.game, 1),
-                    player,
-                ),
-            ]
-        )
-
-    @patch("game_manager.send_outgoing_message")
-    def test_join_game(self, send_outgoing_message: Mock):
-        p1, p2 = WebSocketHandler(), WebSocketHandler()
-        key_w, key_b, dir = self.set_up_game_container()
-        gs = asyncio.run(GameStore(dir))
-        gc = gs.keys[key_w]
-
-        # join successfully and make sure message sent, game was loaded, and
-        # the game status was subsequently sent via mock
-        asyncio.run(
-            gs.join_game(
-                IncomingMessage(
-                    json.dumps({TYPE: IncomingMessageType.join_game.name, KEY: key_w}),
-                    p1,
-                )
-            )
-        )
-        self.assertTrue(gc._is_loaded())
-        send_outgoing_message.assert_has_calls(
-            [
-                call(
-                    OutgoingMessageType.join_game_response,
-                    JoinGameResponseContainer(
-                        True,
-                        "Successfully (re)joined the game as white",
-                        gc.keys,
-                        Color.white,
-                    ),
-                    p1,
-                ),
-                call(
-                    OutgoingMessageType.game_status, GameStatusContainer(gc.game, 1), p1
-                ),
-            ],
-        )
-
-        asyncio.run(
-            gs.join_game(
-                IncomingMessage(
-                    json.dumps({TYPE: IncomingMessageType.join_game.name, KEY: key_b}),
-                    p1,
-                )
-            )
-        )
-        self.assertEqual(len(gs.subscriptions), 1)
-        self.assertTrue(gc._is_loaded())
-        send_outgoing_message.assert_has_calls(
-            [
-                call(
-                    OutgoingMessageType.join_game_response,
-                    JoinGameResponseContainer(
-                        True,
-                        "Successfully (re)joined the game as black",
-                        gc.keys,
-                        Color.black,
-                    ),
-                    p1,
-                ),
-                call(
-                    OutgoingMessageType.game_status, GameStatusContainer(gc.game, 1), p1
-                ),
-            ],
-        )
-
-        # join unsuccessfully in various ways and make sure current message sent
-        bad_key = "0000000000"
-        asyncio.run(
-            gs.join_game(
-                IncomingMessage(
-                    json.dumps(
-                        {TYPE: IncomingMessageType.join_game.name, KEY: bad_key}
-                    ),
-                    p2,
-                )
-            )
-        )
-        send_outgoing_message.assert_called_with(
-            OutgoingMessageType.join_game_response,
-            JoinGameResponseContainer(
-                False,
-                (
-                    f"A game corresponding to key {bad_key} was not found. Please"
-                    " double-check and try again"
-                ),
-            ),
-            p2,
-        )
-        asyncio.run(
-            gs.join_game(
-                IncomingMessage(
-                    json.dumps({TYPE: IncomingMessageType.join_game.name, KEY: key_b}),
-                    p2,
-                )
-            )
-        )
-        send_outgoing_message.assert_called_with(
-            OutgoingMessageType.join_game_response,
-            JoinGameResponseContainer(
-                False,
-                "Someone else is already playing that game and color",
-            ),
-            p2,
-        )
-
-        # finally, join the other player successfully
-        asyncio.run(
-            gs.join_game(
-                IncomingMessage(
-                    json.dumps({TYPE: IncomingMessageType.join_game.name, KEY: key_w}),
-                    p2,
-                )
-            )
-        )
-        # any_order because status is also sent to p1 in unspecified order
-        send_outgoing_message.assert_has_calls(
-            [
-                call(
-                    OutgoingMessageType.join_game_response,
-                    JoinGameResponseContainer(
-                        True,
-                        "Successfully (re)joined the game as white",
-                        gc.keys,
-                        Color.white,
-                    ),
-                    p2,
-                ),
-                call(
-                    OutgoingMessageType.game_status, GameStatusContainer(gc.game, 2), p2
-                ),
-            ],
-            any_order=True,
-        )
-        self.assertEqual(len(gs.subscriptions), 2)
-
-    @patch("game_manager.send_outgoing_message")
-    def test_route_message(self, _):
-        # mock out GameContainer to intercept pass_message. ensure that status
-        # is sent via mock on success and not sent on failure
-        player = WebSocketHandler()
-        _, key_b, dir = self.set_up_game_container()
-        gs = asyncio.run(GameStore(dir))
-        gc = gs.keys[key_b]
-
-        asyncio.run(
-            gs.join_game(
-                IncomingMessage(
-                    json.dumps({TYPE: IncomingMessageType.join_game.name, KEY: key_b}),
-                    player,
-                )
-            )
-        )
-
-        # success
-        gs._send_game_status = AsyncMock()
-        gc.pass_message = AsyncMock(return_value=True)
-        asyncio.run(
-            gs.route_message(
-                IncomingMessage(
-                    json.dumps(
-                        {
-                            TYPE: IncomingMessageType.game_action.name,
-                            KEY: key_b,
-                            ACTION_TYPE: ActionType.place_stone.name,
-                        }
-                    ),
-                    player,
-                )
-            )
-        )
-
-        gc.pass_message.assert_called_once()
-        gs._send_game_status.assert_called_once()
-
-        # failure
-        gs._send_game_status = AsyncMock()
-        gc.pass_message = AsyncMock(return_value=False)
-        asyncio.run(
-            gs.route_message(
-                IncomingMessage(
-                    json.dumps(
-                        {
-                            TYPE: IncomingMessageType.game_action.name,
-                            KEY: key_b,
-                            ACTION_TYPE: ActionType.place_stone.name,
-                        }
-                    ),
-                    player,
-                )
-            )
-        )
-
-        gc.pass_message.assert_called_once()
-        gs._send_game_status.assert_not_called()
-
-    @patch("game_manager.send_outgoing_message")
-    def test_unsubscribe(self, send_outgoing_message: Mock):
-        # make sure num subscribers decreases and that game remains loaded if
-        # remaining subscribers is 1 and is unloaded otherwise
-        p1, p2 = WebSocketHandler(), WebSocketHandler()
-        key_w, key_b, dir = self.set_up_game_container()
-        gs = asyncio.run(GameStore(dir))
-        gc = gs.keys[key_w]
-
-        # one player
-        asyncio.run(
-            gs.join_game(
-                IncomingMessage(
-                    json.dumps({TYPE: IncomingMessageType.join_game.name, KEY: key_w}),
-                    p1,
-                )
-            )
-        )
-        self.assertTrue(gc._is_loaded())
-        # reset so we can assert not called below
-        send_outgoing_message.call_count = 0
-        # no-op
-        asyncio.run(gs.unsubscribe(p2))
-        self.assertTrue(gc._is_loaded())
-        # real unsub
-        asyncio.run(gs.unsubscribe(p1))
-        self.assertFalse(gc._is_loaded())
-        send_outgoing_message.assert_not_called()
-
-        # two players
-        asyncio.run(
-            gs.join_game(
-                IncomingMessage(
-                    json.dumps({TYPE: IncomingMessageType.join_game.name, KEY: key_w}),
-                    p1,
-                )
-            )
-        )
-        asyncio.run(
-            gs.join_game(
-                IncomingMessage(
-                    json.dumps({TYPE: IncomingMessageType.join_game.name, KEY: key_b}),
-                    p2,
-                )
-            )
-        )
-        self.assertTrue(gc._is_loaded())
-        # reset so we can assert calls below
-        send_outgoing_message.call_count = 0
-        asyncio.run(gs.unsubscribe(p1))
-        self.assertTrue(gc._is_loaded())
-        send_outgoing_message.assert_called_once()
-        asyncio.run(gs.unsubscribe(p2))
-        self.assertFalse(gc._is_loaded())
-        send_outgoing_message.assert_called_once()
-
-
-@patch.object(WebSocketHandler, "__init__", lambda self: None)
-@patch.object(WebSocketHandler, "__hash__", lambda self: 1)
-@patch.object(WebSocketHandler, "__eq__", lambda self, o: o is self)
-class GameManagerTestCase(unittest.TestCase):
-    def setUp(self) -> None:
-        self.dir = tempfile.mkdtemp()
-        self.gm = asyncio.run(GameManager(self.dir))
+    async def asyncSetUp(self):
+        # NOTE: although DbManager.__init__ is async, unittest.mock doesn't seem
+        # to entirely understand what the @asyncinit decorator is doing, so it
+        # wants a synchronous mock instead
+        self.db_manager_mock = MagicMock(return_value=object())
+        self.dsn = "postgres://foo@bar/baz"
+        with patch.object(DbManager, "__init__", self.db_manager_mock):
+            self.gm: GameManager = await GameManager(self.dsn)
 
     def test_init(self):
-        # test that store with correct dir is created
-        self.assertEqual(self.gm.store.dir, self.dir)
+        # test that db manager created with correct url
+        self.db_manager_mock.assert_called_once()
+        self.assertEqual(self.db_manager_mock.call_args.args[3], self.dsn)
 
     @patch.object(GameStore, "unsubscribe")
-    def test_unsubscribe(self, unsubscribe: Mock):
+    async def test_unsubscribe(self, unsubscribe: Mock):
         # test that store's unsubscribe is called
         player = WebSocketHandler()
-        asyncio.run(self.gm.unsubscribe(player))
+        await self.gm.unsubscribe(player)
         unsubscribe.assert_called_once_with(player)
 
     @patch.object(GameStore, "new_game")
     @patch.object(GameStore, "join_game")
     @patch.object(GameStore, "route_message")
-    def test_route_message(self, route_message: Mock, join_game: Mock, new_game: Mock):
+    async def test_route_message(
+        self, route_message: Mock, join_game: Mock, new_game: Mock
+    ):
         # test that correct store methods are called for each message type
         player = WebSocketHandler()
         key = "0123456789"
@@ -611,14 +62,14 @@ class GameManagerTestCase(unittest.TestCase):
             ),
             player,
         )
-        asyncio.run(self.gm.route_message(msg))
+        await self.gm.route_message(msg)
         new_game.assert_called_once_with(msg)
 
         msg = IncomingMessage(
             json.dumps({TYPE: IncomingMessageType.join_game.name, KEY: key}),
             player,
         )
-        asyncio.run(self.gm.route_message(msg))
+        await self.gm.route_message(msg)
         join_game.assert_called_once_with(msg)
 
         msg = IncomingMessage(
@@ -632,7 +83,7 @@ class GameManagerTestCase(unittest.TestCase):
             ),
             player,
         )
-        asyncio.run(self.gm.route_message(msg))
+        await self.gm.route_message(msg)
         route_message.assert_called_once_with(msg)
 
         route_message.call_count = 0  # so we can say "called once" below
@@ -642,5 +93,5 @@ class GameManagerTestCase(unittest.TestCase):
             ),
             player,
         )
-        asyncio.run(self.gm.route_message(msg))
+        await self.gm.route_message(msg)
         route_message.assert_called_once_with(msg)
