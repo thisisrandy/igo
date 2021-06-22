@@ -11,6 +11,19 @@ import asyncio
 
 
 class DbManagerTestCase(unittest.IsolatedAsyncioTestCase):
+    """
+    NOTE: there are a number of places in this suite where we need to wait a
+    small amount of time for a listener to pick up a notify sent out as part of
+    some action, and critically, since this is async code, we need to await
+    *something* in order to yield control. to satisfy these demands, a short
+    `await asyncio.sleep(0.1)` or the like is called. this doesn't really seem
+    to be avoidable in order to test this functionality, but it's worth noting
+    that timing-dependent tests are really fragile. if the test server is super
+    busy, for example, maybe this isn't actually enough sleep time and the test
+    intermittently fails. if a better solution presents itself, it should
+    definitely be used
+    """
+
     @classmethod
     def setUpClass(cls):
         cls.postgresql = testing.postgresql.Postgresql(port=7654)
@@ -168,7 +181,7 @@ class DbManagerTestCase(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(res, JoinResult.success)
         self.assertIsNotNone(keys)
 
-        # see note elsewhere about timing-dependent tests
+        # see note on the suite class about timing-dependent tests
         await asyncio.sleep(0.1)
         self.opponent_connected_callback.assert_awaited_once()
 
@@ -211,15 +224,7 @@ class DbManagerTestCase(unittest.IsolatedAsyncioTestCase):
         # opponent key
         await manager._subscribe_to_updates(keys[Color.black])
         self.assertGreater(await manager.write_game(keys[Color.white], game), 0)
-        # NOTE: we need to wait a small amount of time for the listener to pick
-        # up the notify sent out as part of writing the game out, and
-        # critically, since this is async code, we need to await *something* in
-        # order to yield control. this doesn't really seem to be avoidable in
-        # order to test this functionality, but it's worth noting that
-        # timing-dependent tests are really fragile. if the test server is super
-        # busy, for example, maybe this isn't actually enough sleep time and the
-        # test intermittently fails. if a better solution presents itself, it
-        # should definitely be used
+        # see note on the suite class about timing-dependent tests
         await asyncio.sleep(0.1)
         self.game_status_callback.assert_awaited_once()
 
@@ -233,7 +238,7 @@ class DbManagerTestCase(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(await manager.write_chat(keys[Color.white], message))
         message.id = 1
         thread = ChatThread([message])
-        # see note elsewhere about timing-dependent tests
+        # see note on the suite class about timing-dependent tests
         await asyncio.sleep(0.1)
         self.chat_callback.assert_awaited_once_with(keys[Color.white], thread)
 
