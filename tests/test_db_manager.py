@@ -259,5 +259,14 @@ class DbManagerTestCase(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(manager._listening_channels[keys[Color.white]]), 0)
 
     async def test_trigger_update_all(self):
-        # TODO: stub
-        pass
+        manager = self.manager
+        game = Game(1)
+        keys: Dict[Color, str] = await manager.write_new_game(game, Color.white)
+        await manager.trigger_update_all(keys[Color.white])
+        # see note on the suite class about timing-dependent tests
+        await asyncio.sleep(0.1)
+        self.game_status_callback.assert_awaited_once_with(keys[Color.white], game, 0.0)
+        self.chat_callback.assert_awaited_once_with(keys[Color.white], ChatThread())
+        self.opponent_connected_callback.assert_awaited_once_with(
+            keys[Color.white], False
+        )
