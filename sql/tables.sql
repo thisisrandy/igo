@@ -6,7 +6,7 @@ CREATE TABLE game (
   version integer NOT NULL DEFAULT 0,
   players_connected integer NOT NULL DEFAULT 0,
   -- in seconds
-  time_played real NOT NULL DEFAULT 0.0,
+  time_played double precision NOT NULL DEFAULT 0.0,
   -- unix time, set when loaded if not already loaded elsewhere and whenever
   -- written, unset when last client unsubs
   write_load_timestamp double precision DEFAULT null
@@ -25,7 +25,7 @@ CREATE TABLE player_key (
 
 CREATE TABLE chat (
   id serial PRIMARY KEY,
-  timestamp real NOT NULL,
+  timestamp double precision NOT NULL,
   color char(5) NOT NULL,
   message text NOT NULL,
   game_id integer REFERENCES game(id)

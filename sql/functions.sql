@@ -67,13 +67,13 @@ CREATE OR REPLACE FUNCTION write_game(
   data_to_write bytea,
   version_to_write integer
 )
-  RETURNS real
+  RETURNS double precision
   LANGUAGE plpgsql
 AS
 $$
 DECLARE
   epoch_now double precision;
-  updated_time_played real;
+  updated_time_played double precision;
   gid integer;
 BEGIN
   SELECT extract(epoch from now())
@@ -103,7 +103,7 @@ BEGIN
     RETURN updated_time_played;
   end if;
 
-  RETURN null::real;
+  RETURN null::double precision;
 END $$;
 
 CREATE OR REPLACE FUNCTION unsubscribe(
@@ -150,7 +150,7 @@ BEGIN
 END $$;
 
 CREATE OR REPLACE FUNCTION write_chat(
-  msg_timestamp real,
+  msg_timestamp double precision,
   msg_text text,
   author_key char(10)
 )
@@ -199,7 +199,7 @@ CREATE OR REPLACE FUNCTION get_game_status(
 )
   RETURNS TABLE (
     game_data bytea,
-    time_played real,
+    time_played double precision,
     version integer
   )
   LANGUAGE plpgsql
@@ -227,7 +227,7 @@ CREATE OR REPLACE FUNCTION get_chat_updates(
 )
   RETURNS TABLE (
     id integer,
-    time_stamp real,
+    time_stamp double precision,
     color char(5),
     message text
   )
