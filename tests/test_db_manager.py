@@ -4,7 +4,8 @@ from game import Color, Game
 from db_manager import DbManager, JoinResult, _UpdateType
 import testing.postgresql
 import unittest
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
+import asyncio
 
 
 class DbManagerTestCase(unittest.IsolatedAsyncioTestCase):
@@ -173,9 +174,49 @@ class DbManagerTestCase(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(manager._listening_channels[key]), len(_UpdateType))
         pass
 
+    @patch("db_manager.pickle.dumps", MagicMock(return_value=b"1"))
+    @patch("db_manager.pickle.loads", MagicMock(return_value=b"1"))
     async def test_write_game(self):
-        # TODO: stub
-        pass
+        """
+        NOTE: pickling methods need to be mocked because of an error like
+
+        _pickle.PicklingError: Can't pickle <class 'unittest.mock.MagicMock'>:
+        it's not the same object as unittest.mock.MagicMock
+
+        I think this might actually be something I can fix, i.e. something to do
+        with the "Where to patch" trickiness with unittest mocking that isn't
+        standing out to me, but I'm also not testing pickling functionality, so
+        it doesn't really matter if they are real methods or not
+        """
+
+        manager = self.manager
+        game = Game()
+        keys: Dict[Color, str] = await manager.write_new_game(game, Color.white)
+
+        # this should not work because the game version is still 0
+        self.assertIsNone(await manager.write_game(keys[Color.white], game))
+
+        # neither should this, because the version is too high
+        game.version = MagicMock(return_value=2)
+        self.assertIsNone(await manager.write_game(keys[Color.white], game))
+
+        # this is just right
+        game.version = MagicMock(return_value=1)
+        # we also want to make sure game status was fired, so subscribe to the
+        # opponent key
+        await manager._subscribe_to_updates(keys[Color.black])
+        self.assertGreater(await manager.write_game(keys[Color.white], game), 0)
+        # NOTE: we need to wait a small amount of time for the listener to pick
+        # up the notify sent out as part of writing the game out, and
+        # critically, since this is async code, we need to await *something* in
+        # order to yield control. this doesn't really seem to be avoidable in
+        # order to test this functionality, but it's worth noting that
+        # timing-dependent tests are really fragile. if the test server is super
+        # busy, for example, maybe this isn't actually enough sleep time and the
+        # test intermittently fails. if a better solution presents itself, it
+        # should definitely be used
+        await asyncio.sleep(0.1)
+        self.game_status_callback.assert_awaited_once()
 
     async def test_write_chat(self):
         # TODO: stub
