@@ -460,7 +460,7 @@ class DbManager:
                     f"Successfully wrote chat message from {player_key}: '{message}'"
                 )
             else:
-                logging.warn(
+                logging.warning(
                     f"When attempting to write chat message '{message}' from player key"
                     f" {player_key}, a game associated with that key could not be found"
                 )
@@ -497,7 +497,7 @@ class DbManager:
             if res:
                 logging.info(f"Successfully unsubscribed player key {player_key}")
             else:
-                logging.warn(
+                logging.warning(
                     f"When unsubscribing from player key {player_key}, no record was"
                     " found of a connected player managed by this game server"
                 )
