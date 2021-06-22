@@ -1,11 +1,16 @@
+from containers import GameStatusContainer
 from db_manager import DbManager
 import unittest
 from unittest.mock import AsyncMock, patch, Mock, MagicMock
 from tornado.websocket import WebSocketHandler
 from game_manager import GameStore, GameManager
 import json
-from messages import IncomingMessage, IncomingMessageType
-from game import Color, ActionType
+from messages import (
+    IncomingMessage,
+    IncomingMessageType,
+    OutgoingMessageType,
+)
+from game import Color, ActionType, Game
 from constants import TYPE, VS, COLOR, SIZE, KOMI, KEY, ACTION_TYPE, COORDS, MESSAGE
 import testing.postgresql
 
@@ -95,3 +100,55 @@ class GameManagerUnitTestCase(unittest.IsolatedAsyncioTestCase):
         )
         await self.gm.route_message(msg)
         route_message.assert_called_once_with(msg)
+
+
+@patch.object(WebSocketHandler, "__init__", lambda self: None)
+@patch.object(WebSocketHandler, "__hash__", lambda self: 1)
+@patch.object(WebSocketHandler, "__eq__", lambda self, o: o is self)
+class GameManagerIntegrationTestCase(unittest.IsolatedAsyncioTestCase):
+    """
+    Don't mock anything except for socket handlers and test the whole stack from
+    GameManager down
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.postgresql = testing.postgresql.Postgresql(port=7654)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.postgresql.stop()
+
+    async def asyncSetUp(self):
+        self.gm: GameManager = await GameManager(self.__class__.postgresql.url(), True)
+
+    async def asyncTearDown(self) -> None:
+        await self.gm.store._db_manager._connection.close()
+
+    @patch("game_manager.send_outgoing_message")
+    async def test_new_game(self, send_outgoing_message_mock: AsyncMock) -> None:
+        player = WebSocketHandler()
+        msg = IncomingMessage(
+            json.dumps(
+                {
+                    TYPE: IncomingMessageType.new_game.name,
+                    VS: "human",
+                    COLOR: Color.white.name,
+                    SIZE: 19,
+                    KOMI: 6.5,
+                }
+            ),
+            player,
+        )
+        await self.gm.route_message(msg)
+        self.assertEqual(send_outgoing_message_mock.await_count, 2)
+        # response message
+        await_args = send_outgoing_message_mock.await_args_list[0].args
+        self.assertEqual(await_args[0], OutgoingMessageType.new_game_response)
+        self.assertTrue(await_args[1].success)
+        self.assertEqual(await_args[2], player)
+        # game status message
+        await_args = send_outgoing_message_mock.await_args_list[1].args
+        self.assertEqual(await_args[0], OutgoingMessageType.game_status)
+        self.assertTrue(isinstance(await_args[1], GameStatusContainer))
+        self.assertEqual(await_args[2], player)
