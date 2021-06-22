@@ -1,7 +1,7 @@
 import pickle
 from typing import Dict
 from game import Color, Game
-from db_manager import DbManager, JoinResult
+from db_manager import DbManager, JoinResult, _UpdateType
 import testing.postgresql
 import unittest
 from unittest.mock import AsyncMock
@@ -162,7 +162,10 @@ class DbManagerTestCase(unittest.IsolatedAsyncioTestCase):
         pass
 
     async def test_subscribe_to_updates(self):
-        # TODO: stub
+        manager = self.manager
+        key = "0123456789"
+        await manager._subscribe_to_updates(key)
+        self.assertEqual(len(manager._listening_channels[key]), len(_UpdateType))
         pass
 
     async def test_write_game(self):
