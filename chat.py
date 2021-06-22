@@ -84,7 +84,9 @@ class ChatThread(JsonifyableBase):
         the current object
         """
 
-        return ChatThread(self.thread[bisect_right(self.thread, after_id) :])
+        return ChatThread(
+            self.thread[bisect_right([msg.id for msg in self.thread], after_id) :]
+        )
 
     def append(self, *messages: ChatMessage) -> None:
         """
