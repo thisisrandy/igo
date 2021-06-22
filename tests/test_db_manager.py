@@ -4,6 +4,7 @@ from game import Color, Game
 from db_manager import DbManager, JoinResult
 import testing.postgresql
 import unittest
+from unittest.mock import AsyncMock
 
 
 class DbManagerTestCase(unittest.IsolatedAsyncioTestCase):
@@ -16,7 +17,16 @@ class DbManagerTestCase(unittest.IsolatedAsyncioTestCase):
         cls.postgresql.stop()
 
     async def asyncSetUp(self):
-        self.manager: DbManager = await DbManager(self.__class__.postgresql.url(), True)
+        self.game_status_callback = AsyncMock()
+        self.chat_callback = AsyncMock()
+        self.opponent_connected_callback = AsyncMock()
+        self.manager: DbManager = await DbManager(
+            self.game_status_callback,
+            self.chat_callback,
+            self.opponent_connected_callback,
+            self.__class__.postgresql.url(),
+            True,
+        )
 
     async def test_startup_cleans_orphaned_rows(self):
         manager = self.manager
@@ -34,7 +44,13 @@ class DbManagerTestCase(unittest.IsolatedAsyncioTestCase):
         )
 
         del manager
-        manager: DbManager = await DbManager(self.__class__.postgresql.url(), False)
+        manager: DbManager = await DbManager(
+            self.game_status_callback,
+            self.chat_callback,
+            self.opponent_connected_callback,
+            self.__class__.postgresql.url(),
+            False,
+        )
         # NOTE: it's important to fetch the row and not the value here, because
         # null being the expected type, fetchval conflates "returned a row with
         # a null value" and "didn't return any rows." we only want to succeed on
@@ -93,9 +109,13 @@ class DbManagerTestCase(unittest.IsolatedAsyncioTestCase):
     async def test_join_game(self):
         manager = self.manager
         keys: Dict[Color, str] = await manager.write_new_game(Game(), Color.white)
-        self.assertEqual(await manager.join_game("0000000000"), JoinResult.dne)
-        self.assertEqual(await manager.join_game(keys[Color.white]), JoinResult.in_use)
-        self.assertEqual(await manager.join_game(keys[Color.black]), JoinResult.success)
+        res: JoinResult
+        res, _ = await manager.join_game("0000000000")
+        self.assertEqual(res, JoinResult.dne)
+        res, _ = await manager.join_game(keys[Color.white])
+        self.assertEqual(res, JoinResult.in_use)
+        res, _ = await manager.join_game(keys[Color.black])
+        self.assertEqual(res, JoinResult.success)
         # TODO: pass in mock callbacks and check that all are fired once
         pass
 
