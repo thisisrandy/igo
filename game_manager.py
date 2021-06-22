@@ -74,7 +74,9 @@ class GameStore:
     level.
     """
 
-    async def __init__(self, store_dsn: str) -> None:
+    async def __init__(
+        self, store_dsn: str, run_db_setup_scripts: bool = False
+    ) -> None:
         self._clients: Dict[WebSocketHandler, ClientData] = {}
         self._keys: Dict[str, WebSocketHandler] = {}
         self._db_manager: DbManager = await DbManager(
@@ -82,6 +84,7 @@ class GameStore:
             self._get_chat_updater(),
             self._get_opponent_connected_updater(),
             store_dsn,
+            run_db_setup_scripts,
         )
 
     async def new_game(self, msg: IncomingMessage) -> None:
@@ -362,14 +365,16 @@ class GameManager:
         store: GameStore - the game store
     """
 
-    async def __init__(self, store_dsn: str) -> None:
+    async def __init__(
+        self, store_dsn: str, run_db_setup_scripts: bool = False
+    ) -> None:
         """
         Arguments:
 
             store_dsn: str - the data source name url of the store database
         """
 
-        self.store: GameStore = await GameStore(store_dsn)
+        self.store: GameStore = await GameStore(store_dsn, run_db_setup_scripts)
 
     async def unsubscribe(self, socket: WebSocketHandler) -> None:
         """Unsubscribe the socket from its key if it is subscribed, otherwise
