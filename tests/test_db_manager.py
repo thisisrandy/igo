@@ -228,3 +228,7 @@ class DbManagerTestCase(unittest.IsolatedAsyncioTestCase):
     async def test_unsubscribe(self):
         # TODO: stub
         pass
+
+    async def test_trigger_update_all(self):
+        # TODO: stub
+        pass
