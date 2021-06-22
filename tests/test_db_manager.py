@@ -133,15 +133,16 @@ class DbManagerTestCase(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(Color.black.name, row.get("color"))
         self.assertIsNone(row.get("managed_by"))
 
-        row = await manager._connection.fetchrow(
+        (game_data, time_played, version,) = await manager._connection.fetchrow(
             """
-            SELECT game_data, version
+            SELECT *
             FROM get_game_status($1);
             """,
             keys[Color.white],
         )
-        self.assertEqual(game.version(), row.get("version"))
-        self.assertEqual(pickle.loads(row.get("game_data")), game)
+        self.assertEqual(pickle.loads(game_data), game)
+        self.assertEqual(game.version(), version)
+        self.assertEqual(time_played, 0)
 
     async def test_join_game(self):
         manager = self.manager
