@@ -154,7 +154,6 @@ class DbManagerTestCase(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(res, JoinResult.in_use)
         res, _ = await manager.join_game(keys[Color.black])
         self.assertEqual(res, JoinResult.success)
-        # TODO: pass in mock callbacks and check that all are fired once
         pass
 
     async def test_subscribe_to_updates(self):
