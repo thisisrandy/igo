@@ -20,13 +20,14 @@ class ChatMessage(JsonifyableBase):
 
         message: str - the message contents
 
-        id: str - the message ID. NB: auto generated. only set from source
+        id: Optional[int] - the message ID. NB: auto generated. only set from
+        source outside of test code
     """
 
     timestamp: float
     color: Color
     message: str
-    id: Optional[str] = None
+    id: Optional[int] = None
 
     def jsonifyable(self) -> Dict:
         return {
