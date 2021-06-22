@@ -1,6 +1,7 @@
 from __future__ import annotations
 from bisect import bisect_right
 from dataclasses import dataclass
+from typing import Dict, Iterator, List, Optional
 from game import Color
 from messages import JsonifyableBase
 
@@ -66,6 +67,13 @@ class ChatThread(JsonifyableBase):
 
     def __repr__(self) -> str:
         return repr(self.thread)
+
+    def __len__(self) -> int:
+        return len(self.thread)
+
+    def __iter__(self) -> Iterator[ChatMessage]:
+        for msg in self.thread:
+            yield msg
 
     def get_after(self, after_id: int = 0) -> ChatThread:
         """
