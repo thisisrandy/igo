@@ -146,14 +146,19 @@ class DbManagerTestCase(unittest.IsolatedAsyncioTestCase):
 
     async def test_join_game(self):
         manager = self.manager
-        keys: Dict[Color, str] = await manager.write_new_game(Game(), Color.white)
+        new_game_keys: Dict[Color, str] = await manager.write_new_game(
+            Game(), Color.white
+        )
         res: JoinResult
-        res, _ = await manager.join_game("0000000000")
+        res, keys = await manager.join_game("0000000000")
         self.assertEqual(res, JoinResult.dne)
-        res, _ = await manager.join_game(keys[Color.white])
+        self.assertIsNone(keys)
+        res, keys = await manager.join_game(new_game_keys[Color.white])
         self.assertEqual(res, JoinResult.in_use)
-        res, _ = await manager.join_game(keys[Color.black])
+        self.assertIsNone(keys)
+        res, keys = await manager.join_game(new_game_keys[Color.black])
         self.assertEqual(res, JoinResult.success)
+        self.assertIsNotNone(keys)
         pass
 
     async def test_subscribe_to_updates(self):
