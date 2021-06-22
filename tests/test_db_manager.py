@@ -251,8 +251,12 @@ class DbManagerTestCase(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.chat_callback.await_count, 3)
 
     async def test_unsubscribe(self):
-        # TODO: stub
-        pass
+        manager = self.manager
+        keys: Dict[Color, str] = await manager.write_new_game(Game(), Color.white)
+        self.assertEqual(len(manager._listening_channels[keys[Color.white]]), 3)
+        self.assertFalse(await manager.unsubscribe(keys[Color.black]))
+        self.assertTrue(await manager.unsubscribe(keys[Color.white]))
+        self.assertEqual(len(manager._listening_channels[keys[Color.white]]), 0)
 
     async def test_trigger_update_all(self):
         # TODO: stub
