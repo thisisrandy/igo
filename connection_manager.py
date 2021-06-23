@@ -45,7 +45,14 @@ class IgoWebSocket(tornado.websocket.WebSocketHandler):
 
     async def on_message(self, json: str):
         logging.info(f"Received message: {json}")
-        await self.__class__.game_manager.route_message(IncomingMessage(json, self))
+        try:
+            await self.__class__.game_manager.route_message(IncomingMessage(json, self))
+        except Exception:
+            logging.exception(
+                f"Encountered exception while processing message {json}. The websocket"
+                " will now close"
+            )
+            self.close()
 
     def on_close(self):
         logging.info("Connection closed")
