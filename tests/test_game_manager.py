@@ -155,5 +155,5 @@ class GameManagerIntegrationTestCase(unittest.IsolatedAsyncioTestCase):
         # game status message
         await_args = send_outgoing_message_mock.await_args_list[1].args
         self.assertEqual(await_args[0], OutgoingMessageType.game_status)
-        self.assertTrue(isinstance(await_args[1], GameStatusContainer))
+        self.assertIsInstance(await_args[1], GameStatusContainer)
         self.assertEqual(await_args[2], player)
