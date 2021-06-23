@@ -545,6 +545,9 @@ class DbManager:
         res = []
         # async pg supports nested transactions, where inner transactions are
         # interpretted as savepoints
+        # TODO: once we switch to using a pool(s), we're going to have to ensure
+        # that all actions use the same connection, probably by acquiring it
+        # here and then passing through to actions
         async with self._connection.transaction():
             try:
                 for action in actions:
