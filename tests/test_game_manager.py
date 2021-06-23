@@ -1,5 +1,12 @@
-from typing import Tuple
-from containers import GameStatusContainer
+import asyncio
+from chat import ChatThread
+from typing import Dict, Tuple
+from containers import (
+    GameStatusContainer,
+    JoinGameResponseContainer,
+    NewGameResponseContainer,
+    OpponentConnectedContainer,
+)
 from db_manager import DbManager
 import unittest
 from unittest.mock import AsyncMock, patch, Mock, MagicMock
@@ -157,3 +164,134 @@ class GameManagerIntegrationTestCase(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(await_args[0], OutgoingMessageType.game_status)
         self.assertIsInstance(await_args[1], GameStatusContainer)
         self.assertEqual(await_args[2], player)
+
+    @patch("game_manager.send_outgoing_message")
+    async def test_join_game(self, send_outgoing_message_mock: AsyncMock) -> None:
+        player: WebSocketHandler
+        client_data: ClientData
+        player, client_data = await self.createNewGame()
+        new_game_response: NewGameResponseContainer = (
+            send_outgoing_message_mock.await_args_list[0].args[1]
+        )
+        self.assertIsInstance(new_game_response, NewGameResponseContainer)
+        keys: Dict[Color, str] = new_game_response.keys
+
+        # already playing
+        await self.gm.route_message(
+            IncomingMessage(
+                json.dumps(
+                    {TYPE: IncomingMessageType.join_game.name, KEY: keys[Color.white]}
+                ),
+                player,
+            )
+        )
+        response: JoinGameResponseContainer = (
+            send_outgoing_message_mock.await_args_list[-1].args[1]
+        )
+        self.assertIsInstance(response, JoinGameResponseContainer)
+        self.assertFalse(response.success)
+        self.assertTrue("already playing" in response.explanation)
+
+        # bad key
+        await self.gm.route_message(
+            IncomingMessage(
+                json.dumps(
+                    {TYPE: IncomingMessageType.join_game.name, KEY: "0000000000"}
+                ),
+                player,
+            )
+        )
+        response: JoinGameResponseContainer = (
+            send_outgoing_message_mock.await_args_list[-1].args[1]
+        )
+        self.assertIsInstance(response, JoinGameResponseContainer)
+        self.assertFalse(response.success)
+        self.assertTrue("not found" in response.explanation)
+
+        # someone else playing
+        await self.gm.route_message(
+            IncomingMessage(
+                json.dumps(
+                    {TYPE: IncomingMessageType.join_game.name, KEY: keys[Color.white]}
+                ),
+                WebSocketHandler(),
+            )
+        )
+        response: JoinGameResponseContainer = (
+            send_outgoing_message_mock.await_args_list[-1].args[1]
+        )
+        self.assertIsInstance(response, JoinGameResponseContainer)
+        self.assertFalse(response.success)
+        self.assertTrue("Someone else" in response.explanation)
+
+        # success, including unsub
+        await self.gm.route_message(
+            IncomingMessage(
+                json.dumps(
+                    {TYPE: IncomingMessageType.join_game.name, KEY: keys[Color.black]}
+                ),
+                player,
+            )
+        )
+        # see note in test_db_manager about timing-dependent tests
+        await asyncio.sleep(0.1)
+
+        # what happens right now:
+        #
+        # 1. join -> receive opp conn'd true on old (new game) connection, but
+        # game manager state is stale, so it raises AssertionError
+        #
+        # 2. unsub from old connection -> receive opp conn'd False on join
+        # channel
+        #
+        # 3. trigger all -> game status, chat, opp conn'd False on join from db
+        #
+        # what should happen: everything happens in a transaction, so none of
+        # the notify's happen until game manager and db manager state agree. as
+        # such, 2 & 3 above should happen, but we are already completely
+        # unsubscribed to the old key's channels when 1's notify triggers, so
+        # the db doesn't tell us about it. the stopgap of catching the
+        # AssertionError produces the same result without any risk of someone
+        # else interrupting, but a failure between join and unsub is possible,
+        # which leaves the db in an inconsistent state, and if the failure
+        # happens after join but before receiving trigger notify's and
+        # retrieving the relevant data, the game server is left in an
+        # inconsistent state (this, though, is a risk with all notify's).
+        #
+        # how to solve db inconsistency: as above, at least join/unsub happen
+        # transactionally along with all related game server state updates.
+        #
+        # how to solve game server inconsistency: whenever there is a db
+        # failure, blow up the web socket, forcing the client to reconnect until
+        # things are restored to normal. additionally, if listening
+        # connection(s) fail, resubscribe them and then immediately notify all
+        # subscribed to channels in case they missed something
+
+        response: JoinGameResponseContainer = (
+            send_outgoing_message_mock.await_args_list[-5].args[1]
+        )
+        self.assertIsInstance(response, JoinGameResponseContainer)
+        self.assertTrue(response.success)
+        self.assertTrue(
+            f"joined the game as {Color.black.name}" in response.explanation
+        )
+        self_unsubbed: OpponentConnectedContainer = (
+            send_outgoing_message_mock.await_args_list[-4].args[1]
+        )
+        self.assertIsInstance(self_unsubbed, OpponentConnectedContainer)
+        self.assertFalse(self_unsubbed.opponent_connected)
+        trigger_game_status: GameStatusContainer = (
+            send_outgoing_message_mock.await_args_list[-3].args[1]
+        )
+        self.assertIsInstance(trigger_game_status, GameStatusContainer)
+        self.assertEqual(trigger_game_status.game, client_data.game)
+        trigger_chat: ChatThread = send_outgoing_message_mock.await_args_list[-2].args[
+            1
+        ]
+        self.assertIsInstance(trigger_chat, ChatThread)
+        self.assertEqual(trigger_chat, client_data.chat_thread)
+        trigger_opp_connd: OpponentConnectedContainer = (
+            send_outgoing_message_mock.await_args_list[-1].args[1]
+        )
+        self.assertIsInstance(trigger_opp_connd, OpponentConnectedContainer)
+        self.assertFalse(trigger_opp_connd.opponent_connected)

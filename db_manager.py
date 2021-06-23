@@ -320,14 +320,24 @@ class DbManager:
             payload: str
             update_type, player_key, payload = await self._update_queue.get()
 
-            if update_type is _UpdateType.game_status:
-                await self._game_status_consumer(player_key)
-            elif update_type is _UpdateType.chat:
-                await self._chat_consumer(player_key, payload)
-            elif update_type is _UpdateType.opponent_connected:
-                await self._opponent_connected_consumer(player_key, payload)
-            else:
-                logging.error(f"Found unknown update type {update_type} in queue")
+            try:
+                if update_type is _UpdateType.game_status:
+                    await self._game_status_consumer(player_key)
+                elif update_type is _UpdateType.chat:
+                    await self._chat_consumer(player_key, payload)
+                elif update_type is _UpdateType.opponent_connected:
+                    await self._opponent_connected_consumer(player_key, payload)
+                else:
+                    logging.error(f"Found unknown update type {update_type} in queue")
+            except AssertionError:
+                # FIXME: see the FIXME in game_manager.GameManager.unsubscribe
+                # and notes in
+                # test_game_manager.GameManagerIntegrationTestCase.test_join_game
+                logging.exception(
+                    "Encountered an exception. State might be out of sync. Ignoring"
+                    f"message of type {update_type.name} for key {player_key} with"
+                    f" payload {payload}"
+                )
 
             # NOTE: as we aren't attempting to join the queue in the current
             # design, this call doesn't really do anything useful. that said,

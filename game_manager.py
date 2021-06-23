@@ -345,6 +345,17 @@ class GameStore:
 
     async def unsubscribe(self, socket: WebSocketHandler) -> None:
         if socket in self._clients:
+            # FIXME: the fact that this whole block isn't transactional leads to
+            # a very subtle bug where a db notification can reach the game
+            # server after the game manager state has been removed but before
+            # the db manager callbacks have been unregistered. there's an easy
+            # fix to be found in just ignoring lost messages like this, but the
+            # actual right thing to do is to make game manager methods
+            # transactional w.r.t. the db. it will take some thinking to figure
+            # out a good pattern that maintains separation between game manager,
+            # which isn't supposed to know about db stuff, and db manager, which
+            # currently only guarantees that its individual methods are
+            # transactional
             key = self._clients[socket].key
             del self._clients[socket]
             del self._keys[key]
