@@ -357,9 +357,9 @@ class GameStore:
             # currently only guarantees that its individual methods are
             # transactional
             key = self._clients[socket].key
+            await self._db_manager.unsubscribe(key)
             del self._clients[socket]
             del self._keys[key]
-            await self._db_manager.unsubscribe(key)
             logging.info(f"Unsubscribed client from key {key}")
         else:
             logging.info("Client with no active subscriptions dropped")
