@@ -267,6 +267,7 @@ class GameManagerIntegrationTestCase(unittest.IsolatedAsyncioTestCase):
         # connection(s) fail, resubscribe them and then immediately notify all
         # subscribed to channels in case they missed something
 
+        # receive join response first
         response: JoinGameResponseContainer = (
             send_outgoing_message_mock.await_args_list[-5].args[1]
         )
@@ -275,11 +276,15 @@ class GameManagerIntegrationTestCase(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(
             f"joined the game as {Color.black.name}" in response.explanation
         )
+        # unsub to old key triggers opponent not connected on the new key
+        # channel. a bit quirky, but practically inconsequential
         self_unsubbed: OpponentConnectedContainer = (
             send_outgoing_message_mock.await_args_list[-4].args[1]
         )
         self.assertIsInstance(self_unsubbed, OpponentConnectedContainer)
         self.assertFalse(self_unsubbed.opponent_connected)
+        # now trigger update all hits us with game status, chat, and opponent
+        # connected from the database in sequence
         trigger_game_status: GameStatusContainer = (
             send_outgoing_message_mock.await_args_list[-3].args[1]
         )
