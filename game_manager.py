@@ -8,7 +8,7 @@ import logging
 from chat import ChatMessage, ChatThread
 from dataclasses import dataclass
 from game import Action, ActionType, Color, Game
-from typing import Callable, Coroutine, Dict, Optional
+from typing import Callable, Coroutine, Dict, Optional, Tuple
 from tornado.websocket import WebSocketHandler
 from messages import (
     IncomingMessage,
@@ -92,20 +92,25 @@ class GameStore:
         Create and write out a new game and then respond appropriately
         """
 
+        db_actions = []
+
         client = msg.websocket_handler
         if client in self._clients:
             old_key = self._clients[client].key
             logging.info(f"Client requesting new game already subscribed to {old_key}")
-            await self.unsubscribe(client)
+            db_actions.append(self.unsubscribe(client))
 
         game = Game(msg.data[SIZE], msg.data[KOMI])
         time_played = 0.0
         chat_thread = ChatThread()
         opponent_connected = False
         requested_color = Color[msg.data[COLOR]]
-        keys: Dict[Color, str] = await self._db_manager.write_new_game(
-            game, requested_color
-        )
+
+        db_actions.append(self._db_manager.write_new_game(game, requested_color))
+        keys: Dict[Color, str] = (
+            await self._db_manager.perform_transactionally(*db_actions)
+        )[-1]
+
         client_key = keys[requested_color]
         self._clients[client] = ClientData(
             client_key,
@@ -233,9 +238,25 @@ class GameStore:
                 client,
             )
         else:
+
+            async def db_action() -> Tuple[JoinResult, Optional[Dict[Color, str]]]:
+                res: JoinResult
+                keys: Optional[Dict[Color, str]]
+                res, keys = await self._db_manager.join_game(key)
+                if res is JoinResult.success and client in self._clients:
+                    old_key = self._clients[client].key
+                    logging.info(
+                        f"Client requesting join game already subscribed to {old_key}"
+                    )
+                    await self.unsubscribe(client)
+                return res, keys
+
             res: JoinResult
             keys: Optional[Dict[Color, str]]
-            res, keys = await self._db_manager.join_game(key)
+            res, keys = (await self._db_manager.perform_transactionally(db_action()))[
+                -1
+            ]
+
             if res is JoinResult.dne:
                 await send_outgoing_message(
                     OutgoingMessageType.join_game_response,
@@ -258,13 +279,6 @@ class GameStore:
                     client,
                 )
             elif res is JoinResult.success:
-                if client in self._clients:
-                    old_key = self._clients[client].key
-                    logging.info(
-                        f"Client requesting join game already subscribed to {old_key}"
-                    )
-                    await self.unsubscribe(client)
-
                 color = Color.white if keys[Color.white] == key else Color.black
                 self._clients[client] = ClientData(key, color)
                 self._keys[key] = client
@@ -345,17 +359,6 @@ class GameStore:
 
     async def unsubscribe(self, socket: WebSocketHandler) -> None:
         if socket in self._clients:
-            # FIXME: the fact that this whole block isn't transactional leads to
-            # a very subtle bug where a db notification can reach the game
-            # server after the game manager state has been removed but before
-            # the db manager callbacks have been unregistered. there's an easy
-            # fix to be found in just ignoring lost messages like this, but the
-            # actual right thing to do is to make game manager methods
-            # transactional w.r.t. the db. it will take some thinking to figure
-            # out a good pattern that maintains separation between game manager,
-            # which isn't supposed to know about db stuff, and db manager, which
-            # currently only guarantees that its individual methods are
-            # transactional
             key = self._clients[socket].key
             await self._db_manager.unsubscribe(key)
             del self._clients[socket]

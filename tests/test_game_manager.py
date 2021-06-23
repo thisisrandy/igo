@@ -235,38 +235,6 @@ class GameManagerIntegrationTestCase(unittest.IsolatedAsyncioTestCase):
         )
         # see note in test_db_manager about timing-dependent tests
         await asyncio.sleep(0.1)
-
-        # what happens right now:
-        #
-        # 1. join -> receive opp conn'd true on old (new game) connection, but
-        # game manager state is stale, so it raises AssertionError
-        #
-        # 2. unsub from old connection -> receive opp conn'd False on join
-        # channel
-        #
-        # 3. trigger all -> game status, chat, opp conn'd False on join from db
-        #
-        # what should happen: everything happens in a transaction, so none of
-        # the notify's happen until game manager and db manager state agree. as
-        # such, 2 & 3 above should happen, but we are already completely
-        # unsubscribed to the old key's channels when 1's notify triggers, so
-        # the db doesn't tell us about it. the stopgap of catching the
-        # AssertionError produces the same result without any risk of someone
-        # else interrupting, but a failure between join and unsub is possible,
-        # which leaves the db in an inconsistent state, and if the failure
-        # happens after join but before receiving trigger notify's and
-        # retrieving the relevant data, the game server is left in an
-        # inconsistent state (this, though, is a risk with all notify's).
-        #
-        # how to solve db inconsistency: as above, at least join/unsub happen
-        # transactionally along with all related game server state updates.
-        #
-        # how to solve game server inconsistency: whenever there is a db
-        # failure, blow up the web socket, forcing the client to reconnect until
-        # things are restored to normal. additionally, if listening
-        # connection(s) fail, resubscribe them and then immediately notify all
-        # subscribed to channels in case they missed something
-
         # receive join response first
         response: JoinGameResponseContainer = (
             send_outgoing_message_mock.await_args_list[-5].args[1]
