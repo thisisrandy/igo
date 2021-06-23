@@ -177,12 +177,13 @@ class DbManager:
         # need to be present. for now, we are assuming that the worst that
         # happens to any game server is an unexpected restart
         try:
-            await self._connection.execute(
-                """
-                CALL do_cleanup($1);
-                """,
-                self._machine_id,
-            )
+            async with self._connection.transaction():
+                await self._connection.execute(
+                    """
+                    CALL do_cleanup($1);
+                    """,
+                    self._machine_id,
+                )
 
         except Exception as e:
             raise Exception("Failed to execute restart database cleanup") from e
