@@ -4,7 +4,16 @@ from enum import Enum, auto
 from constants import KEY_LEN
 from game import Color, Game
 from chat import ChatMessage, ChatThread
-from typing import Callable, Coroutine, DefaultDict, Dict, List, Tuple, Optional
+from typing import (
+    Awaitable,
+    Callable,
+    Coroutine,
+    DefaultDict,
+    Dict,
+    List,
+    Tuple,
+    Optional,
+)
 from asyncinit import asyncinit
 import asyncpg
 from uuid import uuid4
@@ -513,3 +522,38 @@ class DbManager:
                     " found of a connected player managed by this game server"
                 )
             return res
+
+    async def perform_transactionally(self, *actions: Callable[[], Awaitable]) -> List:
+        """
+        While all write operations, including notifications, are transactional
+        in this module, it is sometimes desirable to perform more than one
+        operation sequentially and transactionally. For example, we may wish to
+        unsubscribe from a game and then create a new game but retain our
+        subscription if something goes wrong when creating the new game.
+
+        This function exposes the ability to execute an arbitrary number of
+        async Callables inside of a transaction and roll them all back if any
+        raise exceptions. Note that "rolls them all back" only applies to
+        database operations. Any python state changed during the course of the
+        transaction will of course remain changed after the rollback.
+
+        If all actions are performed successfully, the transaction is committed
+        and a list of return values from the actions is returned
+        """
+
+        res = []
+        # async pg supports nested transactions, where inner transactions are
+        # interpretted as savepoints
+        async with self._connection.transaction():
+            try:
+                for action in actions:
+                    res.append(await action())
+
+            except Exception as e:
+                raise Exception(
+                    "Failed to perform one of the supplied actions. The transaction"
+                    " will now be rolled back"
+                ) from e
+
+        return res
+
