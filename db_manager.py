@@ -5,7 +5,6 @@ from constants import KEY_LEN
 from game import Color, Game
 from chat import ChatMessage, ChatThread
 from typing import (
-    Awaitable,
     Callable,
     Coroutine,
     DefaultDict,
@@ -523,7 +522,7 @@ class DbManager:
                 )
             return res
 
-    async def perform_transactionally(self, *actions: Callable[[], Awaitable]) -> List:
+    async def perform_transactionally(self, *actions: Coroutine) -> List:
         """
         While all write operations, including notifications, are transactional
         in this module, it is sometimes desirable to perform more than one
@@ -532,9 +531,9 @@ class DbManager:
         subscription if something goes wrong when creating the new game.
 
         This function exposes the ability to execute an arbitrary number of
-        async Callables inside of a transaction and roll them all back if any
-        raise exceptions. Note that "rolls them all back" only applies to
-        database operations. Any python state changed during the course of the
+        coroutines inside of a transaction and roll them all back if any raise
+        exceptions. Note that "roll them all back" only applies to database
+        operations. Any python state changed during the course of the
         transaction will of course remain changed after the rollback.
 
         If all actions are performed successfully, the transaction is committed
@@ -547,7 +546,7 @@ class DbManager:
         async with self._connection.transaction():
             try:
                 for action in actions:
-                    res.append(await action())
+                    res.append(await action)
 
             except Exception as e:
                 raise Exception(
