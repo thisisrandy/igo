@@ -23,7 +23,9 @@ import logging
 
 # TODO: handle database restarts.
 # https://github.com/MagicStack/asyncpg/issues/421 seems to indicate that
-# listeners aren't automatically reconnected
+# listeners aren't automatically reconnected. note that once a listener is
+# resubscribed, a notify should immediately be sent to its channel in case
+# anything was missed whilst it floundered
 
 
 class JoinResult(Enum):
