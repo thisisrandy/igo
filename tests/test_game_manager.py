@@ -131,6 +131,11 @@ class GameManagerIntegrationTestCase(unittest.IsolatedAsyncioTestCase):
         self.gm: GameManager = await GameManager(self.__class__.postgresql.url(), True)
 
     async def createNewGame(self) -> Tuple[WebSocketHandler, ClientData]:
+        """
+        Create new game and join as white. Return client handler and internal
+        data from the store
+        """
+
         player = WebSocketHandler()
         msg = IncomingMessage(
             json.dumps(
