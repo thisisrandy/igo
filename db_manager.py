@@ -86,7 +86,8 @@ def alphanum_uuid(desired_length: int = KEY_LEN) -> str:
 @asyncinit
 class DbManager:
     __slots__ = (
-        "_connection",
+        "_listener_connection",
+        "_connection_pool",
         "_machine_id",
         "_update_queue",
         "_listening_channels",
@@ -139,23 +140,14 @@ class DbManager:
         self._chat_callback = chat_callback
         self._opponent_connected_callback = opponent_connected_callback
 
-        # TODO: we probably want to use a connection pool instead of a single
-        # connection. look into best practices
-        # FIXME: in fact, it looks like asyncpg doesn't know how to wait for the
-        # connection to be available if another operation is in progress.
-        # asyncpg.exceptions._base.InterfaceError: cannot perform operation:
-        # another operation is in progress can happen e.g. if two players try to
-        # rejoin at the same time. this will definitely need to be handled in
-        # some fashion
-        self._connection: asyncpg.connection.Connection = await asyncpg.connect(dsn)
+        self._listener_connection: asyncpg.connection.Connection = (
+            await asyncpg.connect(dsn)
+        )
+        self._connection_pool: asyncpg.pool.Pool = await asyncpg.create_pool(dsn)
 
         # { player_key: [(channel, callback), ...], ...}
         # populate whenever adding listeners and lookup/delete record when
         # unlistening
-        #
-        # TODO: if multiple listener connections are used, the connection
-        # associated with each channel will also need to be stored. this will
-        # also be useful for handling reconnect logic (db restart, etc.)
         self._listening_channels: DefaultDict[
             str, List[Tuple[str, Callable]]
         ] = defaultdict(list)
@@ -169,10 +161,11 @@ class DbManager:
             try:
                 # NOTE: tables must be executed first. otherwise, it would be
                 # sufficient to list the directory and execute each file
-                for fn in ("tables", "indices", "views", "procedures", "functions"):
-                    with open(f"./sql/{fn}.sql", "r") as r:
-                        sql = r.read()
-                    await self._connection.execute(sql)
+                async with self._connection_pool.acquire() as conn:
+                    for fn in ("tables", "indices", "views", "procedures", "functions"):
+                        with open(f"./sql/{fn}.sql", "r") as r:
+                            sql = r.read()
+                        await conn.execute(sql)
 
             except Exception as e:
                 raise Exception("Failed to run db setup scripts") from e
@@ -189,13 +182,14 @@ class DbManager:
         # need to be present. for now, we are assuming that the worst that
         # happens to any game server is an unexpected restart
         try:
-            async with self._connection.transaction():
-                await self._connection.execute(
-                    """
-                    CALL do_cleanup($1);
-                    """,
-                    self._machine_id,
-                )
+            async with self._connection_pool.acquire() as conn:
+                async with conn.transaction():
+                    await conn.execute(
+                        """
+                        CALL do_cleanup($1);
+                        """,
+                        self._machine_id,
+                    )
 
         except Exception as e:
             raise Exception("Failed to execute restart database cleanup") from e
@@ -220,8 +214,8 @@ class DbManager:
         keys = {Color.white: key_w, Color.black: key_b}
 
         try:
-            async with self._connection.transaction():
-                await self._connection.execute(
+            async with self._connection_pool.acquire() as conn:
+                await conn.execute(
                     """
                     CALL new_game($1, $2, $3, $4, $5);
                     """,
@@ -255,8 +249,8 @@ class DbManager:
         """
 
         try:
-            async with self._connection.transaction():
-                res, key_w, key_b = await self._connection.fetchrow(
+            async with self._connection_pool.acquire() as conn:
+                res, key_w, key_b = await conn.fetchrow(
                     """
                     SELECT * FROM join_game($1, $2);
                     """,
@@ -285,8 +279,8 @@ class DbManager:
         """
 
         try:
-            async with self._connection.transaction():
-                await self._connection.execute(
+            async with self._connection_pool.acquire() as conn:
+                await conn.execute(
                     """
                     CALL trigger_update_all($1);
                     """,
@@ -314,7 +308,7 @@ class DbManager:
             for update_type in _UpdateType:
                 channel = f"{update_type.name}_{player_key}"
                 partial_callback = listener_callback(update_type)
-                await self._connection.add_listener(channel, partial_callback)
+                await self._listener_connection.add_listener(channel, partial_callback)
                 self._listening_channels[player_key].append((channel, partial_callback))
 
         except Exception as e:
@@ -356,12 +350,13 @@ class DbManager:
         try:
             game_data: bytes
             time_played: float
-            game_data, time_played = await self._connection.fetchrow(
-                """
-                SELECT game_data, time_played FROM get_game_status($1);
-                """,
-                player_key,
-            )
+            with self._connection_pool.acquire() as conn:
+                game_data, time_played = await conn.fetchrow(
+                    """
+                    SELECT game_data, time_played FROM get_game_status($1);
+                    """,
+                    player_key,
+                )
             game: Game = pickle.loads(game_data)
 
         except Exception as e:
@@ -376,13 +371,14 @@ class DbManager:
         message_id = int(payload) if payload else None
 
         try:
-            rows: List[asyncpg.Record] = await self._connection.fetch(
-                """
-                SELECT * FROM get_chat_updates($1, $2);
-                """,
-                player_key,
-                message_id,
-            )
+            with self._connection_pool.acquire() as conn:
+                rows: List[asyncpg.Record] = await conn.fetch(
+                    """
+                    SELECT * FROM get_chat_updates($1, $2);
+                    """,
+                    player_key,
+                    message_id,
+                )
 
         except Exception as e:
             raise Exception(
@@ -401,12 +397,13 @@ class DbManager:
             connected = payload == "true"
         else:
             try:
-                connected: bool = await self._connection.fetchval(
-                    """
-                    SELECT * FROM get_opponent_connected($1);
-                    """,
-                    player_key,
-                )
+                with self._connection_pool.acquire() as conn:
+                    connected: bool = await conn.fetchval(
+                        """
+                        SELECT * FROM get_opponent_connected($1);
+                        """,
+                        player_key,
+                    )
 
             except Exception as e:
                 raise Exception(
@@ -427,9 +424,8 @@ class DbManager:
         log_text = f"game for player key {player_key} to version {version}"
 
         try:
-            async with self._connection.transaction():
-                time_played: Optional[float]
-                time_played = await self._connection.fetchval(
+            async with self._connection_pool.acquire() as conn:
+                time_played: Optional[float] = await conn.fetchval(
                     """
                     SELECT * FROM write_game($1, $2, $3);
                     """,
@@ -456,8 +452,8 @@ class DbManager:
         """
 
         try:
-            async with self._connection.transaction():
-                res = await self._connection.fetchval(
+            async with self._connection_pool.acquire() as conn:
+                res = await conn.fetchval(
                     """
                     SELECT * FROM write_chat($1, $2, $3);
                     """,
@@ -492,8 +488,8 @@ class DbManager:
         """
 
         try:
-            async with self._connection.transaction():
-                res = await self._connection.fetchval(
+            async with self._connection_pool.acquire() as conn:
+                res = await conn.fetchval(
                     """
                     SELECT * FROM unsubscribe($1, $2);
                     """,
@@ -502,7 +498,9 @@ class DbManager:
                 )
                 if res:
                     for channel, callback in self._listening_channels[player_key]:
-                        await self._connection.remove_listener(channel, callback)
+                        await self._listener_connection.remove_listener(
+                            channel, callback
+                        )
                     del self._listening_channels[player_key]
 
         except Exception as e:
