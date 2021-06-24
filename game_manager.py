@@ -92,13 +92,8 @@ class GameStore:
         Create and write out a new game and then respond appropriately
         """
 
-        db_actions = []
-
         client = msg.websocket_handler
-        if client in self._clients:
-            old_key = self._clients[client].key
-            logging.info(f"Client requesting new game already subscribed to {old_key}")
-            db_actions.append(self.unsubscribe(client))
+        old_key = self._clients[client].key if client in self._clients else None
 
         game = Game(msg.data[SIZE], msg.data[KOMI])
         time_played = 0.0
@@ -106,10 +101,12 @@ class GameStore:
         opponent_connected = False
         requested_color = Color[msg.data[COLOR]]
 
-        db_actions.append(self._db_manager.write_new_game(game, requested_color))
-        keys: Dict[Color, str] = (
-            await self._db_manager.perform_transactionally(*db_actions)
-        )[-1]
+        keys: Dict[Color, str] = await self._db_manager.write_new_game(
+            game, requested_color, old_key
+        )
+        if old_key:
+            logging.info(f"Client requesting new game already subscribed to {old_key}")
+            await self.unsubscribe(client, True)
 
         client_key = keys[requested_color]
         self._clients[client] = ClientData(
@@ -239,23 +236,10 @@ class GameStore:
             )
         else:
 
-            async def db_action() -> Tuple[JoinResult, Optional[Dict[Color, str]]]:
-                res: JoinResult
-                keys: Optional[Dict[Color, str]]
-                res, keys = await self._db_manager.join_game(key)
-                if res is JoinResult.success and client in self._clients:
-                    old_key = self._clients[client].key
-                    logging.info(
-                        f"Client requesting join game already subscribed to {old_key}"
-                    )
-                    await self.unsubscribe(client)
-                return res, keys
-
+            old_key = self._clients[client].key if client in self._clients else None
             res: JoinResult
             keys: Optional[Dict[Color, str]]
-            res, keys = (await self._db_manager.perform_transactionally(db_action()))[
-                -1
-            ]
+            res, keys = await self._db_manager.join_game(key, old_key)
 
             if res is JoinResult.dne:
                 await send_outgoing_message(
@@ -279,6 +263,12 @@ class GameStore:
                     client,
                 )
             elif res is JoinResult.success:
+                if old_key:
+                    logging.info(
+                        f"Client requesting join game already subscribed to {old_key}"
+                    )
+                    await self.unsubscribe(client, True)
+
                 color = Color.white if keys[Color.white] == key else Color.black
                 self._clients[client] = ClientData(key, color)
                 self._keys[key] = client
@@ -357,10 +347,18 @@ class GameStore:
         else:
             raise TypeError(f"Cannot handle messages of type {msg.message_type}")
 
-    async def unsubscribe(self, socket: WebSocketHandler) -> None:
+    async def unsubscribe(
+        self, socket: WebSocketHandler, listeners_only: bool = False
+    ) -> None:
+        """
+        Unsubscribe the client identified by socket from their key, if any.
+        `listeners_only` is passed to `DbManager.unsubscribe`. See its
+        documentation for details
+        """
+
         if socket in self._clients:
             key = self._clients[socket].key
-            await self._db_manager.unsubscribe(key)
+            await self._db_manager.unsubscribe(key, listeners_only)
             del self._clients[socket]
             del self._keys[key]
             logging.info(f"Unsubscribed client from key {key}")
