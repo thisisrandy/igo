@@ -354,6 +354,25 @@ class GameManagerIntegrationTestCase(unittest.IsolatedAsyncioTestCase):
         # first when testing on a single machine. preemption is only actually
         # going to happen as a result of high database load or network delays
 
+        # send a chat message
+        await self.gm.route_message(
+            IncomingMessage(
+                json.dumps(
+                    {
+                        TYPE: IncomingMessageType.chat_message.name,
+                        KEY: keys[Color.black],
+                        MESSAGE: "hi bob",
+                    }
+                ),
+                p2,
+            )
+        )
+        await asyncio.sleep(0.1)
+        msg_type, _, _ = send_outgoing_message_mock.await_args_list[-2].args
+        self.assertIs(msg_type, OutgoingMessageType.chat)
+        msg_type, _, _ = send_outgoing_message_mock.await_args_list[-1].args
+        self.assertIs(msg_type, OutgoingMessageType.chat)
+
         # finally, check that the sanity assertions fire
         with self.assertRaisesRegex(AssertionError, "unknown key"):
             await self.gm.route_message(
