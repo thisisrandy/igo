@@ -157,7 +157,8 @@ class GameManagerIntegrationTestCase(unittest.IsolatedAsyncioTestCase):
         return player, self.gm.store._clients[player]
 
     async def asyncTearDown(self) -> None:
-        await self.gm.store._db_manager._connection.close()
+        await self.gm.store._db_manager._listener_connection.close()
+        await self.gm.store._db_manager._connection_pool.close()
 
     @patch("game_manager.send_outgoing_message")
     async def test_new_game(self, send_outgoing_message_mock: AsyncMock) -> None:
@@ -250,22 +251,31 @@ class GameManagerIntegrationTestCase(unittest.IsolatedAsyncioTestCase):
         )
         # see note in test_db_manager about timing-dependent tests
         await asyncio.sleep(0.1)
-        # receive join response first
-        response: JoinGameResponseContainer = (
+        # when we join using the second player key, triggering a notification on
+        # its opponent connected channel, we are still subscribed to the old
+        # key's channel. ideally, join/unsub/unlisten would all be
+        # transactional, but the design of the db_manager is such that there is
+        # a dedicated pub/sub connection alongside a pool that's used for
+        # everything else, so we can't make the whole sequence of operations
+        # transactional without a complicated two stage ("distributed") commit.
+        # as this is the only known consequence of not bundling in the
+        # unlistens, and as it is practically inconsequential, it seems
+        # reasonable to just let it slip through. we test for it here to record
+        # and explain the behavior
+        self_subbed: OpponentConnectedContainer = (
             send_outgoing_message_mock.await_args_list[-5].args[1]
+        )
+        self.assertIsInstance(self_subbed, OpponentConnectedContainer)
+        self.assertTrue(self_subbed.opponent_connected)
+        # now starts the proper sequence. we receive the join response first
+        response: JoinGameResponseContainer = (
+            send_outgoing_message_mock.await_args_list[-4].args[1]
         )
         self.assertIsInstance(response, JoinGameResponseContainer)
         self.assertTrue(response.success)
         self.assertTrue(
             f"joined the game as {Color.black.name}" in response.explanation
         )
-        # unsub to old key triggers opponent not connected on the new key
-        # channel. a bit quirky, but practically inconsequential
-        self_unsubbed: OpponentConnectedContainer = (
-            send_outgoing_message_mock.await_args_list[-4].args[1]
-        )
-        self.assertIsInstance(self_unsubbed, OpponentConnectedContainer)
-        self.assertFalse(self_unsubbed.opponent_connected)
         # now trigger update all hits us with game status, chat, and opponent
         # connected from the database in sequence
         trigger_game_status: GameStatusContainer = (

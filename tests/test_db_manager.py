@@ -21,7 +21,12 @@ class DbManagerTestCase(unittest.IsolatedAsyncioTestCase):
     that timing-dependent tests are really fragile. if the test server is super
     busy, for example, maybe this isn't actually enough sleep time and the test
     intermittently fails. if a better solution presents itself, it should
-    definitely be used
+    definitely be used.
+
+    NOTE 2: for convenience, wherever we directly issue db queries in this
+    suite, we use DbManager._listener_connection. In production, that connection
+    is relegated to pub/sub only, and all other work is done using a connection
+    pool
     """
 
     @classmethod
@@ -45,14 +50,15 @@ class DbManagerTestCase(unittest.IsolatedAsyncioTestCase):
         )
 
     async def asyncTearDown(self) -> None:
-        await self.manager._connection.close()
+        await self.manager._listener_connection.close()
+        await self.manager._connection_pool.close()
 
     async def test_startup_cleans_orphaned_rows(self):
         manager = self.manager
         keys: Dict[Color, str] = await manager.write_new_game(Game(), Color.white)
         self.assertEqual(
             keys[Color.white],
-            await manager._connection.fetchval(
+            await manager._listener_connection.fetchval(
                 """
             SELECT key
             FROM player_key
@@ -65,7 +71,7 @@ class DbManagerTestCase(unittest.IsolatedAsyncioTestCase):
             players_connected,
             time_played,
             write_load_timestamp,
-        ) = await manager._connection.fetchrow(
+        ) = await manager._listener_connection.fetchrow(
             """
             SELECT players_connected, time_played, write_load_timestamp
             FROM game
@@ -93,7 +99,7 @@ class DbManagerTestCase(unittest.IsolatedAsyncioTestCase):
         # null being the expected type, fetchval conflates "returned a row with
         # a null value" and "didn't return any rows." we only want to succeed on
         # the former, so we fetch a full row and then get the value from it
-        row = await manager._connection.fetchrow(
+        row = await manager._listener_connection.fetchrow(
             """
             SELECT managed_by
             FROM player_key
@@ -106,7 +112,7 @@ class DbManagerTestCase(unittest.IsolatedAsyncioTestCase):
             players_connected,
             _,
             write_load_timestamp,
-        ) = await manager._connection.fetchrow(
+        ) = await manager._listener_connection.fetchrow(
             """
             SELECT players_connected, time_played, write_load_timestamp
             FROM game
@@ -121,14 +127,14 @@ class DbManagerTestCase(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(players_connected, 0)
         self.assertIsNone(write_load_timestamp)
 
-        await manager._connection.close()
+        await manager._listener_connection.close()
 
     async def test_write_new_game(self):
         manager = self.manager
         game = Game()
         keys: Dict[Color, str] = await manager.write_new_game(game, Color.white)
 
-        row = await manager._connection.fetchrow(
+        row = await manager._listener_connection.fetchrow(
             """
             SELECT key, game_id, color, opponent_key
             FROM player_key
@@ -141,7 +147,7 @@ class DbManagerTestCase(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(Color.white.name, row.get("color"))
         self.assertEqual(keys[Color.black], row.get("opponent_key"))
 
-        row = await manager._connection.fetchrow(
+        row = await manager._listener_connection.fetchrow(
             """
             SELECT key, game_id, color, managed_by
             FROM player_key
@@ -154,7 +160,11 @@ class DbManagerTestCase(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(Color.black.name, row.get("color"))
         self.assertIsNone(row.get("managed_by"))
 
-        (game_data, time_played, version,) = await manager._connection.fetchrow(
+        (
+            game_data,
+            time_played,
+            version,
+        ) = await manager._listener_connection.fetchrow(
             """
             SELECT *
             FROM get_game_status($1);
