@@ -2,6 +2,7 @@ import asyncio
 from chat import ChatThread
 from typing import Dict, Tuple
 from containers import (
+    ActionResponseContainer,
     GameStatusContainer,
     JoinGameResponseContainer,
     NewGameResponseContainer,
@@ -273,3 +274,128 @@ class GameManagerIntegrationTestCase(unittest.IsolatedAsyncioTestCase):
         )
         self.assertIsInstance(trigger_opp_connd, OpponentConnectedContainer)
         self.assertFalse(trigger_opp_connd.opponent_connected)
+
+    @patch("game_manager.send_outgoing_message")
+    async def test_route_game_actions(
+        self, send_outgoing_message_mock: AsyncMock
+    ) -> None:
+        p1: WebSocketHandler
+        p1, _ = await self.createNewGame()
+        new_game_response: NewGameResponseContainer = (
+            send_outgoing_message_mock.await_args_list[0].args[1]
+        )
+        self.assertIsInstance(new_game_response, NewGameResponseContainer)
+        keys: Dict[Color, str] = new_game_response.keys
+        p2 = WebSocketHandler()
+        await self.gm.route_message(
+            IncomingMessage(
+                json.dumps(
+                    {TYPE: IncomingMessageType.join_game.name, KEY: keys[Color.black]}
+                ),
+                p2,
+            )
+        )
+        # see note in test_db_manager about timing-dependent tests. we're sleeping now
+        # to let all of the new/join game messages get processed
+        await asyncio.sleep(0.1)
+
+        # black goes first, so an initial move by white should fail
+        await self.gm.route_message(
+            IncomingMessage(
+                json.dumps(
+                    {
+                        TYPE: IncomingMessageType.game_action.name,
+                        KEY: keys[Color.white],
+                        ACTION_TYPE: ActionType.place_stone.name,
+                        COORDS: [0, 0],
+                    }
+                ),
+                p1,
+            )
+        )
+        await asyncio.sleep(0.1)
+        msg_type: OutgoingMessageType
+        response: ActionResponseContainer
+        msg_type, response, _ = send_outgoing_message_mock.await_args_list[-1].args
+        self.assertIsInstance(msg_type, OutgoingMessageType)
+        self.assertIs(msg_type, OutgoingMessageType.game_action_response)
+        self.assertIsInstance(response, ActionResponseContainer)
+        self.assertFalse(response.success)
+        self.assertTrue("isn't white's turn" in response.explanation)
+
+        # initial move by black should succeed
+        await self.gm.route_message(
+            IncomingMessage(
+                json.dumps(
+                    {
+                        TYPE: IncomingMessageType.game_action.name,
+                        KEY: keys[Color.black],
+                        ACTION_TYPE: ActionType.place_stone.name,
+                        COORDS: [0, 0],
+                    }
+                ),
+                p2,
+            )
+        )
+        await asyncio.sleep(0.1)
+        # game status should be sent to both players after the action response, so
+        # check the last three messages
+        msg_type, response, _ = send_outgoing_message_mock.await_args_list[-3].args
+        self.assertIs(msg_type, OutgoingMessageType.game_action_response)
+        self.assertTrue(response.success)
+        msg_type, _, _ = send_outgoing_message_mock.await_args_list[-2].args
+        self.assertIs(msg_type, OutgoingMessageType.game_status)
+        msg_type, _, _ = send_outgoing_message_mock.await_args_list[-1].args
+        self.assertIs(msg_type, OutgoingMessageType.game_status)
+
+        # NOTE: it doesn't seem to be possible to test action preemption without
+        # artificially preventing the player being preempted from receiving an
+        # update issued by the preempting action. the updates always go out
+        # first when testing on a single machine. preemption is only actually
+        # going to happen as a result of high database load or network delays
+
+        # finally, check that the sanity assertions fire
+        with self.assertRaisesRegex(AssertionError, "unknown key"):
+            await self.gm.route_message(
+                IncomingMessage(
+                    json.dumps(
+                        {
+                            TYPE: IncomingMessageType.game_action.name,
+                            KEY: "0000000000",
+                            ACTION_TYPE: ActionType.place_stone.name,
+                            COORDS: [0, 0],
+                        }
+                    ),
+                    p1,
+                )
+            )
+        with self.assertRaisesRegex(
+            AssertionError, "client who isn't subscribed to anything"
+        ):
+            await self.gm.route_message(
+                IncomingMessage(
+                    json.dumps(
+                        {
+                            TYPE: IncomingMessageType.game_action.name,
+                            KEY: keys[Color.black],
+                            ACTION_TYPE: ActionType.place_stone.name,
+                            COORDS: [0, 0],
+                        }
+                    ),
+                    WebSocketHandler(),
+                )
+            )
+        with self.assertRaisesRegex(AssertionError, "isn't subscribed to that key"):
+            await self.gm.route_message(
+                IncomingMessage(
+                    json.dumps(
+                        {
+                            TYPE: IncomingMessageType.game_action.name,
+                            KEY: keys[Color.black],
+                            ACTION_TYPE: ActionType.place_stone.name,
+                            COORDS: [0, 0],
+                        }
+                    ),
+                    p1,
+                )
+            )
