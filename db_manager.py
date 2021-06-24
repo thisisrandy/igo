@@ -486,29 +486,39 @@ class DbManager:
                 )
             return res
 
-    async def unsubscribe(self, player_key: str) -> bool:
+    async def unsubscribe(self, player_key: str, listeners_only: bool = False) -> bool:
         """
         Attempt to unsubscribe from channels associated with `player_key` and
         modify the row in the `player_key` table appropriately. Return True on
         success, False if the database shows that this server is not managing
-        `player_key`, and raise an Exception otherwise
+        `player_key`, and raise an Exception otherwise.
+
+        If `listeners_only` is True, assume that `player_key` has already been
+        unsubscribed by some other action, e.g. new or join game with
+        `key_to_unsubscribe` specified, and only remove any listeners on
+        channels associated with `player_key`
         """
 
         try:
             async with self._connection_pool.acquire() as conn:
-                res = await conn.fetchval(
-                    """
-                    SELECT * FROM unsubscribe($1, $2);
-                    """,
-                    player_key,
-                    self._machine_id,
+                res = (
+                    await conn.fetchval(
+                        """
+                        SELECT * FROM unsubscribe($1, $2);
+                        """,
+                        player_key,
+                        self._machine_id,
+                    )
+                    if not listeners_only
+                    else True
                 )
-                if res:
-                    for channel, callback in self._listening_channels[player_key]:
-                        await self._listener_connection.remove_listener(
-                            channel, callback
-                        )
-                    del self._listening_channels[player_key]
+
+                # even if the db somehow doesn't reflect that we were managing
+                # player_key, i.e. res is False, we should still unsub from any
+                # channels associated with it
+                for channel, callback in self._listening_channels[player_key]:
+                    await self._listener_connection.remove_listener(channel, callback)
+                del self._listening_channels[player_key]
 
         except Exception as e:
             raise Exception(
