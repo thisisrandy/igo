@@ -98,7 +98,7 @@ class DbManager:
         game_status_callback: Callable[[str, Game], Coroutine],
         chat_callback: Callable[[str, ChatThread], Coroutine],
         opponent_connected_callback: Callable[[str, bool], Coroutine],
-        dsn: str = "postgres://randy@localhost/randy",
+        dsn: str = "postgres://postgres@localhost/test",
         do_setup: bool = False,
     ) -> None:
         """
