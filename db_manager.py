@@ -22,6 +22,7 @@ from hashlib import sha256
 import asyncio
 import pickle
 import logging
+import aiofiles
 
 # TODO: handle database restarts.
 # https://github.com/MagicStack/asyncpg/issues/421 seems to indicate that
@@ -154,8 +155,8 @@ class DbManager:
 
         # machine-id is a reboot persistent unique identifier that should not be
         # shared externally. the following mimics sd_id128_get_machine_app_specific()
-        with open("/etc/machine-id", "rb") as r:
-            self._machine_id = sha256(r.readline().strip()).hexdigest()
+        async with aiofiles.open("/etc/machine-id", "rb") as r:
+            self._machine_id = sha256((await r.readline()).strip()).hexdigest()
 
         if do_setup:
             try:
@@ -163,8 +164,8 @@ class DbManager:
                 # sufficient to list the directory and execute each file
                 async with self._connection_pool.acquire() as conn:
                     for fn in ("tables", "indices", "views", "procedures", "functions"):
-                        with open(f"./sql/{fn}.sql", "r") as r:
-                            sql = r.read()
+                        async with aiofiles.open(f"./sql/{fn}.sql", "r") as r:
+                            sql = await r.read()
                         await conn.execute(sql)
 
             except Exception as e:
