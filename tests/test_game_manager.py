@@ -1,6 +1,6 @@
 import asyncio
 from chat import ChatThread
-from typing import Dict, Tuple
+from typing import Dict, Optional, Tuple
 from containers import (
     ActionResponseContainer,
     GameStatusContainer,
@@ -131,13 +131,16 @@ class GameManagerIntegrationTestCase(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.gm: GameManager = await GameManager(self.__class__.postgresql.url(), True)
 
-    async def createNewGame(self) -> Tuple[WebSocketHandler, ClientData]:
+    async def createNewGame(
+        self, player: Optional[WebSocketHandler] = None
+    ) -> Tuple[WebSocketHandler, ClientData]:
         """
-        Create new game and join as white. Return client handler and internal
-        data from the store
+        Create new game and join as white. Optionally provider the client
+        handler and return the client handler and internal data from the store
         """
 
-        player = WebSocketHandler()
+        if player is None:
+            player = WebSocketHandler()
         msg = IncomingMessage(
             json.dumps(
                 {
@@ -170,6 +173,12 @@ class GameManagerIntegrationTestCase(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(await_args[0], OutgoingMessageType.game_status)
         self.assertIsInstance(await_args[1], GameStatusContainer)
         self.assertEqual(await_args[2], player)
+        # create another new game while still subscribed to the old one. there's
+        # no signal that gets sent back out for us to test, and it isn't
+        # appropriate to dig into the internal state of the store/db too much in
+        # an integration test, but we can at least exercise the code to make
+        # sure it isn't doing something that raises an exception
+        await self.createNewGame(player)
 
     @patch("game_manager.send_outgoing_message")
     async def test_join_game(self, send_outgoing_message_mock: AsyncMock) -> None:
