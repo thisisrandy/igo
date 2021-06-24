@@ -201,7 +201,7 @@ class DbManager:
     async def write_new_game(
         self,
         game: Game,
-        player_color: Color = None,
+        player_color: Optional[Color] = None,
     ) -> Dict[Color, str]:
         """
         Attempt to write `game` to the database as a new game. Return a
