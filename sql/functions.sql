@@ -1,6 +1,8 @@
 CREATE OR REPLACE FUNCTION join_game(
   key_to_join char(10),
-  manager_id char(64)
+  manager_id char(64),
+  -- optionally unsubscribe on success
+  key_to_unsubscribe char(10) DEFAULT null
 )
   RETURNS TABLE (
     result text,
@@ -27,6 +29,13 @@ BEGIN
   elsif other_connected then
     RETURN QUERY SELECT 'in_use', null::char(10), null::char(10);
   else
+    if key_to_unsubscribe is not null then
+      if not (SELECT * FROM unsubscribe(key_to_unsubscribe, manager_id)) then
+        raise 'Prior to join, failed to unsubscribe from % managed by %',
+          key_to_unsubscribe, manager_id;
+      end if;
+    end if;
+
     UPDATE player_key
     SET managed_by = manager_id
     WHERE key = key_to_join;

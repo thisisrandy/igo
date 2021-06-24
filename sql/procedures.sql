@@ -33,7 +33,9 @@ CREATE OR REPLACE PROCEDURE new_game(
   key_b char(10),
   -- provide these args to join a player to the game
   player_color char(5) DEFAULT null,
-  manager_id char(64) DEFAULT null
+  manager_id char(64) DEFAULT null,
+  -- optionally unsubscribe before creating new game
+  key_to_unsubscribe char(10) DEFAULT null
 )
   LANGUAGE plpgsql
 AS
@@ -41,6 +43,13 @@ $$
 DECLARE
   new_id game.id%TYPE;
 BEGIN
+  if key_to_unsubscribe is not null then
+    if not (SELECT * FROM unsubscribe(key_to_unsubscribe, manager_id)) then
+      raise 'Prior to create new game, failed to unsubscribe from % managed by %',
+        key_to_unsubscribe, manager_id;
+    end if;
+  end if;
+
   INSERT INTO game (data, players_connected, write_load_timestamp)
   VALUES (
     game_data
