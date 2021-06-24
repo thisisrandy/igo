@@ -357,7 +357,7 @@ class DbManager:
         try:
             game_data: bytes
             time_played: float
-            with self._connection_pool.acquire() as conn:
+            async with self._connection_pool.acquire() as conn:
                 game_data, time_played = await conn.fetchrow(
                     """
                     SELECT game_data, time_played FROM get_game_status($1);
@@ -378,7 +378,7 @@ class DbManager:
         message_id = int(payload) if payload else None
 
         try:
-            with self._connection_pool.acquire() as conn:
+            async with self._connection_pool.acquire() as conn:
                 rows: List[asyncpg.Record] = await conn.fetch(
                     """
                     SELECT * FROM get_chat_updates($1, $2);
@@ -404,7 +404,7 @@ class DbManager:
             connected = payload == "true"
         else:
             try:
-                with self._connection_pool.acquire() as conn:
+                async with self._connection_pool.acquire() as conn:
                     connected: bool = await conn.fetchval(
                         """
                         SELECT * FROM get_opponent_connected($1);
