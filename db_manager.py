@@ -280,6 +280,10 @@ class DbManager:
             return res, keys
 
     async def trigger_update_all(self, player_key: str) -> None:
+        """
+        Trigger a notification on all channels associated with `player_key`
+        """
+
         try:
             async with self._connection.transaction():
                 await self._connection.execute(
