@@ -5,6 +5,7 @@ from constants import KEY_LEN
 from game import Color, Game
 from chat import ChatMessage, ChatThread
 from typing import (
+    Any,
     Callable,
     Coroutine,
     DefaultDict,
@@ -12,6 +13,7 @@ from typing import (
     List,
     Tuple,
     Optional,
+    Union,
 )
 from asyncinit import asyncinit
 import asyncpg
@@ -514,7 +516,9 @@ class DbManager:
                 )
             return res
 
-    async def perform_transactionally(self, *actions: Coroutine) -> List:
+    async def perform_transactionally(
+        self, *actions: Union[Callable[[], Any], Coroutine]
+    ) -> List:
         """
         While all write operations, including notifications, are transactional
         in this module, it is sometimes desirable to perform more than one
@@ -523,10 +527,11 @@ class DbManager:
         subscription if something goes wrong when creating the new game.
 
         This function exposes the ability to execute an arbitrary number of
-        coroutines inside of a transaction and roll them all back if any raise
-        exceptions. Note that "roll them all back" only applies to database
-        operations. Any python state changed during the course of the
-        transaction will of course remain changed after the rollback.
+        actions, which can be (sync or async) callables or coroutines, inside of
+        a transaction and roll them all back if any raise exceptions. Note that
+        "roll them all back" only applies to database operations. Any python
+        state changed during the course of the transaction will of course remain
+        changed after the rollback.
 
         If all actions are performed successfully, the transaction is committed
         and a list of return values from the actions is returned
@@ -538,15 +543,27 @@ class DbManager:
         # TODO: once we switch to using a pool(s), we're going to have to ensure
         # that all actions use the same connection, probably by acquiring it
         # here and then passing through to actions
-        async with self._connection.transaction():
-            try:
-                for action in actions:
-                    res.append(await action)
+        async with self._connection_pool.acquire() as conn:
+            async with conn.transaction():
+                try:
+                    for action in actions:
+                        if isinstance(action, Coroutine):
+                            res.append(await action)
+                        elif isinstance(action, Callable):
+                            r = action()
+                            if isinstance(r, Coroutine):
+                                r = await r
+                            res.append(r)
+                        else:
+                            raise TypeError(
+                                "Actions must be of type Coroutine or Callable, not"
+                                f" {action.__class__}"
+                            )
 
-            except Exception as e:
-                raise Exception(
-                    "Failed to perform one of the supplied actions. The transaction"
-                    " will now be rolled back"
-                ) from e
+                except Exception as e:
+                    raise Exception(
+                        "Failed to perform one of the supplied actions. The transaction"
+                        " will now be rolled back"
+                    ) from e
 
         return res
