@@ -202,12 +202,14 @@ class DbManager:
         self,
         game: Game,
         player_color: Optional[Color] = None,
+        key_to_unsubscribe: Optional[str] = None,
     ) -> Dict[Color, str]:
         """
         Attempt to write `game` to the database as a new game. Return a
         dictionary of Color: key pairs on success or raise an Exception
         otherwise. Optionally specify `player_color` to start managing that
-        color
+        color, and optionally specify `key_to_unsubscribe` to transactionally
+        unsubscribe from another key
         """
 
         key_w, key_b = [alphanum_uuid() for _ in range(2)]
@@ -217,13 +219,14 @@ class DbManager:
             async with self._connection_pool.acquire() as conn:
                 await conn.execute(
                     """
-                    CALL new_game($1, $2, $3, $4, $5);
+                    CALL new_game($1, $2, $3, $4, $5, $6);
                     """,
                     pickle.dumps(game),
                     key_w,
                     key_b,
                     player_color.name if player_color else None,
                     self._machine_id,
+                    key_to_unsubscribe,
                 )
                 if player_color:
                     await self._subscribe_to_updates(keys[player_color])
@@ -236,26 +239,30 @@ class DbManager:
             return keys
 
     async def join_game(
-        self, player_key: str
+        self,
+        player_key: str,
+        key_to_unsubscribe: Optional[str] = None,
     ) -> Tuple[JoinResult, Optional[Dict[Color, str]]]:
         """
         Attempt to join a game using `player_key` and return the result of the
         operation or raise an Exception otherwise. If the result is
         `JoinResult.success`, also return a dictionary of { Color: player key,
-        ... } for the joined game. Note that a successful call to this method
-        should always be followed by `trigger_update_all`. They are separated in
-        order to allow the caller to set up any necessary state to allow update
-        callbacks to succeed
+        ... } for the joined game. Optionally specify `key_to_unsubscribe` to
+        transactionally unsubscribe from another key. Note that a successful
+        call to this method should always be followed by `trigger_update_all`.
+        They are separated in order to allow the caller to set up any necessary
+        state to allow update callbacks to succeed
         """
 
         try:
             async with self._connection_pool.acquire() as conn:
                 res, key_w, key_b = await conn.fetchrow(
                     """
-                    SELECT * FROM join_game($1, $2);
+                    SELECT * FROM join_game($1, $2, $3);
                     """,
                     player_key,
                     self._machine_id,
+                    key_to_unsubscribe,
                 )
                 res = JoinResult[res]
                 if res is JoinResult.success:
