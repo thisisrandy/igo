@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 from chat import ChatMessage, ChatThread
 import pickle
@@ -280,3 +281,26 @@ class DbManagerTestCase(unittest.IsolatedAsyncioTestCase):
         self.opponent_connected_callback.assert_awaited_once_with(
             keys[Color.white], False
         )
+
+    @patch.object(DbManager, "trigger_update_all")
+    async def test_db_reconnect(self, trigger_update_all_mock: AsyncMock):
+        manager = self.manager
+        keys: Dict[Color, str] = await manager.write_new_game(Game(), Color.white)
+        # losing the db connection logs a bunch of errors, which just clutters
+        # the test output. note that 50 is CRITICAL per
+        # https://docs.python.org/3/howto/logging.html#logging-levels, so this
+        # disables all logging
+        logging.disable(50)
+        # terminate, *not* stop, which also cleans up the tmp file that
+        # testing.postgresql uses, rendering it unable to be restarted
+        self.__class__.postgresql.terminate()
+        # it might seem like asserting that the connection is closed here would
+        # be a good idea, but since it gets released back to the pool, this
+        # isn't possible in a straightforward way. that a connection closes when
+        # the server terminates isn't testing any of our project code anyways,
+        # so the assertions below are sufficient
+        self.__class__.postgresql.start()
+        # see note on the suite class about timing-dependent tests
+        await asyncio.sleep(0.1)
+        self.assertFalse(manager._listener_connection.is_closed())
+        trigger_update_all_mock.assert_awaited_once_with(keys[Color.white])
