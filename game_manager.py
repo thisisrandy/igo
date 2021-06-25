@@ -139,12 +139,15 @@ class GameStore:
             client,
         )
 
-        # NOTE: it is the client's responsibility to reset chat and opponent
-        # connected state when a successful new/join game response is received.
-        # as such, we do not send either here
         await send_outgoing_message(
             OutgoingMessageType.game_status,
             GameStatusContainer(game, time_played),
+            client,
+        )
+        await send_outgoing_message(OutgoingMessageType.chat, chat_thread, client)
+        await send_outgoing_message(
+            OutgoingMessageType.opponent_connected,
+            OpponentConnectedContainer(opponent_connected),
             client,
         )
 
