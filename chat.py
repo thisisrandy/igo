@@ -74,7 +74,7 @@ class ChatThread(JsonifyableBase):
         }
 
     def __repr__(self) -> str:
-        return repr(self.thread)
+        return f"ChatThread(thread={self.thread}, is_complete={self.is_complete})"
 
     def __len__(self) -> int:
         return len(self.thread)
