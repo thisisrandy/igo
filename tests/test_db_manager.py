@@ -277,7 +277,9 @@ class DbManagerTestCase(unittest.IsolatedAsyncioTestCase):
         # see note on the suite class about timing-dependent tests
         await asyncio.sleep(0.1)
         self.game_status_callback.assert_awaited_once_with(keys[Color.white], game, 0.0)
-        self.chat_callback.assert_awaited_once_with(keys[Color.white], ChatThread())
+        self.chat_callback.assert_awaited_once_with(
+            keys[Color.white], ChatThread(is_complete=True)
+        )
         self.opponent_connected_callback.assert_awaited_once_with(
             keys[Color.white], False
         )

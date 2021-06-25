@@ -59,7 +59,7 @@ class ClientData:
     opponent_connected: Optional[bool] = None
 
     def __post_init__(self) -> None:
-        self.chat_thread = ChatThread()
+        self.chat_thread = ChatThread(is_complete=True)
 
 
 @asyncinit
@@ -97,7 +97,7 @@ class GameStore:
 
         game = Game(msg.data[SIZE], msg.data[KOMI])
         time_played = 0.0
-        chat_thread = ChatThread()
+        chat_thread = ChatThread(is_complete=True)
         opponent_connected = False
         requested_color = Color[msg.data[COLOR]]
 

@@ -163,7 +163,7 @@ class GameManagerIntegrationTestCase(unittest.IsolatedAsyncioTestCase):
     @patch("game_manager.send_outgoing_message")
     async def test_new_game(self, send_outgoing_message_mock: AsyncMock) -> None:
         player, _ = await self.createNewGame()
-        self.assertEqual(send_outgoing_message_mock.await_count, 2)
+        self.assertEqual(send_outgoing_message_mock.await_count, 4)
         # response message
         await_args = send_outgoing_message_mock.await_args_list[0].args
         self.assertEqual(await_args[0], OutgoingMessageType.new_game_response)
