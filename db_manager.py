@@ -13,7 +13,6 @@ from typing import (
     List,
     Tuple,
     Optional,
-    Union,
 )
 from asyncinit import asyncinit
 import asyncpg
