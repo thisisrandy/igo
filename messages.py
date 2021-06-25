@@ -140,8 +140,6 @@ async def send_outgoing_message(
         logging.info(f"Sent a message of type {message_type}")
         logging.debug(f"Message data: {msg}")
         return True
-    except Exception as e:
-        logging.warning(
-            f"Failed send a message of type {message_type} with exception {e}"
-        )
+    except:
+        logging.exception(f"Failed send a message of type {message_type}")
         return False
