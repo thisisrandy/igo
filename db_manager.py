@@ -236,10 +236,6 @@ class DbManager:
             " updates to clients"
         )
 
-        # FIXME: there is a bug here with chat, because we resend the entire
-        # thread without informing the client that it isn't just another
-        # incremental update. need to attach a complete_thread or some such
-        # attribute to the outgoing message
         for player_key, channels in self._listening_channels.items():
             for channel, callback in channels:
                 await self._listener_connection.add_listener(channel, callback)
@@ -442,6 +438,7 @@ class DbManager:
 
         else:
             thread = ChatThread()
+            thread.is_complete = message_id is None
             for id, timestamp, color, message in rows:
                 thread.append(ChatMessage(timestamp, Color[color], message, id))
             await self._chat_callback(player_key, thread)

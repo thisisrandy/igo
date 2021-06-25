@@ -31,12 +31,14 @@ class ChatThreadTestCase(unittest.TestCase):
             [
                 ChatMessage(unif(), choice([c for c in Color]), str(unif()), i)
                 for i in range(1, 11)
-            ]
+            ],
+            True,
         )
 
     def test_jsonifyable(self):
         self.assertEqual(
-            self.thread.jsonifyable(), [msg.jsonifyable() for msg in self.thread]
+            self.thread.jsonifyable(),
+            {"thread": [msg.jsonifyable() for msg in self.thread], "isComplete": True},
         )
 
     def test_get_after(self):
@@ -44,6 +46,8 @@ class ChatThreadTestCase(unittest.TestCase):
         self.assertEqual(len(self.thread.get_after(0)), 10)
         self.assertEqual(len(self.thread.get_after(5)), 5)
         self.assertEqual(len(self.thread.get_after(10)), 0)
+        self.assertTrue(self.thread.get_after(0).is_complete)
+        self.assertFalse(self.thread.get_after(1).is_complete)
 
     def test_append(self):
         t = deepcopy(self.thread)

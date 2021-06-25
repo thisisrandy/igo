@@ -55,16 +55,23 @@ class ChatThread(JsonifyableBase):
     Attributes:
 
         thread: List[ChatMessage] = [] - the complete thread of messages
+
+        is_complete: bool = False - True if this represents a complete thread,
+        i.e. contains every message from the first onward, or False otherwise
     """
 
     thread: List[ChatMessage] = None
+    is_complete: bool = False
 
     def __post_init__(self):
         if self.thread is None:
             self.thread = []
 
     def jsonifyable(self) -> List[Dict]:
-        return [msg.jsonifyable() for msg in self.thread]
+        return {
+            "thread": [msg.jsonifyable() for msg in self.thread],
+            "isComplete": self.is_complete,
+        }
 
     def __repr__(self) -> str:
         return repr(self.thread)
@@ -84,8 +91,9 @@ class ChatThread(JsonifyableBase):
         the current object
         """
 
+        after = self.thread[bisect_right([msg.id for msg in self.thread], after_id) :]
         return ChatThread(
-            self.thread[bisect_right([msg.id for msg in self.thread], after_id) :]
+            after, self.is_complete if len(after) == len(self.thread) else False
         )
 
     def append(self, *messages: ChatMessage) -> None:
