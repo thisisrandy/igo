@@ -24,12 +24,6 @@ import pickle
 import logging
 import aiofiles
 
-# TODO: handle database restarts.
-# https://github.com/MagicStack/asyncpg/issues/421 seems to indicate that
-# listeners aren't automatically reconnected. note that once a listener is
-# resubscribed, a notify should immediately be sent to its channel in case
-# anything was missed whilst it floundered
-
 
 class JoinResult(Enum):
     """
@@ -141,10 +135,8 @@ class DbManager:
         self._chat_callback = chat_callback
         self._opponent_connected_callback = opponent_connected_callback
 
-        self._listener_connection: asyncpg.connection.Connection = (
-            await asyncpg.connect(dsn)
-        )
         self._connection_pool: asyncpg.pool.Pool = await asyncpg.create_pool(dsn)
+        self._listener_connection: asyncpg.Connection = await self._get_listener()
 
         # { player_key: [(channel, callback), ...], ...}
         # populate whenever adding listeners and lookup/delete record when
@@ -198,6 +190,60 @@ class DbManager:
         # set up the notifications queue and consumer
         self._update_queue = asyncio.Queue()
         asyncio.create_task(self._update_consumer())
+
+    async def _get_listener(self) -> asyncpg.Connection:
+        """
+        Acquire a dedicated pub/sub connection from the pool. It should be used
+        only for (un)listening to notification channels, i.e. asyncpg's
+        (add|remove)_listener. As noted at
+        https://github.com/MagicStack/asyncpg/issues/421, asyncpg will only
+        attempt to reconnect pool connections "as long as that is possible to do
+        using the original connection parameters." As such, we also need to
+        assign it a termination listener so we can trigger the aquisition of a
+        new connection and associated bookkeeping
+        """
+
+        conn: asyncpg.Connection = await self._connection_pool.acquire()
+        conn.add_termination_listener(
+            lambda _: asyncio.create_task(self._reconnect_listener())
+        )
+        return conn
+
+    async def _reconnect_listener(self) -> None:
+        """
+        If the db or our connection to it should go down, we will need to
+        reacquire a listener from the pool, resubscribe to all previously subbed
+        channels, and trigger updates for all such channels to get clients
+        updated to the latest state. This should be registered as a termination
+        listener on the listener connect *everytime* one is acquired
+        """
+
+        logging.error("Listener connection lost. Attempting to reacquire...")
+
+        while True:
+            try:
+                self._listener_connection = await self._get_listener()
+                break
+            except:
+                logging.exception(
+                    "Failed to reacquire listener connection after termination. Sleeping"
+                    " and retrying momentarily"
+                )
+                await asyncio.sleep(2)
+
+        logging.info(
+            "Successfully reacquired listener connection. Resubscribing and sending"
+            " updates to clients"
+        )
+
+        # FIXME: there is a bug here with chat, because we resend the entire
+        # thread without informing the client that it isn't just another
+        # incremental update. need to attach a complete_thread or some such
+        # attribute to the outgoing message
+        for player_key, channels in self._listening_channels.items():
+            for channel, callback in channels:
+                await self._listener_connection.add_listener(channel, callback)
+            await self.trigger_update_all(player_key)
 
     async def write_new_game(
         self,
