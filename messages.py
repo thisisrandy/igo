@@ -35,6 +35,7 @@ class OutgoingMessageType(Enum):
     game_status = auto()
     chat = auto()
     opponent_connected = auto()
+    error = auto()
 
 
 class Message:

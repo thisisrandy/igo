@@ -146,3 +146,15 @@ class GameStatusContainer(JsonifyableBase):
 
     def jsonifyable(self) -> Dict:
         return {**self.game.jsonifyable(), "timePlayed": self.time_played}
+
+
+@dataclass
+class ErrorContainer(JsonifyableBase):
+    """
+    A container for server error messages which implements jsonifyable
+    """
+
+    exception: Exception
+
+    def jsonifyable(self) -> Dict:
+        return {"errorMessage": str(self.exception)}
