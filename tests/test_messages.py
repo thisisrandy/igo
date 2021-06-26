@@ -123,7 +123,6 @@ class IncomingMessageTestCase(unittest.TestCase):
 
 @patch.object(WebSocketHandler, "__init__", lambda self: None)
 class OutgoingMessageTestCase(unittest.TestCase):
-    # def test_jsonify(self, write_message: AsyncMock):
     def test_jsonify(self):
         WebSocketHandler.write_message = AsyncMock(autospec=True)
         g = Game(1)
