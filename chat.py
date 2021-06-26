@@ -43,7 +43,7 @@ class ChatMessage(JsonifyableBase):
             f"timestamp={self.timestamp}"
             f", color={self.color}"
             f", message={self.message}"
-            f", id={self.id})"
+            f", id={self.id if self.id is not None else '(not yet assigned)'})"
         )
 
 
