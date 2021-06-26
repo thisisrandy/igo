@@ -5,7 +5,7 @@ from enum import Enum, auto
 import json
 from typing import Dict, List, Any
 import logging
-from tornado.websocket import WebSocketHandler
+from tornado.websocket import WebSocketHandler, WebSocketClosedError
 from abc import ABC, abstractmethod
 
 
@@ -141,6 +141,11 @@ async def send_outgoing_message(
         logging.info(f"Sent a message of type {message_type}")
         logging.debug(f"Message data: {msg}")
         return True
-    except:
-        logging.exception(f"Failed send a message of type {message_type}")
+    except WebSocketClosedError as e:
+        # this is known to happen after a period of database inavailability and
+        # appears to be harmless, so only issue a warning
+        logging.warning(
+            f"Failed send a message of type {message_type} because of"
+            f" {e.__class__.__name__}"
+        )
         return False
