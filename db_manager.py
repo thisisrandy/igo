@@ -84,10 +84,11 @@ def alphanum_uuid(desired_length: int = KEY_LEN) -> str:
 class DbManager:
     __slots__ = (
         "_listener_connection",
+        "_listening_channels",
+        "_listener_lock",
         "_connection_pool",
         "_machine_id",
         "_update_queue",
-        "_listening_channels",
         "_game_status_callback",
         "_chat_callback",
         "_opponent_connected_callback",
@@ -139,13 +140,20 @@ class DbManager:
 
         self._connection_pool: asyncpg.pool.Pool = await asyncpg.create_pool(dsn)
         self._listener_connection: asyncpg.Connection = await self._get_listener()
-
         # { player_key: [(channel, callback), ...], ...}
         # populate whenever adding listeners and lookup/delete record when
         # unlistening
         self._listening_channels: DefaultDict[
             str, List[Tuple[str, Callable]]
         ] = defaultdict(list)
+        # since the listener connection is not acquired from the pool before
+        # every use, we need to make sure that we don't try to use it for
+        # multiple operations simultaneously (asyncpg does not provide any
+        # waiting mechanism and will instead throw an exception if we do).
+        # acquire this lock before using _listener_connection, and also to
+        # retain exclusive access to _listening_channels while awaiting db
+        # operations
+        self._listener_lock: asyncio.Lock = asyncio.Lock()
 
         # machine-id is a reboot persistent unique identifier that should not be
         # shared externally. the following mimics sd_id128_get_machine_app_specific()
@@ -247,10 +255,11 @@ class DbManager:
             " updates to clients"
         )
 
-        for player_key, channels in self._listening_channels.items():
-            for channel, callback in channels:
-                await self._listener_connection.add_listener(channel, callback)
-            await self.trigger_update_all(player_key)
+        async with self._listener_lock:
+            for player_key, channels in self._listening_channels.items():
+                for channel, callback in channels:
+                    await self._listener_connection.add_listener(channel, callback)
+                await self.trigger_update_all(player_key)
 
     async def write_new_game(
         self,
@@ -374,11 +383,16 @@ class DbManager:
             )
 
         try:
-            for update_type in _UpdateType:
-                channel = f"{update_type.name}_{player_key}"
-                partial_callback = listener_callback(update_type)
-                await self._listener_connection.add_listener(channel, partial_callback)
-                self._listening_channels[player_key].append((channel, partial_callback))
+            async with self._listener_lock:
+                for update_type in _UpdateType:
+                    channel = f"{update_type.name}_{player_key}"
+                    partial_callback = listener_callback(update_type)
+                    await self._listener_connection.add_listener(
+                        channel, partial_callback
+                    )
+                    self._listening_channels[player_key].append(
+                        (channel, partial_callback)
+                    )
 
         except Exception as e:
             raise Exception(
@@ -620,9 +634,12 @@ class DbManager:
                 # even if the db somehow doesn't reflect that we were managing
                 # player_key, i.e. res is False, we should still unsub from any
                 # channels associated with it
-                for channel, callback in self._listening_channels[player_key]:
-                    await self._listener_connection.remove_listener(channel, callback)
-                del self._listening_channels[player_key]
+                async with self._listener_lock:
+                    for channel, callback in self._listening_channels[player_key]:
+                        await self._listener_connection.remove_listener(
+                            channel, callback
+                        )
+                    del self._listening_channels[player_key]
 
             except:
                 logging.exception(
