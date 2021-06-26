@@ -5,7 +5,6 @@ from constants import KEY_LEN
 from game import Color, Game
 from chat import ChatMessage, ChatThread
 from typing import (
-    Any,
     Callable,
     Coroutine,
     DefaultDict,
