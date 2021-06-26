@@ -135,7 +135,7 @@ class OutgoingMessageTestCase(unittest.TestCase):
         WebSocketHandler.write_message.assert_called_once_with(
             json.dumps(
                 {
-                    "message_type": OutgoingMessageType.game_status.name,
+                    "messageType": OutgoingMessageType.game_status.name,
                     "data": g.jsonifyable(),
                 }
             )

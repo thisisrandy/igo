@@ -20,7 +20,7 @@ class ResponseContainerTestCase(unittest.TestCase):
                 "success": True,
                 "explanation": "Success",
                 "keys": {"white": "1234", "black": "5678"},
-                "your_color": Color.white.name,
+                "yourColor": Color.white.name,
             },
         )
 
@@ -34,7 +34,7 @@ class ResponseContainerTestCase(unittest.TestCase):
                 "success": True,
                 "explanation": "because",
                 "keys": {"white": "1234", "black": "5678"},
-                "your_color": Color.white.name,
+                "yourColor": Color.white.name,
             },
         )
 

@@ -134,7 +134,7 @@ async def send_outgoing_message(
         the message
     """
 
-    msg = json.dumps({"message_type": message_type.name, "data": data.jsonifyable()})
+    msg = json.dumps({"messageType": message_type.name, "data": data.jsonifyable()})
     try:
         await websocket_handler.write_message(msg)
         logging.info(f"Sent a message of type {message_type}")

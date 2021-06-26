@@ -51,7 +51,7 @@ class GameResponseContainer(ResponseContainer):
                 "keys": {k.name: v for k, v in self.keys.items()}
                 if self.keys
                 else None,
-                "your_color": self.your_color.name if self.your_color else None,
+                "yourColor": self.your_color.name if self.your_color else None,
             },
             **super().jsonifyable(),
         }
