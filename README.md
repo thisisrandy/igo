@@ -10,10 +10,8 @@ can play [here](#). The frontend (user interface) code is
 ### Installation
 
 1. Clone the repository
-2. Create a [python virtual
-   environment](https://docs.python.org/3/tutorial/venv.html) in the root directory
-   and activate it
-3. Run `pip install -r requirements.txt`
+2. Install [poetry](https://python-poetry.org/docs/)
+3. Run `poetry install`
 
 #### python version requirement
 
@@ -21,8 +19,7 @@ can play [here](#). The frontend (user interface) code is
 
 ### Running locally
 
-With your [virtual environment](https://docs.python.org/3/tutorial/venv.html)
-activated, run `python connection_manager.py` from the root directory. You will
-also need an instance of the [user
+Run `poetry run connection_manager.py` from the root directory. You will also
+need an instance of the [user
 interface](https://github.com/thisisrandy/igo-frontend) running in order to
 play.
