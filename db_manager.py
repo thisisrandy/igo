@@ -42,6 +42,10 @@ class _UpdateType(Enum):
     opponent_connected = auto()
 
 
+# there are several places where we cannot accept a failed database action and
+# must instead retry in a loop. this is the length of time, in seconds, that we
+# sleep in between failures
+DB_UNAVAILABLE_SLEEP_PERIOD = 2
 ALPHANUM_CHARS = "".join(str(x) for x in range(10)) + string.ascii_letters
 
 
@@ -228,7 +232,7 @@ class DbManager:
                     "Failed to reacquire listener connection after termination. Sleeping"
                     " and retrying momentarily"
                 )
-                await asyncio.sleep(2)
+                await asyncio.sleep(DB_UNAVAILABLE_SLEEP_PERIOD)
 
         logging.info(
             "Successfully reacquired listener connection. Resubscribing and sending"
