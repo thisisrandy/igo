@@ -384,14 +384,31 @@ class DbManager:
             payload: str
             update_type, player_key, payload = await self._update_queue.get()
 
-            if update_type is _UpdateType.game_status:
-                await self._game_status_consumer(player_key)
-            elif update_type is _UpdateType.chat:
-                await self._chat_consumer(player_key, payload)
-            elif update_type is _UpdateType.opponent_connected:
-                await self._opponent_connected_consumer(player_key, payload)
-            else:
-                logging.error(f"Found unknown update type {update_type} in queue")
+            try:
+                if update_type is _UpdateType.game_status:
+                    await self._game_status_consumer(player_key)
+                elif update_type is _UpdateType.chat:
+                    await self._chat_consumer(player_key, payload)
+                elif update_type is _UpdateType.opponent_connected:
+                    await self._opponent_connected_consumer(player_key, payload)
+                else:
+                    logging.error(f"Found unknown update type {update_type} in queue")
+
+            except AssertionError as e:
+                # this can happen if a player unsubscribes during a period of
+                # database inavailability and the recovery process proceeds in a
+                # certain order. namely, if an update is triggered, e.g. from
+                # within _reconnect_listener, before the listener is removed,
+                # but is processed after the unsub process is complete. this
+                # behavior isn't ideal, so we issue a warning, but it also
+                # appears to be harmless, so we don't blow up completely. fixing
+                # it, at least in the current design, would require a
+                # fine-grained control over async task scheduling that we don't
+                # have and don't particularly want
+                logging.warning(
+                    f"Unable to process update of type {update_type.name} for player"
+                    f"key {player_key}: {e}"
+                )
 
             # NOTE: as we aren't attempting to join the queue in the current
             # design, this call doesn't really do anything useful. that said,
@@ -537,28 +554,43 @@ class DbManager:
         """
         Attempt to unsubscribe from channels associated with `player_key` and
         modify the row in the `player_key` table appropriately. Return True on
-        success, False if the database shows that this server is not managing
-        `player_key`, and raise an Exception otherwise.
+        success and False if the database shows that this server is not managing
+        `player_key`.
 
         If `listeners_only` is True, assume that `player_key` has already been
         unsubscribed by some other action, e.g. new or join game with
         `key_to_unsubscribe` specified, and only remove any listeners on
-        channels associated with `player_key`
+        channels associated with `player_key`.
+
+        Note that in contrast to other methods in this class, this method is not
+        allowed to fail because of database inavailability, but instead sleeps
+        and loops until it succeeds. This is because failing to unsubscribe a
+        departing client will effectively lock the key they were using, even
+        from them, until the next game server restart, when the cleanup function
+        will be run.
         """
 
-        try:
-            async with self._connection_pool.acquire() as conn:
-                res = (
-                    await conn.fetchval(
-                        """
-                        SELECT * FROM unsubscribe($1, $2);
-                        """,
-                        player_key,
-                        self._machine_id,
-                    )
-                    if not listeners_only
-                    else True
-                )
+        # it's possible while we are looping that the db comes back up, and we
+        # are able to acquire a connection from the pool, but the listener
+        # connection has still not been reestablished. as such, we set res to
+        # None initially and then test it below to make sure that we only run
+        # the unsubscribe db function once
+        res = None
+        while True:
+            try:
+                async with self._connection_pool.acquire() as conn:
+                    if res is None:
+                        res = (
+                            await conn.fetchval(
+                                """
+                                SELECT * FROM unsubscribe($1, $2);
+                                """,
+                                player_key,
+                                self._machine_id,
+                            )
+                            if not listeners_only
+                            else True
+                        )
 
                 # even if the db somehow doesn't reflect that we were managing
                 # player_key, i.e. res is False, we should still unsub from any
@@ -567,17 +599,19 @@ class DbManager:
                     await self._listener_connection.remove_listener(channel, callback)
                 del self._listening_channels[player_key]
 
-        except Exception as e:
-            raise Exception(
-                f"Failed to unsubscribe from player key {player_key}"
-            ) from e
-
-        else:
-            if res:
-                logging.info(f"Successfully unsubscribed player key {player_key}")
-            else:
-                logging.warning(
-                    f"When unsubscribing from player key {player_key}, no record was"
-                    " found of a connected player managed by this game server"
+            except:
+                logging.exception(
+                    f"Failed to unsubscribe from player key {player_key}. Sleeping and"
+                    " retrying momentarily"
                 )
-            return res
+                await asyncio.sleep(DB_UNAVAILABLE_SLEEP_PERIOD)
+
+            else:
+                if res:
+                    logging.info(f"Successfully unsubscribed player key {player_key}")
+                else:
+                    logging.warning(
+                        f"When unsubscribing from player key {player_key}, no record was"
+                        " found of a connected player managed by this game server"
+                    )
+                return res

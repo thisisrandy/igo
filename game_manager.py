@@ -359,49 +359,6 @@ class GameStore:
         documentation for details
         """
 
-        # FIXME: something bad happens when the database is down and a connected
-        # client tries to take an action. the chain of bad things starts here,
-        # though it extends to other places, so we'll document it here. the
-        # chain of events is as follows:
-        #
-        # 1. the client's action, if successful, triggers a db write
-        # 2. the db write fails because the db is down
-        # 3. the client's websocket is closed because of exceptional behavior,
-        #    but when unsubscribe (here) is called, DbManager.unsubscribe fails,
-        #    so their socket is still in GameManager state (which doesn't end up
-        #    mattering, but is still nasty), the db still reflects that this
-        #    server is managing their key (bad), and when the db connection
-        #    comes back up, DbManager will reregister their listener callbacks,
-        #    meaning that whenever any of those channels is notified, e.g. on db
-        #    reconnect, GameManager will try to send a message across a closed
-        #    WebSocket, which is also, incidentally, now a memory leak
-        # 4. the client reconnects and then attempts to rejoin their game, which
-        #    happens in a tight loop until the db comes back up, and would probably
-        #    crash a server otherwise operating at normal high capacity
-        # 5. when the db comes back up, their join fails, because the db reflects that
-        #    their key is already being managed, having never been unsubbed
-        #    from. meanwhile, as mentioned in (3), DbManager reregisters the
-        #    callbacks for their key, which triggers an attempt to send updates
-        #    across closed websockets
-        # 6. the key remains unplayable until the game server restarts, which runs
-        #    its cleanup operations, or someone manually intervenes
-        #
-        # A possible idea would be to send an undismissable alert over to the
-        # client to prevent them from taking any action while the db is down.
-        # There is of course a small window, depending on network and other
-        # delays, where they could still issue an action and cause the above to
-        # happen, and of course a malicious client could easily ignore the alert.
-        #
-        # Additionally on the server side, we could treat unsub as a sort of
-        # "cannot fail" operation by saving failed tries in a queue and then
-        # processing the queue on reconnect. Assuming db connectivity is the only
-        # reason unsub could fail, which it ideally is unless there's some other state
-        # bug lurking, this should be foolproof.
-        #
-        # Also, we could simply guard all DbManager actions with some sort of
-        # is_connected semaphore so they pile up instead of failing. this would
-        # prevent the join loop mentioned above
-
         if socket in self._clients:
             key = self._clients[socket].key
             await self._db_manager.unsubscribe(key, listeners_only)
