@@ -156,11 +156,19 @@ class DbManager:
             try:
                 # NOTE: tables must be executed first. otherwise, it would be
                 # sufficient to list the directory and execute each file
+                conn: asyncpg.Connection
                 async with self._connection_pool.acquire() as conn:
-                    for fn in ("tables", "indices", "views", "procedures", "functions"):
-                        async with aiofiles.open(f"./sql/{fn}.sql", "r") as r:
-                            sql = await r.read()
-                        await conn.execute(sql)
+                    async with conn.transaction():
+                        for fn in (
+                            "tables",
+                            "indices",
+                            "views",
+                            "procedures",
+                            "functions",
+                        ):
+                            async with aiofiles.open(f"./sql/{fn}.sql", "r") as r:
+                                sql = await r.read()
+                            await conn.execute(sql)
 
             except Exception as e:
                 raise Exception("Failed to run db setup scripts") from e
@@ -177,6 +185,7 @@ class DbManager:
         # need to be present. for now, we are assuming that the worst that
         # happens to any game server is an unexpected restart
         try:
+            conn: asyncpg.Connection
             async with self._connection_pool.acquire() as conn:
                 async with conn.transaction():
                     await conn.execute(
@@ -261,20 +270,23 @@ class DbManager:
         keys = {Color.white: key_w, Color.black: key_b}
 
         try:
+            conn: asyncpg.Connection
             async with self._connection_pool.acquire() as conn:
-                await conn.execute(
-                    """
-                    CALL new_game($1, $2, $3, $4, $5, $6);
-                    """,
-                    pickle.dumps(game),
-                    key_w,
-                    key_b,
-                    player_color.name if player_color else None,
-                    self._machine_id,
-                    key_to_unsubscribe,
-                )
-                if player_color:
-                    await self._subscribe_to_updates(keys[player_color])
+                async with conn.transaction():
+                    await conn.execute(
+                        """
+                        CALL new_game($1, $2, $3, $4, $5, $6);
+                        """,
+                        pickle.dumps(game),
+                        key_w,
+                        key_b,
+                        player_color.name if player_color else None,
+                        self._machine_id,
+                        key_to_unsubscribe,
+                    )
+
+            if player_color:
+                await self._subscribe_to_updates(keys[player_color])
 
         except Exception as e:
             raise Exception("Failed to write new game") from e
@@ -301,21 +313,24 @@ class DbManager:
         """
 
         try:
+            conn: asyncpg.Connection
             async with self._connection_pool.acquire() as conn:
-                res, key_w, key_b = await conn.fetchrow(
-                    """
-                    SELECT * FROM join_game($1, $2, $3);
-                    """,
-                    player_key,
-                    self._machine_id,
-                    key_to_unsubscribe,
-                )
-                res = JoinResult[res]
-                if res is JoinResult.success:
-                    keys = {Color.white: key_w, Color.black: key_b}
-                    await self._subscribe_to_updates(player_key)
-                else:
-                    keys = None
+                async with conn.transaction():
+                    res, key_w, key_b = await conn.fetchrow(
+                        """
+                        SELECT * FROM join_game($1, $2, $3);
+                        """,
+                        player_key,
+                        self._machine_id,
+                        key_to_unsubscribe,
+                    )
+
+            res = JoinResult[res]
+            if res is JoinResult.success:
+                keys = {Color.white: key_w, Color.black: key_b}
+                await self._subscribe_to_updates(player_key)
+            else:
+                keys = None
 
         except Exception as e:
             raise Exception(f"Failed to join game with key {player_key}") from e
@@ -332,6 +347,7 @@ class DbManager:
         """
 
         try:
+            conn: asyncpg.Connection
             async with self._connection_pool.acquire() as conn:
                 await conn.execute(
                     """
@@ -420,6 +436,7 @@ class DbManager:
         try:
             game_data: bytes
             time_played: float
+            conn: asyncpg.Connection
             async with self._connection_pool.acquire() as conn:
                 game_data, time_played = await conn.fetchrow(
                     """
@@ -441,6 +458,7 @@ class DbManager:
         message_id = int(payload) if payload else None
 
         try:
+            conn: asyncpg.Connection
             async with self._connection_pool.acquire() as conn:
                 rows: List[asyncpg.Record] = await conn.fetch(
                     """
@@ -468,6 +486,7 @@ class DbManager:
             connected = payload == "true"
         else:
             try:
+                conn: asyncpg.Connection
                 async with self._connection_pool.acquire() as conn:
                     connected: bool = await conn.fetchval(
                         """
@@ -495,15 +514,17 @@ class DbManager:
         log_text = f"game for player key {player_key} to version {version}"
 
         try:
+            conn: asyncpg.Connection
             async with self._connection_pool.acquire() as conn:
-                time_played: Optional[float] = await conn.fetchval(
-                    """
-                    SELECT * FROM write_game($1, $2, $3);
-                    """,
-                    player_key,
-                    pickle.dumps(game),
-                    version,
-                )
+                async with conn.transaction():
+                    time_played: Optional[float] = await conn.fetchval(
+                        """
+                        SELECT * FROM write_game($1, $2, $3);
+                        """,
+                        player_key,
+                        pickle.dumps(game),
+                        version,
+                    )
 
         except Exception as e:
             raise Exception(f"Failed to update {log_text}") from e
@@ -523,15 +544,17 @@ class DbManager:
         """
 
         try:
+            conn: asyncpg.Connection
             async with self._connection_pool.acquire() as conn:
-                res = await conn.fetchval(
-                    """
-                    SELECT * FROM write_chat($1, $2, $3);
-                    """,
-                    message.timestamp,
-                    message.message,
-                    player_key,
-                )
+                async with conn.transaction():
+                    res = await conn.fetchval(
+                        """
+                        SELECT * FROM write_chat($1, $2, $3);
+                        """,
+                        message.timestamp,
+                        message.message,
+                        player_key,
+                    )
 
         except Exception as e:
             raise Exception(
@@ -578,19 +601,21 @@ class DbManager:
         res = None
         while True:
             try:
-                async with self._connection_pool.acquire() as conn:
-                    if res is None:
-                        res = (
-                            await conn.fetchval(
-                                """
-                                SELECT * FROM unsubscribe($1, $2);
-                                """,
-                                player_key,
-                                self._machine_id,
+                if res is None:
+                    conn: asyncpg.Connection
+                    async with self._connection_pool.acquire() as conn:
+                        async with conn.transaction():
+                            res = (
+                                await conn.fetchval(
+                                    """
+                                    SELECT * FROM unsubscribe($1, $2);
+                                    """,
+                                    player_key,
+                                    self._machine_id,
+                                )
+                                if not listeners_only
+                                else True
                             )
-                            if not listeners_only
-                            else True
-                        )
 
                 # even if the db somehow doesn't reflect that we were managing
                 # player_key, i.e. res is False, we should still unsub from any
