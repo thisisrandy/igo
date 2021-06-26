@@ -294,10 +294,11 @@ class DbManager:
         operation or raise an Exception otherwise. If the result is
         `JoinResult.success`, also return a dictionary of { Color: player key,
         ... } for the joined game. Optionally specify `key_to_unsubscribe` to
-        transactionally unsubscribe from another key. Note that a successful
-        call to this method should always be followed by `trigger_update_all`.
-        They are separated in order to allow the caller to set up any necessary
-        state to allow update callbacks to succeed
+        transactionally unsubscribe from another key.
+
+        Note that a successful call to this method should always be followed by
+        `trigger_update_all`. They are separated in order to allow the caller to
+        set up any necessary state to allow update callbacks to succeed
         """
 
         try:
