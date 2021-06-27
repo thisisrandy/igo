@@ -50,6 +50,8 @@ class Message:
         timestamp: the server time at which this message was created
     """
 
+    __slots__ = ("websocket_handler", "timestamp")
+
     def __init__(self, websocket_handler: WebSocketHandler) -> None:
         self.websocket_handler: WebSocketHandler = websocket_handler
         self.timestamp: float = datetime.now().timestamp()
@@ -73,6 +75,8 @@ class IncomingMessage(Message):
 
         data: Dict[str, object] - a dictionary of the message data
     """
+
+    __slots__ = ("message_type", "data")
 
     def __init__(self, json_str: str, *args, **kwargs) -> None:
         self.data: Dict[str, object] = json.loads(json_str)
@@ -102,6 +106,8 @@ class IncomingMessage(Message):
 
 class JsonifyableBase(ABC):
     """Base class for classes usable as OutgoingMessage data"""
+
+    __slots__ = ()
 
     @abstractmethod
     def jsonifyable(self) -> Any:

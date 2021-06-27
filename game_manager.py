@@ -20,6 +20,7 @@ from containers import (
     NewGameResponseContainer,
     OpponentConnectedContainer,
 )
+from functools import wraps
 
 
 @dataclass
@@ -46,15 +47,48 @@ class ClientData:
         opponent in the current game is connected to a game server
     """
 
+    __slots__ = (
+        "key",
+        "color",
+        "game",
+        "time_played",
+        "chat_thread",
+        "opponent_connected",
+    )
+
     key: str
     color: Color
-    game: Optional[Game] = None
-    time_played: Optional[float] = None
-    chat_thread: Optional[ChatThread] = None
-    opponent_connected: Optional[bool] = None
+    game: Optional[Game]
+    time_played: Optional[float]
+    chat_thread: Optional[ChatThread]
+    opponent_connected: Optional[bool]
 
     def __post_init__(self) -> None:
         self.chat_thread = ChatThread(is_complete=True)
+
+
+# see https://stackoverflow.com/a/50180784/12162258
+def add_client_data_defaults(init):
+    @wraps(init)
+    def __init__(
+        self,
+        key: str,
+        color: Color,
+        game: Optional[Game] = None,
+        time_played: Optional[float] = None,
+        chat_thread: Optional[ChatThread] = None,
+        opponent_connected: Optional[bool] = None,
+    ):
+        init(self, key, color, game, time_played, chat_thread, opponent_connected)
+
+    return __init__
+
+
+ClientData.__init__ = add_client_data_defaults(ClientData.__init__)
+ClientData.__dataclass_fields__["game"].default = None
+ClientData.__dataclass_fields__["time_played"].default = None
+ClientData.__dataclass_fields__["chat_thread"].default = None
+ClientData.__dataclass_fields__["opponent_connected"].default = None
 
 
 @asyncinit
@@ -68,6 +102,8 @@ class GameStore:
     server, no attempt is made to share data between them above the database
     level.
     """
+
+    __slots__ = ("_clients", "_keys", "_db_manager")
 
     async def __init__(
         self, store_dsn: str, run_db_setup_scripts: bool = False
@@ -374,6 +410,8 @@ class GameManager:
 
         store: GameStore - the game store
     """
+
+    __slots__ = "store"
 
     async def __init__(
         self, store_dsn: str, run_db_setup_scripts: bool = False

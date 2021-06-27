@@ -4,6 +4,7 @@ from enum import Enum, auto
 from messages import JsonifyableBase
 from typing import Dict, List, Optional, Set, Tuple
 from copy import deepcopy
+from functools import wraps
 
 
 class Color(Enum):
@@ -46,6 +47,13 @@ class ResultType(Enum):
     resignation = auto()
 
 
+# NOTE: per https://stackoverflow.com/a/50180784/12162258, slots and default
+# values don't play nicely together. several of the dataclasses in this module
+# have default values, so the choice is between not using slots, not using
+# dataclass, and using one of the workarounds detailed in the link. we chose the
+# latter
+
+
 @dataclass
 class Action:
     """
@@ -63,10 +71,30 @@ class Action:
         the coordinates of the point on which the action was taken
     """
 
+    __slots__ = ("action_type", "color", "timestamp", "coords")
+
     action_type: ActionType
     color: Color
     timestamp: float
-    coords: Optional[Tuple[int, int]] = None
+    coords: Optional[Tuple[int, int]]
+
+
+def add_action_defaults(init):
+    @wraps(init)
+    def __init__(
+        self,
+        action_type: ActionType,
+        color: Color,
+        timestamp: float,
+        coords: Optional[Tuple[int, int]] = None,
+    ):
+        init(self, action_type, color, timestamp, coords)
+
+    return __init__
+
+
+Action.__init__ = add_action_defaults(Action.__init__)
+Action.__dataclass_fields__["coords"].default = None
 
 
 @dataclass
@@ -81,6 +109,8 @@ class Request(JsonifyableBase):
         initiator: Color - the initiating player, i.e. initiator is waiting
         for initiator.inverse() to respond
     """
+
+    __slots__ = ("request_type", "initiator")
 
     request_type: RequestType
     initiator: Color
@@ -103,8 +133,10 @@ class Result(JsonifyableBase):
         winner: Optional[Color] - the player who won, if anyone
     """
 
+    __slots__ = ("result_type", "winner")
+
     result_type: ResultType
-    winner: Optional[Color] = None
+    winner: Optional[Color]
 
     def jsonifyable(self):
         """Return a representation which can be readily JSONified"""
@@ -113,6 +145,18 @@ class Result(JsonifyableBase):
             "resultType": self.result_type.name,
             "winner": self.winner.name if self.winner else None,
         }
+
+
+def add_result_defaults(init):
+    @wraps(init)
+    def __init__(self, result_type: ResultType, winner: Optional[Color] = None):
+        init(self, result_type, winner)
+
+    return __init__
+
+
+Result.__init__ = add_result_defaults(Result.__init__)
+Result.__dataclass_fields__["winner"].default = None
 
 
 @dataclass
@@ -135,10 +179,12 @@ class Point(JsonifyableBase):
         of a player's territory, this attribute indicates which one
     """
 
-    color: Optional[Color] = None
-    marked_dead: bool = False
-    counted: bool = False
-    counts_for: Optional[Color] = None
+    __slots__ = ("color", "marked_dead", "counted", "counts_for")
+
+    color: Optional[Color]
+    marked_dead: bool
+    counted: bool
+    counts_for: Optional[Color]
 
     def __repr__(self) -> str:
         return repr(str(self))
@@ -164,6 +210,27 @@ class Point(JsonifyableBase):
         ]
 
 
+def add_point_defaults(init):
+    @wraps(init)
+    def __init__(
+        self,
+        color: Optional[Color] = None,
+        marked_dead: bool = False,
+        counted: bool = False,
+        counts_for: Optional[Color] = None,
+    ):
+        init(self, color, marked_dead, counted, counts_for)
+
+    return __init__
+
+
+Point.__init__ = add_point_defaults(Point.__init__)
+Point.__dataclass_fields__["color"].default = None
+Point.__dataclass_fields__["marked_dead"].default = False
+Point.__dataclass_fields__["counted"].default = False
+Point.__dataclass_fields__["counts_for"].default = None
+
+
 class Board(JsonifyableBase):
     """
     Subscriptable 2d container class for the full board. `Board()[i][j] -> Point`
@@ -174,6 +241,9 @@ class Board(JsonifyableBase):
     """
 
     class _BoardRow(JsonifyableBase):
+
+        __slots__ = "_row"
+
         def __init__(self, size: int) -> None:
             self._row = [Point() for _ in range(size)]
 
@@ -192,6 +262,8 @@ class Board(JsonifyableBase):
             """Return a representation which can be readily JSONified"""
 
             return [p.jsonifyable() for p in self._row]
+
+    __slots__ = ("size", "_rows")
 
     def __init__(self, size: int = 19) -> None:
         self.size = size
@@ -247,6 +319,19 @@ class Game(JsonifyableBase):
         result: Optional[Result] - the result of the game, set only once it
         has been resolved
     """
+
+    __slots__ = (
+        "status",
+        "turn",
+        "action_stack",
+        "board",
+        "komi",
+        "prisoners",
+        "territory",
+        "pending_request",
+        "result",
+        "_prev_board",
+    )
 
     def __init__(self, size: int = 19, komi: float = 6.5) -> None:
         self.status: GameStatus = GameStatus.play
