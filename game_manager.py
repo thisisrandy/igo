@@ -1,8 +1,3 @@
-"""
-Temporary file to hold rewrite of game_manager. Once fleshed out, overwrite
-game_manager and remove this file
-"""
-
 from constants import ACTION_TYPE, COLOR, COORDS, KEY, KOMI, MESSAGE, SIZE
 import logging
 from chat import ChatMessage, ChatThread
