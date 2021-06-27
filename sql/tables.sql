@@ -14,7 +14,11 @@ CREATE TABLE game (
 
 CREATE TABLE player_key (
   key char(10) PRIMARY KEY,
-  game_id integer REFERENCES game(id) NOT NULL,
+  game_id integer REFERENCES game(id)
+    -- this allows us to easily delete games and wipe out their player key rows
+    -- as well
+    ON DELETE CASCADE
+    NOT NULL,
   color char(5) NOT NULL,
   opponent_key char(10)
     REFERENCES player_key(key)
@@ -32,4 +36,7 @@ CREATE TABLE chat (
   color char(5) NOT NULL,
   message text NOT NULL,
   game_id integer REFERENCES game(id)
+    -- as in player_key, we want game deletions to cascade to chat deletions
+    ON DELETE CASCADE
+    NOT NULL
 );
