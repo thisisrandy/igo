@@ -22,7 +22,7 @@ class IgoWebSocket(tornado.websocket.WebSocketHandler):
         **kwargs: Any,
     ) -> None:
         assert hasattr(
-            self.__class__, "game_manager"
+            self, "game_manager"
         ), f"{self.__class__.__name__}.init must be called before use"
         super().__init__(application, request, **kwargs)
 
@@ -47,7 +47,7 @@ class IgoWebSocket(tornado.websocket.WebSocketHandler):
     async def on_message(self, json: str):
         logging.info(f"Received message: {json}")
         try:
-            await self.__class__.game_manager.route_message(IncomingMessage(json, self))
+            await self.game_manager.route_message(IncomingMessage(json, self))
         except Exception as e:
             logging.exception(f"Encountered exception while processing message {json}")
             await send_outgoing_message(
@@ -57,7 +57,7 @@ class IgoWebSocket(tornado.websocket.WebSocketHandler):
     def on_close(self):
         logging.info("Connection closed")
         tornado.ioloop.IOLoop.current().spawn_callback(
-            lambda: self.__class__.game_manager.unsubscribe(self)
+            lambda: self.game_manager.unsubscribe(self)
         )
 
     def check_origin(self, origin):
