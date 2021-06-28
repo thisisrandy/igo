@@ -226,15 +226,14 @@ class DbManagerTestCase(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(await manager.write_game(keys[Color.white], game))
 
         # neither should this, because the version is too high
-        game.version = MagicMock(return_value=2)
-        self.assertIsNone(await manager.write_game(keys[Color.white], game))
+        with patch.object(Game, "version", return_value=2):
+            self.assertIsNone(await manager.write_game(keys[Color.white], game))
 
-        # this is just right
-        game.version = MagicMock(return_value=1)
-        # we also want to make sure game status was fired, so subscribe to the
-        # opponent key
+        # this is just right. we also want to make sure game status was fired,
+        # so subscribe to the opponent key
         await manager._subscribe_to_updates(keys[Color.black])
-        self.assertGreater(await manager.write_game(keys[Color.white], game), 0)
+        with patch.object(Game, "version", return_value=1):
+            self.assertGreater(await manager.write_game(keys[Color.white], game), 0)
         # see note on the suite class about timing-dependent tests
         await asyncio.sleep(0.1)
         self.game_status_callback.assert_awaited_once()
