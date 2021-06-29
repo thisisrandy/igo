@@ -391,12 +391,13 @@ class DbManager:
         try:
             conn: asyncpg.Connection
             async with self._connection_pool.acquire() as conn:
-                await conn.execute(
-                    """
-                    CALL trigger_update_all($1);
-                    """,
-                    player_key,
-                )
+                async with conn.transaction():
+                    await conn.execute(
+                        """
+                        CALL trigger_update_all($1);
+                        """,
+                        player_key,
+                    )
 
         except Exception as e:
             raise Exception(
