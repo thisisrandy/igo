@@ -299,8 +299,26 @@ class DbManager:
                         key_to_unsubscribe,
                     )
 
-            if player_color:
-                await self._subscribe_to_updates(keys[player_color])
+                    # there's a miniscule chance, but one we could artificially
+                    # force, that the new game is created and then someone joins
+                    # it on the other key before we are subscribed to our key's
+                    # update channels. as they use separate connections, we
+                    # can't make these things truly transactional without a two
+                    # stage commit, which seems like overkill. however, we can
+                    # subscribe to updates before committing the new game
+                    # transaction, which ensures that no one can join the new
+                    # game before we are safely subscribed to all the necessary
+                    # update channels.
+                    #
+                    # the one small caveat that we can't weasle out of without a
+                    # two stage commit is that we could successfully subscribe
+                    # and then fail to commit the new game transaction, which
+                    # leaves us with unused subscriptions, a memory leak, and
+                    # warnings everytime the update callbacks get invoked since
+                    # game_manager state will not contain the relevant player
+                    # keys
+                    if player_color:
+                        await self._subscribe_to_updates(keys[player_color])
 
         except Exception as e:
             raise Exception("Failed to write new game") from e
