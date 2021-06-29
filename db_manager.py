@@ -243,6 +243,7 @@ class DbManager:
             try:
                 self._listener_connection = await self._get_listener()
                 break
+
             except:
                 logging.exception(
                     "Failed to reacquire listener connection after termination. Sleeping"
@@ -250,16 +251,20 @@ class DbManager:
                 )
                 await asyncio.sleep(DB_UNAVAILABLE_SLEEP_PERIOD)
 
-        logging.info(
-            "Successfully reacquired listener connection. Resubscribing and sending"
-            " updates to clients"
-        )
+        logging.info("Successfully reacquired listener connection")
 
-        async with self._listener_lock:
-            for player_key, channels in self._listening_channels.items():
-                for channel, callback in channels:
-                    await self._listener_connection.add_listener(channel, callback)
-                await self.trigger_update_all(player_key)
+        try:
+            async with self._listener_lock:
+                for player_key, channels in self._listening_channels.items():
+                    for channel, callback in channels:
+                        await self._listener_connection.add_listener(channel, callback)
+                    await self.trigger_update_all(player_key)
+
+        except Exception as e:
+            raise Exception("Failed to resubscribe and update all clients") from e
+
+        else:
+            logging.info("Successfully resubscribed and updated all clients")
 
     async def write_new_game(
         self,
