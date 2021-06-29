@@ -20,9 +20,8 @@ can play [here](#). The frontend (user interface) code is
 ### Running locally
 
 Run `poetry run connection_manager.py` from the root directory. You will also
-need an instance of the [user
-interface](https://github.com/thisisrandy/igo-frontend) running in order to
-play.
+need an instance of the [frontend
+server](https://github.com/thisisrandy/igo-frontend) running in order to play.
 
 ### Technologies used
 
