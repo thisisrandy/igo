@@ -651,25 +651,22 @@ class DbManager:
         # it's possible while we are looping that the db comes back up, and we
         # are able to acquire a connection from the pool, but the listener
         # connection has still not been reestablished. as such, we set res to
-        # None initially and then test it below to make sure that we only run
-        # the unsubscribe db function once
-        res = None
+        # None initially (or True if we weren't going to run the unsub action
+        # anyways) and then test it below to make sure that we only run the
+        # unsubscribe db function once
+        res = True if listeners_only else None
         while True:
             try:
                 if res is None:
                     conn: asyncpg.Connection
                     async with self._connection_pool.acquire() as conn:
                         async with conn.transaction():
-                            res = (
-                                await conn.fetchval(
-                                    """
-                                    SELECT * FROM unsubscribe($1, $2);
-                                    """,
-                                    player_key,
-                                    self._machine_id,
-                                )
-                                if not listeners_only
-                                else True
+                            res = await conn.fetchval(
+                                """
+                                SELECT * FROM unsubscribe($1, $2);
+                                """,
+                                player_key,
+                                self._machine_id,
                             )
 
                 # even if the db somehow doesn't reflect that we were managing
