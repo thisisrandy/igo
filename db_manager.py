@@ -357,12 +357,22 @@ class DbManager:
                         key_to_unsubscribe,
                     )
 
-            res = JoinResult[res]
-            if res is JoinResult.success:
-                keys = {Color.white: key_w, Color.black: key_b}
-                await self._subscribe_to_updates(player_key)
-            else:
-                keys = None
+                    # similar to new game, while we should ideally be doing a
+                    # two stage commit to ensure that join and subscribe happen
+                    # transactionally, it's very close to as good to just
+                    # subscribe inside of the join transaction *block*, ensuring
+                    # that if subscription fails, so does join.
+                    #
+                    # also as with new game, there's an even tinier chance that
+                    # right at the end the join transaction cannot be committed,
+                    # which leaves us subscribed to channels for a key we aren't
+                    # actually joined to and all attendant problems
+                    res = JoinResult[res]
+                    if res is JoinResult.success:
+                        keys = {Color.white: key_w, Color.black: key_b}
+                        await self._subscribe_to_updates(player_key)
+                    else:
+                        keys = None
 
         except Exception as e:
             raise Exception(f"Failed to join game with key {player_key}") from e
