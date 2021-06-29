@@ -12,10 +12,19 @@ can play [here](#). The frontend (user interface) code is
 1. Clone the repository
 2. Install [poetry](https://python-poetry.org/docs/)
 3. Run `poetry install`
+4. If necessary, [install](https://www.postgresql.org/download/) PostgreSQL
+5. [Create](https://www.postgresql.org/docs/current/sql-createdatabase.html) a
+   new database or point the application to an existing one
+6. In your chosen database, run all `.sql` files in the `sql/` directory,
+   starting with `tables.sql`
 
 #### python version requirement
 
 ≥ 3.8
+
+#### PostgreSQL version requirement
+
+13.3 tested, but all supported versions will likely work
 
 ### Running locally
 
