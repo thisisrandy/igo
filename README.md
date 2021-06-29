@@ -23,3 +23,36 @@ Run `poetry run connection_manager.py` from the root directory. You will also
 need an instance of the [user
 interface](https://github.com/thisisrandy/igo-frontend) running in order to
 play.
+
+### Technologies used
+
+#### Production
+
+- [aiofiles](https://github.com/Tinche/aiofiles) for reading local files
+  asynchronously
+- [asyncinit](https://github.com/kchmck/pyasyncinit) for writing `async`
+  `__init__` methods
+- [asyncpg](https://github.com/MagicStack/asyncpg) for performant, asynchronous
+  communication with the PostgreSQL store
+- [dataclassy](https://github.com/biqqles/dataclassy) for an
+  auto-[slotting](https://docs.python.org/3/reference/datamodel.html?#object.__slots__)
+  reimplementation of python
+  [dataclasses](https://docs.python.org/3/library/dataclasses.html) that allows
+  default attribute values and mutable defaults. `__slots__` is especially useful
+  for classes with many instances being created and destroyed, e.g. the message
+  containers that are used in this codebase
+- [PostgreSQL](https://www.postgresql.org/) for a highly scalable store with
+  asynchronous [pub/sub](https://www.postgresql.org/docs/current/sql-notify.html)
+  capabilities for message passing
+- [tornado](https://github.com/tornadoweb/tornado) for highly scalable,
+  asynchronous [WebSockets](http://en.wikipedia.org/wiki/WebSocket) to communicate
+  with the [frontend](https://github.com/thisisrandy/igo-frontend)
+
+#### Development
+
+- [black](https://github.com/psf/black) for formatting
+- [coverage](https://coverage.readthedocs.io/) for code coverage
+- [poetry](https://python-poetry.org/) for dependency and [virtual
+  environment](https://docs.python.org/3/tutorial/venv.html) management
+- [testing.postgresql](https://github.com/tk0miya/testing.postgresql) for
+  testing with a live database
