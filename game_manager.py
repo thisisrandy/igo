@@ -1,7 +1,7 @@
 from constants import ACTION_TYPE, COLOR, COORDS, KEY, KOMI, MESSAGE, SIZE
 import logging
 from chat import ChatMessage, ChatThread
-from dataclasses import dataclass
+from dataclassy import dataclass
 from game import Action, ActionType, Color, Game
 from typing import Callable, Coroutine, Dict, Optional, Tuple
 from tornado.websocket import WebSocketHandler
@@ -20,10 +20,9 @@ from containers import (
     NewGameResponseContainer,
     OpponentConnectedContainer,
 )
-from functools import wraps
 
 
-@dataclass
+@dataclass(slots=True)
 class ClientData:
     """
     ClientData is a container for all of the various data that a single client
@@ -47,48 +46,15 @@ class ClientData:
         opponent in the current game is connected to a game server
     """
 
-    __slots__ = (
-        "key",
-        "color",
-        "game",
-        "time_played",
-        "chat_thread",
-        "opponent_connected",
-    )
-
     key: str
     color: Color
-    game: Optional[Game]
-    time_played: Optional[float]
-    chat_thread: Optional[ChatThread]
-    opponent_connected: Optional[bool]
+    game: Optional[Game] = None
+    time_played: Optional[float] = None
+    chat_thread: Optional[ChatThread] = None
+    opponent_connected: Optional[bool] = None
 
     def __post_init__(self) -> None:
         self.chat_thread = ChatThread(is_complete=True)
-
-
-# see https://stackoverflow.com/a/50180784/12162258
-def add_client_data_defaults(init):
-    @wraps(init)
-    def __init__(
-        self,
-        key: str,
-        color: Color,
-        game: Optional[Game] = None,
-        time_played: Optional[float] = None,
-        chat_thread: Optional[ChatThread] = None,
-        opponent_connected: Optional[bool] = None,
-    ):
-        init(self, key, color, game, time_played, chat_thread, opponent_connected)
-
-    return __init__
-
-
-ClientData.__init__ = add_client_data_defaults(ClientData.__init__)
-ClientData.__dataclass_fields__["game"].default = None
-ClientData.__dataclass_fields__["time_played"].default = None
-ClientData.__dataclass_fields__["chat_thread"].default = None
-ClientData.__dataclass_fields__["opponent_connected"].default = None
 
 
 @asyncinit

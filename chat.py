@@ -1,13 +1,11 @@
 from __future__ import annotations
 from bisect import bisect_right
-from dataclasses import dataclass
 from typing import Dict, Iterator, List, Optional
 from game import Color
-from messages import JsonifyableBase
+from messages import JsonifyableBaseDataClass
 
 
-@dataclass
-class ChatMessage(JsonifyableBase):
+class ChatMessage(JsonifyableBaseDataClass):
     """
     A container class for chat messages
 
@@ -47,8 +45,7 @@ class ChatMessage(JsonifyableBase):
         )
 
 
-@dataclass
-class ChatThread(JsonifyableBase):
+class ChatThread(JsonifyableBaseDataClass):
     """
     An ordered thread of chat messages
 
@@ -60,21 +57,15 @@ class ChatThread(JsonifyableBase):
         i.e. contains every message from the first onward, or False otherwise
     """
 
-    thread: List[ChatMessage] = None
+    # don't freak out! dataclassy can handle mutable defaults
+    thread: List[ChatMessage] = []
     is_complete: bool = False
-
-    def __post_init__(self):
-        if self.thread is None:
-            self.thread = []
 
     def jsonifyable(self) -> List[Dict]:
         return {
             "thread": [msg.jsonifyable() for msg in self.thread],
             "isComplete": self.is_complete,
         }
-
-    def __repr__(self) -> str:
-        return f"ChatThread(thread={self.thread}, is_complete={self.is_complete})"
 
     def __len__(self) -> int:
         return len(self.thread)

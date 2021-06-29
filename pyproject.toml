@@ -11,6 +11,7 @@ aiofiles = "^0.7.0"
 asyncinit = "^0.2.4"
 asyncpg = "^0.23.0"
 tornado = "^6.1"
+dataclassy = "^0.10.3"
 
 [tool.poetry.dev-dependencies]
 black = "^21.6b0"

@@ -3,10 +3,11 @@ from constants import ACTION_TYPE, COLOR, MESSAGE, SIZE, VS, KOMI, KEY, TYPE
 from datetime import datetime
 from enum import Enum, auto
 import json
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Union
 import logging
 from tornado.websocket import WebSocketHandler, WebSocketClosedError
-from abc import ABC, abstractmethod
+from abc import ABC, ABCMeta, abstractmethod
+from dataclassy import dataclass
 
 
 class IncomingMessageType(Enum):
@@ -114,9 +115,29 @@ class JsonifyableBase(ABC):
         raise NotImplementedError()
 
 
+@dataclass(slots=True)
+class JsonifyableBaseDataClass(metaclass=ABCMeta):
+    """
+    Dataclass version of base class for classes usable as OutgoingMessage data.
+
+    A note about why this is separate from `JsonifyableBase`: because
+    `dataclassy`'s `@dataclass` decorator uses a metaclass, and metaclasses of
+    derived classes must be subclasses of the metaclasses of all bases,
+    `metaclass=ABCMeta` (*not* `ABC`) and `@dataclass` must be applied at the
+    same time. However, `dataclass` is an inappropriate model for some of the
+    classes, e.g. `game.Game`, that need to implement `jsonifyable`. The only
+    way to get everything we want, i.e. use `abc` and also optionally use
+    `dataclassy`, is to have two base classes
+    """
+
+    @abstractmethod
+    def jsonifyable(self) -> Any:
+        raise NotImplementedError()
+
+
 async def send_outgoing_message(
     message_type: OutgoingMessageType,
-    data: JsonifyableBase,
+    data: Union[JsonifyableBase, JsonifyableBaseDataClass],
     websocket_handler: WebSocketHandler,
 ) -> bool:
     """
@@ -135,7 +156,8 @@ async def send_outgoing_message(
 
         message_type: OutgoingMessageType - the type of the message
 
-        data: JsonifyableBase - any object implementing the jsonifyable method
+        data: Union[JsonifyableBase, JsonifyableBaseDataClass] - any object
+        implementing the jsonifyable method
 
         websocket_handler: WebSocketHandler - the vehicle by which to send
         the message

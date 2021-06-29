@@ -99,6 +99,14 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, <4"
 toml = ["toml"]
 
 [[package]]
+name = "dataclassy"
+version = "0.10.3"
+description = "A fast and flexible reimplementation of data classes"
+category = "main"
+optional = false
+python-versions = ">=3.6"
+
+[[package]]
 name = "mypy-extensions"
 version = "0.4.3"
 description = "Experimental type system extensions for programs checked with the mypy typechecker."
@@ -189,7 +197,7 @@ python-versions = ">= 3.5"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "c2314dbe2e348a1767b89e69bb67920b97b3a18713929152d3a2c90eda194b88"
+content-hash = "b8f31860b9cffa4d9aaac98861c9115e3272651bf408853e847542f9103a7ee0"
 
 [metadata.files]
 aiofiles = [
@@ -290,6 +298,10 @@ coverage = [
     {file = "coverage-5.5-pp36-none-any.whl", hash = "sha256:f030f8873312a16414c0d8e1a1ddff2d3235655a2174e3648b4fa66b3f2f1079"},
     {file = "coverage-5.5-pp37-none-any.whl", hash = "sha256:2a3859cb82dcbda1cfd3e6f71c27081d18aa251d20a17d87d26d4cd216fb0af4"},
     {file = "coverage-5.5.tar.gz", hash = "sha256:ebe78fe9a0e874362175b02371bdfbee64d8edc42a044253ddf4ee7d3c15212c"},
+]
+dataclassy = [
+    {file = "dataclassy-0.10.3-py3-none-any.whl", hash = "sha256:bf9954de1e2e44e6cb0fe7e84d6511f09e46bd5154edfe8bb7cfff85ea74f6fc"},
+    {file = "dataclassy-0.10.3.tar.gz", hash = "sha256:48cff2eeac8af3c874e0a3a5d814354db1df64480fdd5edaaeffa01a374fefb8"},
 ]
 mypy-extensions = [
     {file = "mypy_extensions-0.4.3-py2.py3-none-any.whl", hash = "sha256:090fedd75945a69ae91ce1303b5824f428daf5a028d2f6ab8a299250a846f15d"},

@@ -1,7 +1,7 @@
 from __future__ import annotations
-from dataclasses import dataclass
+from dataclassy import dataclass
 from enum import Enum, auto
-from messages import JsonifyableBase
+from messages import JsonifyableBase, JsonifyableBaseDataClass
 from typing import Dict, List, Optional, Set, Tuple
 from copy import deepcopy
 from functools import wraps
@@ -47,14 +47,7 @@ class ResultType(Enum):
     resignation = auto()
 
 
-# NOTE: per https://stackoverflow.com/a/50180784/12162258, slots and default
-# values don't play nicely together. several of the dataclasses in this module
-# have default values, so the choice is between not using slots, not using
-# dataclass, and using one of the workarounds detailed in the link. we chose the
-# latter
-
-
-@dataclass
+@dataclass(slots=True)
 class Action:
     """
     Container class for moves
@@ -71,34 +64,13 @@ class Action:
         the coordinates of the point on which the action was taken
     """
 
-    __slots__ = ("action_type", "color", "timestamp", "coords")
-
     action_type: ActionType
     color: Color
     timestamp: float
-    coords: Optional[Tuple[int, int]]
+    coords: Optional[Tuple[int, int]] = None
 
 
-def add_action_defaults(init):
-    @wraps(init)
-    def __init__(
-        self,
-        action_type: ActionType,
-        color: Color,
-        timestamp: float,
-        coords: Optional[Tuple[int, int]] = None,
-    ):
-        init(self, action_type, color, timestamp, coords)
-
-    return __init__
-
-
-Action.__init__ = add_action_defaults(Action.__init__)
-Action.__dataclass_fields__["coords"].default = None
-
-
-@dataclass
-class Request(JsonifyableBase):
+class Request(JsonifyableBaseDataClass):
     """
     Container class for requests that are pending response
 
@@ -110,8 +82,6 @@ class Request(JsonifyableBase):
         for initiator.inverse() to respond
     """
 
-    __slots__ = ("request_type", "initiator")
-
     request_type: RequestType
     initiator: Color
 
@@ -121,8 +91,7 @@ class Request(JsonifyableBase):
         return {"requestType": self.request_type.name, "initiator": self.initiator.name}
 
 
-@dataclass
-class Result(JsonifyableBase):
+class Result(JsonifyableBaseDataClass):
     """
     Container class for the final result of the game
 
@@ -133,10 +102,8 @@ class Result(JsonifyableBase):
         winner: Optional[Color] - the player who won, if anyone
     """
 
-    __slots__ = ("result_type", "winner")
-
     result_type: ResultType
-    winner: Optional[Color]
+    winner: Optional[Color] = None
 
     def jsonifyable(self):
         """Return a representation which can be readily JSONified"""
@@ -147,20 +114,7 @@ class Result(JsonifyableBase):
         }
 
 
-def add_result_defaults(init):
-    @wraps(init)
-    def __init__(self, result_type: ResultType, winner: Optional[Color] = None):
-        init(self, result_type, winner)
-
-    return __init__
-
-
-Result.__init__ = add_result_defaults(Result.__init__)
-Result.__dataclass_fields__["winner"].default = None
-
-
-@dataclass
-class Point(JsonifyableBase):
+class Point(JsonifyableBaseDataClass):
     """
     Container class for board points
 
@@ -179,15 +133,10 @@ class Point(JsonifyableBase):
         of a player's territory, this attribute indicates which one
     """
 
-    __slots__ = ("color", "marked_dead", "counted", "counts_for")
-
-    color: Optional[Color]
-    marked_dead: bool
-    counted: bool
-    counts_for: Optional[Color]
-
-    def __repr__(self) -> str:
-        return repr(str(self))
+    color: Optional[Color] = None
+    marked_dead: bool = False
+    counted: bool = False
+    counts_for: Optional[Color] = None
 
     def __str__(self) -> str:
         return str(self.jsonifyable())
@@ -208,27 +157,6 @@ class Point(JsonifyableBase):
             self.counted,
             ("" if not self.counts_for else self.counts_for.name[0]),
         ]
-
-
-def add_point_defaults(init):
-    @wraps(init)
-    def __init__(
-        self,
-        color: Optional[Color] = None,
-        marked_dead: bool = False,
-        counted: bool = False,
-        counts_for: Optional[Color] = None,
-    ):
-        init(self, color, marked_dead, counted, counts_for)
-
-    return __init__
-
-
-Point.__init__ = add_point_defaults(Point.__init__)
-Point.__dataclass_fields__["color"].default = None
-Point.__dataclass_fields__["marked_dead"].default = False
-Point.__dataclass_fields__["counted"].default = False
-Point.__dataclass_fields__["counts_for"].default = None
 
 
 class Board(JsonifyableBase):

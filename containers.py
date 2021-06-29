@@ -1,11 +1,9 @@
 from typing import Dict, Optional
 from game import Color, Game
-from dataclasses import dataclass
-from messages import JsonifyableBase
+from messages import JsonifyableBaseDataClass
 
 
-@dataclass
-class ResponseContainer(JsonifyableBase):
+class ResponseContainer(JsonifyableBaseDataClass):
     """
     A base container for responses which implements jsonifyable
 
@@ -23,7 +21,6 @@ class ResponseContainer(JsonifyableBase):
         return {"success": self.success, "explanation": self.explanation}
 
 
-@dataclass
 class GameResponseContainer(ResponseContainer):
     """
     A base container for the response to a game request which implements
@@ -57,7 +54,6 @@ class GameResponseContainer(ResponseContainer):
         }
 
 
-@dataclass
 class NewGameResponseContainer(GameResponseContainer):
     """
     A container for the response to a new game request which implements
@@ -79,7 +75,6 @@ class NewGameResponseContainer(GameResponseContainer):
     pass
 
 
-@dataclass
 class JoinGameResponseContainer(GameResponseContainer):
     """
     A container for the response to a join game request which implements
@@ -101,7 +96,6 @@ class JoinGameResponseContainer(GameResponseContainer):
     pass
 
 
-@dataclass
 class ActionResponseContainer(ResponseContainer):
     """
     A container for the response from Game.take_action which implements
@@ -117,8 +111,7 @@ class ActionResponseContainer(ResponseContainer):
     pass
 
 
-@dataclass
-class OpponentConnectedContainer(JsonifyableBase):
+class OpponentConnectedContainer(JsonifyableBaseDataClass):
     """
     Simple container for opponent's connectedness indicator which implements jsonifyable
 
@@ -134,8 +127,7 @@ class OpponentConnectedContainer(JsonifyableBase):
         return {"opponentConnected": self.opponent_connected}
 
 
-@dataclass
-class GameStatusContainer(JsonifyableBase):
+class GameStatusContainer(JsonifyableBaseDataClass):
     """
     A container for transmitting game status which implements jsonifyable.
     Combines a Game object with its time played value.
@@ -148,8 +140,7 @@ class GameStatusContainer(JsonifyableBase):
         return {**self.game.jsonifyable(), "timePlayed": self.time_played}
 
 
-@dataclass
-class ErrorContainer(JsonifyableBase):
+class ErrorContainer(JsonifyableBaseDataClass):
     """
     A container for server error messages which implements jsonifyable
     """
