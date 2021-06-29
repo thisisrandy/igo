@@ -387,25 +387,32 @@ class DbManager:
                 (update_type, player_key, payload)
             )
 
-        try:
-            async with self._listener_lock:
-                for update_type in _UpdateType:
-                    channel = f"{update_type.name}_{player_key}"
-                    partial_callback = listener_callback(update_type)
-                    await self._listener_connection.add_listener(
-                        channel, partial_callback
-                    )
-                    self._listening_channels[player_key].append(
-                        (channel, partial_callback)
-                    )
+        subscriptions = [
+            (f"{update_type.name}_{player_key}", listener_callback(update_type))
+            for update_type in _UpdateType
+        ]
 
-        except Exception as e:
-            raise Exception(
-                f"Failed to subscribe to status updates for player key {player_key}"
-            ) from e
+        async with self._listener_lock:
+            try:
+                async with self._listener_connection.transaction():
+                    for channel, partial_callback in subscriptions:
+                        await self._listener_connection.add_listener(
+                            channel, partial_callback
+                        )
 
-        else:
-            logging.info(f"Successfully subscribed to status updates for {player_key}")
+            except Exception as e:
+                raise Exception(
+                    f"Failed to subscribe to status updates for player key {player_key}"
+                ) from e
+
+            else:
+                # in order to ensure that our internal state doesn't become
+                # inconsistent, only alter it after the above transaction has
+                # successfully completed
+                self._listening_channels[player_key].extend(subscriptions)
+                logging.info(
+                    f"Successfully subscribed to status updates for {player_key}"
+                )
 
     async def _update_consumer(self) -> None:
         """
