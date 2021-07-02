@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import Dict, Optional
 from game import Color, Game
 from messages import JsonifyableBaseDataClass
@@ -19,6 +20,13 @@ class ResponseContainer(JsonifyableBaseDataClass):
 
     def jsonifyable(self):
         return {"success": self.success, "explanation": self.explanation}
+
+    @classmethod
+    def _deserialize(cls, data: Dict) -> ResponseContainer:
+        res: ResponseContainer = cls.__new__(cls)
+        res.success = data["success"]
+        res.explanation = data["explanation"]
+        return res
 
 
 class GameResponseContainer(ResponseContainer):
@@ -53,6 +61,19 @@ class GameResponseContainer(ResponseContainer):
             **super().jsonifyable(),
         }
 
+    @classmethod
+    def _deserialize(cls, data: Dict) -> GameResponseContainer:
+        res: GameResponseContainer = super(GameResponseContainer, cls)._deserialize(
+            data
+        )
+        res.keys = (
+            {color: data["keys"][color.name] for color in Color}
+            if res.success
+            else None
+        )
+        res.your_color = Color[data["yourColor"]] if res.success else None
+        return res
+
 
 class NewGameResponseContainer(GameResponseContainer):
     """
@@ -72,7 +93,9 @@ class NewGameResponseContainer(GameResponseContainer):
         user is subscribed to, and None otherwise
     """
 
-    pass
+    @classmethod
+    def _deserialize(cls, data: Dict) -> GameResponseContainer:
+        return super(NewGameResponseContainer, cls)._deserialize(data)
 
 
 class JoinGameResponseContainer(GameResponseContainer):
@@ -93,7 +116,9 @@ class JoinGameResponseContainer(GameResponseContainer):
         user is subscribed to, and None otherwise
     """
 
-    pass
+    @classmethod
+    def _deserialize(cls, data: Dict) -> GameResponseContainer:
+        return super(JoinGameResponseContainer, cls)._deserialize(data)
 
 
 class ActionResponseContainer(ResponseContainer):
@@ -108,7 +133,9 @@ class ActionResponseContainer(ResponseContainer):
         explanation: str - explanation of success
     """
 
-    pass
+    @classmethod
+    def _deserialize(cls, data: Dict) -> GameResponseContainer:
+        return super(ActionResponseContainer, cls)._deserialize(data)
 
 
 class OpponentConnectedContainer(JsonifyableBaseDataClass):
@@ -126,6 +153,10 @@ class OpponentConnectedContainer(JsonifyableBaseDataClass):
     def jsonifyable(self) -> Dict:
         return {"opponentConnected": self.opponent_connected}
 
+    @staticmethod
+    def _deserialize(data: Dict) -> OpponentConnectedContainer:
+        return OpponentConnectedContainer(data["opponentConnected"])
+
 
 class GameStatusContainer(JsonifyableBaseDataClass):
     """
@@ -139,13 +170,25 @@ class GameStatusContainer(JsonifyableBaseDataClass):
     def jsonifyable(self) -> Dict:
         return {**self.game.jsonifyable(), "timePlayed": self.time_played}
 
+    @staticmethod
+    def _deserialize(data: Dict) -> GameStatusContainer:
+        return GameStatusContainer(Game.deserialize(data), data["timePlayed"])
+
 
 class ErrorContainer(JsonifyableBaseDataClass):
     """
     A container for server error messages which implements jsonifyable
+
+    Serialization note: the contained exception is pared down to just its string
+    form when serialized. As such, the deserialized form is just a generic
+    Exception which contains no specific type or stack trace information
     """
 
     exception: Exception
 
     def jsonifyable(self) -> Dict:
         return {"errorMessage": str(self.exception)}
+
+    @staticmethod
+    def _deserialize(data: Dict) -> ErrorContainer:
+        return ErrorContainer(Exception(data["exception"]))

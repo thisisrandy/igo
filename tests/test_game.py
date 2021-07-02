@@ -10,9 +10,22 @@ from game import (
     Point,
     Request,
     RequestType,
+    Result,
     ResultType,
 )
 import unittest
+
+
+class RequestTestCase(unittest.TestCase):
+    def test_deserialize(self):
+        r = Request(RequestType.draw, Color.black)
+        self.assertEqual(Request.deserialize(r.jsonifyable()), r)
+
+
+class ResultTestCase(unittest.TestCase):
+    def test_deserialize(self):
+        r = Result(ResultType.standard_win, Color.black)
+        self.assertEqual(Result.deserialize(r.jsonifyable()), r)
 
 
 class PointTestCase(unittest.TestCase):
@@ -29,6 +42,10 @@ class PointTestCase(unittest.TestCase):
             ["", False, True, "b"],
             Point(counted=True, counts_for=Color.black).jsonifyable(),
         )
+
+    def test_deserialize(self):
+        p = Point()
+        self.assertEqual(Point.deserialize(p.jsonifyable()), p)
 
 
 class BoardTestCase(unittest.TestCase):
@@ -91,6 +108,10 @@ class BoardTestCase(unittest.TestCase):
         self.assertEqual(b1, b2)
         b1[0][1].color = Color.white
         self.assertNotEqual(b1, b2)
+
+    def test_deserialize(self):
+        b = Board()
+        self.assertEqual(Board.deserialize(b.jsonifyable()), b)
 
 
 class GameTestCase(unittest.TestCase):
@@ -645,3 +666,10 @@ class GameTestCase(unittest.TestCase):
                 "result": {"resultType": "standard_win", "winner": "white"},
             },
         )
+
+    def test_deserialize(self):
+        g = Game()
+        # note that this only works because no actions have been taken. it would
+        # otherwise fail for the reasons mentioned in the Game.deserialize
+        # docstring
+        self.assertEqual(Game.deserialize(g.jsonifyable()), g)

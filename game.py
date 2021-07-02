@@ -4,7 +4,6 @@ from enum import Enum, auto
 from messages import JsonifyableBase, JsonifyableBaseDataClass
 from typing import Dict, List, Optional, Set, Tuple
 from copy import deepcopy
-from functools import wraps
 
 
 class Color(Enum):
@@ -15,6 +14,23 @@ class Color(Enum):
         """Return white if black and black if white"""
 
         return Color.black if self is Color.white else Color.white
+
+    def to_short(self) -> str:
+        """Return the first letter of the color name for compact serialization"""
+
+        return self.name[0]
+
+    @staticmethod
+    def from_short(short_name: str) -> Optional[Color]:
+        """Inverse of `to_short` which returns None when `short_name` is the
+        empty string"""
+
+        if not short_name:
+            return None
+        for c in Color:
+            if c.to_short() == short_name:
+                return c
+        raise ValueError(f"'{short_name}' is not a valid short Color name")
 
 
 class ActionType(Enum):
@@ -90,6 +106,10 @@ class Request(JsonifyableBaseDataClass):
 
         return {"requestType": self.request_type.name, "initiator": self.initiator.name}
 
+    @classmethod
+    def _deserialize(cls, data: Dict) -> Request:
+        return Request(RequestType[data["requestType"]], Color[data["initiator"]])
+
 
 class Result(JsonifyableBaseDataClass):
     """
@@ -112,6 +132,13 @@ class Result(JsonifyableBaseDataClass):
             "resultType": self.result_type.name,
             "winner": self.winner.name if self.winner else None,
         }
+
+    @classmethod
+    def _deserialize(cls, data: Dict) -> Result:
+        return Result(
+            ResultType[data["resultType"]],
+            Color[data["winner"]] if data["winner"] else None,
+        )
 
 
 class Point(JsonifyableBaseDataClass):
@@ -152,11 +179,19 @@ class Point(JsonifyableBaseDataClass):
         """Return a representation which can be readily JSONified"""
 
         return [
-            ("" if not self.color else self.color.name[0]),
+            ("" if not self.color else self.color.to_short()),
             self.marked_dead,
             self.counted,
-            ("" if not self.counts_for else self.counts_for.name[0]),
+            ("" if not self.counts_for else self.counts_for.to_short()),
         ]
+
+    @classmethod
+    def _deserialize(cls, data: List) -> Point:
+        return Point(
+            Color.from_short(data[0]),
+            *data[1:3],
+            Color.from_short(data[3]),
+        )
 
 
 class Board(JsonifyableBase):
@@ -191,6 +226,12 @@ class Board(JsonifyableBase):
 
             return [p.jsonifyable() for p in self._row]
 
+        @classmethod
+        def _deserialize(cls, data: List) -> Board._BoardRow:
+            self: Board._BoardRow = Board._BoardRow.__new__(Board._BoardRow)
+            self._row = [Point.deserialize(p) for p in data]
+            return self
+
     __slots__ = ("size", "_rows")
 
     def __init__(self, size: int = 19) -> None:
@@ -217,6 +258,13 @@ class Board(JsonifyableBase):
         """Return a representation which can be readily JSONified"""
 
         return {"size": self.size, "points": [r.jsonifyable() for r in self._rows]}
+
+    @classmethod
+    def _deserialize(cls, data: Dict) -> Board:
+        self: Board = Board.__new__(Board)
+        self.size = data["size"]
+        self._rows = [Board._BoardRow.deserialize(row) for row in data["points"]]
+        return self
 
 
 class Game(JsonifyableBase):
@@ -712,3 +760,28 @@ class Game(JsonifyableBase):
             else None,
             "result": self.result.jsonifyable() if self.result else None,
         }
+
+    @classmethod
+    def _deserialize(cls, data: Dict) -> Game:
+        """Note that `Game.jsonifyable` strips out the action stack and previous
+        board. As such, they are not available in the deserialized verion
+        produced by this method"""
+
+        self: Game = cls.__new__(cls)
+        self.board = Board.deserialize(data["board"])
+        self.status = GameStatus[data["status"]]
+        self.komi = data["komi"]
+        prisoners = data["prisoners"]
+        self.prisoners = {Color[c]: prisoners[c] for c in prisoners}
+        self.turn = Color[data["turn"]]
+        territory = data["territory"]
+        self.territory = {Color[c]: territory[c] for c in territory}
+        pending_request = data["pendingRequest"]
+        self.pending_request = (
+            Request.deserialize(pending_request) if pending_request else None
+        )
+        result = data["result"]
+        self.result = Result.deserialize(result) if result else None
+        self.action_stack = []
+        self._prev_board = None
+        return self

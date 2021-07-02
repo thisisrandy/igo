@@ -23,6 +23,10 @@ class ChatMessageTestCase(unittest.TestCase):
             },
         )
 
+    def test_deserialize(self):
+        chat = ChatMessage(datetime.now().timestamp(), Color.white, "hi bob", "123456")
+        self.assertEqual(ChatMessage.deserialize(chat.jsonifyable()), chat)
+
 
 class ChatThreadTestCase(unittest.TestCase):
     def setUp(self) -> None:
@@ -40,6 +44,9 @@ class ChatThreadTestCase(unittest.TestCase):
             self.thread.jsonifyable(),
             {"thread": [msg.jsonifyable() for msg in self.thread], "isComplete": True},
         )
+
+    def test_deserialize(self):
+        self.assertEqual(ChatThread.deserialize(self.thread.jsonifyable()), self.thread)
 
     def test_get_after(self):
         self.assertEqual(len(self.thread), 10)

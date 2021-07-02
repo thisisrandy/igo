@@ -35,6 +35,12 @@ class ChatMessage(JsonifyableBaseDataClass):
             "id": self.id,
         }
 
+    @classmethod
+    def _deserialize(cls, data: Dict) -> ChatMessage:
+        return ChatMessage(
+            data["timestamp"], Color[data["color"]], data["message"], data["id"]
+        )
+
     def __repr__(self) -> str:
         return (
             f"ChatMessage("
@@ -66,6 +72,12 @@ class ChatThread(JsonifyableBaseDataClass):
             "thread": [msg.jsonifyable() for msg in self.thread],
             "isComplete": self.is_complete,
         }
+
+    @classmethod
+    def _deserialize(cls, data: Dict) -> JsonifyableBaseDataClass:
+        return ChatThread(
+            [ChatMessage.deserialize(msg) for msg in data["thread"]], data["isComplete"]
+        )
 
     def __len__(self) -> int:
         return len(self.thread)
