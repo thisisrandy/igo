@@ -3,7 +3,7 @@ from chat import ChatMessage, ChatThread
 import unittest
 from datetime import datetime
 from game import Color
-from random import choice, randint, uniform
+from random import choice, uniform
 
 
 class ChatMessageTestCase(unittest.TestCase):
