@@ -128,8 +128,6 @@ class DbManagerTestCase(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(players_connected, 0)
         self.assertIsNone(write_load_timestamp)
 
-        await manager._listener_connection.close()
-
     async def test_write_new_game(self):
         manager = self.manager
         game = Game()
@@ -201,7 +199,6 @@ class DbManagerTestCase(unittest.IsolatedAsyncioTestCase):
         key = "0123456789"
         await manager._subscribe_to_updates(key)
         self.assertEqual(len(manager._listening_channels[key]), len(_UpdateType))
-        pass
 
     @patch("db_manager.pickle.dumps", MagicMock(return_value=b"1"))
     @patch("db_manager.pickle.loads", MagicMock(return_value=b"1"))
