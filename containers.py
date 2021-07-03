@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import Dict, Optional
 from game import Color, Game
-from messages import JsonifyableBaseDataClass
+from serialization import JsonifyableBaseDataClass
 
 
 class ResponseContainer(JsonifyableBaseDataClass):
