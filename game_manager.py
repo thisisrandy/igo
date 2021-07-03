@@ -310,7 +310,9 @@ class GameStore:
                     ActionType[msg.data[ACTION_TYPE]],
                     color,
                     msg.timestamp,
-                    tuple(msg.data[COORDS]) if COORDS in msg.data else None,
+                    tuple(msg.data[COORDS])
+                    if COORDS in msg.data and msg.data[COORDS]
+                    else None,
                 )
             )
             logging.info(
