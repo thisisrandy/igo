@@ -8,8 +8,8 @@ from tornado.websocket import WebSocketHandler
 from messages import (
     IncomingMessage,
     IncomingMessageType,
+    OutgoingMessage,
     OutgoingMessageType,
-    send_outgoing_message,
 )
 from asyncinit import asyncinit
 from db_manager import DbManager, JoinResult
@@ -118,7 +118,7 @@ class GameStore:
 
         # TODO: If msg.data[VS] is "computer", set up computer as second player
 
-        await send_outgoing_message(
+        await OutgoingMessage(
             OutgoingMessageType.new_game_response,
             NewGameResponseContainer(
                 True,
@@ -134,19 +134,19 @@ class GameStore:
                 requested_color,
             ),
             client,
-        )
+        ).send()
 
-        await send_outgoing_message(
+        await OutgoingMessage(
             OutgoingMessageType.game_status,
             GameStatusContainer(game, time_played),
             client,
-        )
-        await send_outgoing_message(OutgoingMessageType.chat, chat_thread, client)
-        await send_outgoing_message(
+        ).send()
+        await OutgoingMessage(OutgoingMessageType.chat, chat_thread, client).send()
+        await OutgoingMessage(
             OutgoingMessageType.opponent_connected,
             OpponentConnectedContainer(opponent_connected),
             client,
-        )
+        ).send()
 
     def _get_game_updater(self) -> Callable[[str, Game, float], Coroutine]:
         """
@@ -162,11 +162,11 @@ class GameStore:
             self._clients[client].time_played = time_played
             logging.info(f"Successfully updated game for player key {player_key}")
 
-            await send_outgoing_message(
+            await OutgoingMessage(
                 OutgoingMessageType.game_status,
                 GameStatusContainer(game, time_played),
                 client,
-            )
+            ).send()
 
         return callback
 
@@ -184,7 +184,7 @@ class GameStore:
                 f"Successfully updated chat thread for player key {player_key}"
             )
 
-            await send_outgoing_message(OutgoingMessageType.chat, thread, client)
+            await OutgoingMessage(OutgoingMessageType.chat, thread, client).send()
 
         return callback
 
@@ -203,11 +203,11 @@ class GameStore:
                 f" {opponent_connected} for player key {player_key}"
             )
 
-            await send_outgoing_message(
+            await OutgoingMessage(
                 OutgoingMessageType.opponent_connected,
                 OpponentConnectedContainer(opponent_connected),
                 client,
-            )
+            ).send()
 
         return callback
 
@@ -226,14 +226,14 @@ class GameStore:
         key: str = msg.data[KEY]
         client: WebSocketHandler = msg.websocket_handler
         if client in self._clients and self._clients[client].key == key:
-            await send_outgoing_message(
+            await OutgoingMessage(
                 OutgoingMessageType.join_game_response,
                 JoinGameResponseContainer(
                     False,
                     f"You are already playing using that key ({key})",
                 ),
                 client,
-            )
+            ).send()
         else:
 
             old_key = self._clients[client].key if client in self._clients else None
@@ -242,7 +242,7 @@ class GameStore:
             res, keys = await self._db_manager.join_game(key, old_key)
 
             if res is JoinResult.dne:
-                await send_outgoing_message(
+                await OutgoingMessage(
                     OutgoingMessageType.join_game_response,
                     JoinGameResponseContainer(
                         False,
@@ -252,16 +252,16 @@ class GameStore:
                         ),
                     ),
                     client,
-                )
+                ).send()
             elif res is JoinResult.in_use:
-                await send_outgoing_message(
+                await OutgoingMessage(
                     OutgoingMessageType.join_game_response,
                     JoinGameResponseContainer(
                         False,
                         f"Someone else is already playing using that key ({key})",
                     ),
                     client,
-                )
+                ).send()
             elif res is JoinResult.success:
                 if old_key:
                     logging.info(
@@ -273,7 +273,7 @@ class GameStore:
                 self._clients[client] = ClientData(key, color)
                 self._keys[key] = client
 
-                await send_outgoing_message(
+                await OutgoingMessage(
                     OutgoingMessageType.join_game_response,
                     JoinGameResponseContainer(
                         True,
@@ -282,7 +282,7 @@ class GameStore:
                         color,
                     ),
                     client,
-                )
+                ).send()
 
                 await self._db_manager.trigger_update_all(key)
             else:
@@ -327,18 +327,18 @@ class GameStore:
                 else:
                     client_data.time_played = time_played
 
-            await send_outgoing_message(
+            await OutgoingMessage(
                 OutgoingMessageType.game_action_response,
                 ActionResponseContainer(success, explanation),
                 client,
-            )
+            ).send()
 
             if success:
-                await send_outgoing_message(
+                await OutgoingMessage(
                     OutgoingMessageType.game_status,
                     GameStatusContainer(client_data.game, time_played),
                     client,
-                )
+                ).send()
         elif msg.message_type is IncomingMessageType.chat_message:
             message_text = msg.data[MESSAGE]
             await self._db_manager.write_chat(

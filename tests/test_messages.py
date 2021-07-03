@@ -1,13 +1,14 @@
+from containers import GameStatusContainer
 from datetime import datetime
 from game import ActionType, Color, Game
 from messages import (
     IncomingMessage,
     IncomingMessageType,
+    OutgoingMessage,
     OutgoingMessageType,
-    send_outgoing_message,
 )
 import unittest
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, patch
 from tornado.websocket import WebSocketHandler
 from constants import SIZE, TYPE, VS, COLOR, KOMI, KEY, ACTION_TYPE
 import json
@@ -123,28 +124,28 @@ class IncomingMessageTestCase(unittest.TestCase):
 
 @patch.object(WebSocketHandler, "__init__", lambda self: None)
 class OutgoingMessageTestCase(unittest.TestCase):
-    def test_jsonify(self):
-        WebSocketHandler.write_message = AsyncMock(autospec=True)
-        g = Game(1)
-        asyncio.run(
-            send_outgoing_message(
-                OutgoingMessageType.game_status, g, WebSocketHandler()
-            )
-        )
-        WebSocketHandler.write_message.assert_called_once_with(
-            json.dumps(
-                {
-                    "messageType": OutgoingMessageType.game_status.name,
-                    "data": g.jsonifyable(),
-                }
-            )
-        )
-
     def test_send(self):
         WebSocketHandler.write_message = AsyncMock(autospec=True)
-        asyncio.run(
-            send_outgoing_message(
-                OutgoingMessageType.game_status, Game(1), WebSocketHandler()
-            )
+        g = GameStatusContainer(Game(1), 12.3)
+        msg = OutgoingMessage(OutgoingMessageType.game_status, g, WebSocketHandler())
+        asyncio.run(msg.send())
+        WebSocketHandler.write_message.assert_called_once_with(
+            json.dumps(msg.jsonifyable())
         )
-        WebSocketHandler.write_message.assert_called()
+
+    def test_jsonifyable(self):
+        g = Game(1)
+        msg_type = OutgoingMessageType.game_status
+        self.assertEqual(
+            {
+                "messageType": msg_type.name,
+                "data": g.jsonifyable(),
+            },
+            OutgoingMessage(msg_type, g).jsonifyable(),
+        )
+
+    def test_deserialize(self):
+        msg = OutgoingMessage(
+            OutgoingMessageType.game_status, GameStatusContainer(Game(1), 12.3)
+        )
+        self.assertEqual(OutgoingMessage.deserialize(msg.jsonifyable()), msg)

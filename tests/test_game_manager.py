@@ -17,6 +17,7 @@ import json
 from messages import (
     IncomingMessage,
     IncomingMessageType,
+    OutgoingMessage,
     OutgoingMessageType,
 )
 from game import Color, ActionType, Game
@@ -131,6 +132,10 @@ class GameManagerIntegrationTestCase(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.gm: GameManager = await GameManager(self.__class__.postgresql.url(), True)
 
+    async def asyncTearDown(self) -> None:
+        await self.gm.store._db_manager._listener_connection.close()
+        await self.gm.store._db_manager._connection_pool.close()
+
     async def createNewGame(
         self, player: Optional[WebSocketHandler] = None
     ) -> Tuple[WebSocketHandler, ClientData]:
@@ -156,42 +161,56 @@ class GameManagerIntegrationTestCase(unittest.IsolatedAsyncioTestCase):
         await self.gm.route_message(msg)
         return player, self.gm.store._clients[player]
 
-    async def asyncTearDown(self) -> None:
-        await self.gm.store._db_manager._listener_connection.close()
-        await self.gm.store._db_manager._connection_pool.close()
-
-    @patch("game_manager.send_outgoing_message")
-    async def test_new_game(self, send_outgoing_message_mock: AsyncMock) -> None:
+    @patch.object(OutgoingMessage, "__init__")
+    @patch.object(OutgoingMessage, "send")
+    async def test_new_game(self, send_mock: AsyncMock, init_mock: Mock) -> None:
+        init_mock.return_value = None
         player, _ = await self.createNewGame()
-        self.assertEqual(send_outgoing_message_mock.await_count, 4)
+        self.assertEqual(send_mock.await_count, 4)
         # response message
-        await_args = send_outgoing_message_mock.await_args_list[0].args
-        self.assertEqual(await_args[0], OutgoingMessageType.new_game_response)
-        self.assertTrue(await_args[1].success)
-        self.assertEqual(await_args[2], player)
+        init_args = init_mock.call_args_list[0].args
+        self.assertEqual(init_args[0], OutgoingMessageType.new_game_response)
+        self.assertTrue(init_args[1].success)
+        self.assertEqual(init_args[2], player)
         # game status message
-        await_args = send_outgoing_message_mock.await_args_list[1].args
-        self.assertEqual(await_args[0], OutgoingMessageType.game_status)
-        self.assertIsInstance(await_args[1], GameStatusContainer)
-        self.assertEqual(await_args[2], player)
+        init_args = init_mock.call_args_list[1].args
+        self.assertEqual(init_args[0], OutgoingMessageType.game_status)
+        self.assertIsInstance(init_args[1], GameStatusContainer)
+        self.assertEqual(init_args[2], player)
+        # chat
+        init_args = init_mock.call_args_list[2].args
+        self.assertEqual(init_args[0], OutgoingMessageType.chat)
+        self.assertIsInstance(init_args[1], ChatThread)
+        self.assertEqual(init_args[2], player)
+        # opponent connected
+        init_args = init_mock.call_args_list[3].args
+        self.assertEqual(init_args[0], OutgoingMessageType.opponent_connected)
+        self.assertIsInstance(init_args[1], OpponentConnectedContainer)
+        self.assertEqual(init_args[2], player)
         # create another new game while still subscribed to the old one. there's
-        # no signal that gets sent back out for us to test, and it isn't
-        # appropriate to dig into the internal state of the store/db too much in
-        # an integration test, but we can at least exercise the code to make
-        # sure it isn't doing something that raises an exception
+        # no signal that gets sent back out for us to test that we were
+        # unsubscribed from the old game, and it isn't appropriate to dig into
+        # the internal state of the store/db too much in an integration test,
+        # but we can at least make sure that it succeeds and four more messages
+        # are sent
         await self.createNewGame(player)
+        self.assertEqual(send_mock.await_count, 8)
 
-    @patch("game_manager.send_outgoing_message")
-    async def test_join_game(self, send_outgoing_message_mock: AsyncMock) -> None:
+    @patch.object(OutgoingMessage, "__init__")
+    @patch.object(OutgoingMessage, "send")
+    async def test_join_game(self, send_mock: AsyncMock, init_mock: Mock) -> None:
+        init_mock.return_value = None
         player: WebSocketHandler
         client_data: ClientData
         player, client_data = await self.createNewGame()
-        new_game_response: NewGameResponseContainer = (
-            send_outgoing_message_mock.await_args_list[0].args[1]
-        )
+        new_game_response: NewGameResponseContainer = init_mock.call_args_list[0].args[
+            1
+        ]
         self.assertIsInstance(new_game_response, NewGameResponseContainer)
         keys: Dict[Color, str] = new_game_response.keys
 
+        # reset ahead of all incoming messages
+        send_mock.call_count = 0
         # already playing
         await self.gm.route_message(
             IncomingMessage(
@@ -201,14 +220,14 @@ class GameManagerIntegrationTestCase(unittest.IsolatedAsyncioTestCase):
                 player,
             )
         )
-        response: JoinGameResponseContainer = (
-            send_outgoing_message_mock.await_args_list[-1].args[1]
-        )
+        self.assertEqual(send_mock.call_count, 1)
+        response: JoinGameResponseContainer = init_mock.call_args_list[-1].args[1]
         self.assertIsInstance(response, JoinGameResponseContainer)
         self.assertFalse(response.success)
         self.assertTrue("already playing" in response.explanation)
 
         # bad key
+        send_mock.call_count = 0
         await self.gm.route_message(
             IncomingMessage(
                 json.dumps(
@@ -217,14 +236,14 @@ class GameManagerIntegrationTestCase(unittest.IsolatedAsyncioTestCase):
                 player,
             )
         )
-        response: JoinGameResponseContainer = (
-            send_outgoing_message_mock.await_args_list[-1].args[1]
-        )
+        self.assertEqual(send_mock.call_count, 1)
+        response: JoinGameResponseContainer = init_mock.call_args_list[-1].args[1]
         self.assertIsInstance(response, JoinGameResponseContainer)
         self.assertFalse(response.success)
         self.assertTrue("not found" in response.explanation)
 
         # someone else playing
+        send_mock.call_count = 0
         await self.gm.route_message(
             IncomingMessage(
                 json.dumps(
@@ -233,14 +252,14 @@ class GameManagerIntegrationTestCase(unittest.IsolatedAsyncioTestCase):
                 WebSocketHandler(),
             )
         )
-        response: JoinGameResponseContainer = (
-            send_outgoing_message_mock.await_args_list[-1].args[1]
-        )
+        self.assertEqual(send_mock.call_count, 1)
+        response: JoinGameResponseContainer = init_mock.call_args_list[-1].args[1]
         self.assertIsInstance(response, JoinGameResponseContainer)
         self.assertFalse(response.success)
         self.assertTrue("Someone else" in response.explanation)
 
         # success, including unsub
+        send_mock.call_count = 0
         await self.gm.route_message(
             IncomingMessage(
                 json.dumps(
@@ -262,15 +281,12 @@ class GameManagerIntegrationTestCase(unittest.IsolatedAsyncioTestCase):
         # unlistens, and as it is practically inconsequential, it seems
         # reasonable to just let it slip through. we test for it here to record
         # and explain the behavior
-        self_subbed: OpponentConnectedContainer = (
-            send_outgoing_message_mock.await_args_list[-5].args[1]
-        )
+        self.assertEqual(send_mock.call_count, 5)
+        self_subbed: OpponentConnectedContainer = init_mock.call_args_list[-5].args[1]
         self.assertIsInstance(self_subbed, OpponentConnectedContainer)
         self.assertTrue(self_subbed.opponent_connected)
         # now starts the proper sequence. we receive the join response first
-        response: JoinGameResponseContainer = (
-            send_outgoing_message_mock.await_args_list[-4].args[1]
-        )
+        response: JoinGameResponseContainer = init_mock.call_args_list[-4].args[1]
         self.assertIsInstance(response, JoinGameResponseContainer)
         self.assertTrue(response.success)
         self.assertTrue(
@@ -278,31 +294,29 @@ class GameManagerIntegrationTestCase(unittest.IsolatedAsyncioTestCase):
         )
         # now trigger update all hits us with game status, chat, and opponent
         # connected from the database in sequence
-        trigger_game_status: GameStatusContainer = (
-            send_outgoing_message_mock.await_args_list[-3].args[1]
-        )
+        trigger_game_status: GameStatusContainer = init_mock.call_args_list[-3].args[1]
         self.assertIsInstance(trigger_game_status, GameStatusContainer)
         self.assertEqual(trigger_game_status.game, client_data.game)
-        trigger_chat: ChatThread = send_outgoing_message_mock.await_args_list[-2].args[
-            1
-        ]
+        trigger_chat: ChatThread = init_mock.call_args_list[-2].args[1]
         self.assertIsInstance(trigger_chat, ChatThread)
         self.assertEqual(trigger_chat, client_data.chat_thread)
-        trigger_opp_connd: OpponentConnectedContainer = (
-            send_outgoing_message_mock.await_args_list[-1].args[1]
-        )
+        trigger_opp_connd: OpponentConnectedContainer = init_mock.call_args_list[
+            -1
+        ].args[1]
         self.assertIsInstance(trigger_opp_connd, OpponentConnectedContainer)
         self.assertFalse(trigger_opp_connd.opponent_connected)
 
-    @patch("game_manager.send_outgoing_message")
+    @patch.object(OutgoingMessage, "__init__")
+    @patch.object(OutgoingMessage, "send")
     async def test_route_game_actions(
-        self, send_outgoing_message_mock: AsyncMock
+        self, send_mock: AsyncMock, init_mock: Mock
     ) -> None:
+        init_mock.return_value = None
         p1: WebSocketHandler
         p1, _ = await self.createNewGame()
-        new_game_response: NewGameResponseContainer = (
-            send_outgoing_message_mock.await_args_list[0].args[1]
-        )
+        new_game_response: NewGameResponseContainer = init_mock.call_args_list[0].args[
+            1
+        ]
         self.assertIsInstance(new_game_response, NewGameResponseContainer)
         keys: Dict[Color, str] = new_game_response.keys
         p2 = WebSocketHandler()
@@ -318,6 +332,8 @@ class GameManagerIntegrationTestCase(unittest.IsolatedAsyncioTestCase):
         # to let all of the new/join game messages get processed
         await asyncio.sleep(0.1)
 
+        # reset before every route_message
+        send_mock.call_count = 0
         # black goes first, so an initial move by white should fail
         await self.gm.route_message(
             IncomingMessage(
@@ -333,9 +349,10 @@ class GameManagerIntegrationTestCase(unittest.IsolatedAsyncioTestCase):
             )
         )
         await asyncio.sleep(0.1)
+        self.assertEqual(send_mock.call_count, 1)
         msg_type: OutgoingMessageType
         response: ActionResponseContainer
-        msg_type, response, _ = send_outgoing_message_mock.await_args_list[-1].args
+        msg_type, response, _ = init_mock.call_args_list[-1].args
         self.assertIsInstance(msg_type, OutgoingMessageType)
         self.assertIs(msg_type, OutgoingMessageType.game_action_response)
         self.assertIsInstance(response, ActionResponseContainer)
@@ -343,6 +360,7 @@ class GameManagerIntegrationTestCase(unittest.IsolatedAsyncioTestCase):
         self.assertTrue("isn't white's turn" in response.explanation)
 
         # initial move by black should succeed
+        send_mock.call_count = 0
         await self.gm.route_message(
             IncomingMessage(
                 json.dumps(
@@ -357,14 +375,15 @@ class GameManagerIntegrationTestCase(unittest.IsolatedAsyncioTestCase):
             )
         )
         await asyncio.sleep(0.1)
+        self.assertEqual(send_mock.call_count, 3)
         # game status should be sent to both players after the action response, so
         # check the last three messages
-        msg_type, response, _ = send_outgoing_message_mock.await_args_list[-3].args
+        msg_type, response, _ = init_mock.call_args_list[-3].args
         self.assertIs(msg_type, OutgoingMessageType.game_action_response)
         self.assertTrue(response.success)
-        msg_type, _, _ = send_outgoing_message_mock.await_args_list[-2].args
+        msg_type, _, _ = init_mock.call_args_list[-2].args
         self.assertIs(msg_type, OutgoingMessageType.game_status)
-        msg_type, _, _ = send_outgoing_message_mock.await_args_list[-1].args
+        msg_type, _, _ = init_mock.call_args_list[-1].args
         self.assertIs(msg_type, OutgoingMessageType.game_status)
 
         # NOTE: it doesn't seem to be possible to test action preemption without
@@ -374,6 +393,7 @@ class GameManagerIntegrationTestCase(unittest.IsolatedAsyncioTestCase):
         # going to happen as a result of high database load or network delays
 
         # send a chat message
+        send_mock.call_count = 0
         await self.gm.route_message(
             IncomingMessage(
                 json.dumps(
@@ -387,9 +407,10 @@ class GameManagerIntegrationTestCase(unittest.IsolatedAsyncioTestCase):
             )
         )
         await asyncio.sleep(0.1)
-        msg_type, _, _ = send_outgoing_message_mock.await_args_list[-2].args
+        self.assertEqual(send_mock.call_count, 2)
+        msg_type, _, _ = init_mock.call_args_list[-2].args
         self.assertIs(msg_type, OutgoingMessageType.chat)
-        msg_type, _, _ = send_outgoing_message_mock.await_args_list[-1].args
+        msg_type, _, _ = init_mock.call_args_list[-1].args
         self.assertIs(msg_type, OutgoingMessageType.chat)
 
         # finally, check that the sanity assertions fire

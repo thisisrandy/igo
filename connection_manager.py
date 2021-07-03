@@ -1,7 +1,7 @@
 from containers import ErrorContainer
 from typing import Any
 from tornado import httputil
-from messages import IncomingMessage, OutgoingMessageType, send_outgoing_message
+from messages import IncomingMessage, OutgoingMessage, OutgoingMessageType
 from game_manager import GameManager
 from secrets import token_urlsafe
 import logging
@@ -50,9 +50,9 @@ class IgoWebSocket(tornado.websocket.WebSocketHandler):
             await self.game_manager.route_message(IncomingMessage(json, self))
         except Exception as e:
             logging.exception(f"Encountered exception while processing message {json}")
-            await send_outgoing_message(
+            await OutgoingMessage(
                 OutgoingMessageType.error, ErrorContainer(e), self
-            )
+            ).send()
 
     def on_close(self):
         logging.info("Connection closed")

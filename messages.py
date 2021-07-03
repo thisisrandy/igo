@@ -1,9 +1,18 @@
 from __future__ import annotations
+from chat import ChatThread
+from containers import (
+    ActionResponseContainer,
+    ErrorContainer,
+    GameStatusContainer,
+    JoinGameResponseContainer,
+    NewGameResponseContainer,
+    OpponentConnectedContainer,
+)
 from constants import ACTION_TYPE, COLOR, MESSAGE, SIZE, VS, KOMI, KEY, TYPE
 from datetime import datetime
 from enum import Enum, auto
 import json
-from typing import Dict, List, Any, Union
+from typing import Dict, List, Optional, Union
 import logging
 from tornado.websocket import WebSocketHandler, WebSocketClosedError
 from serialization import JsonifyableBase, JsonifyableBaseDataClass
@@ -104,45 +113,77 @@ class IncomingMessage(Message):
         )
 
 
-async def send_outgoing_message(
-    message_type: OutgoingMessageType,
-    data: Union[JsonifyableBase, JsonifyableBaseDataClass],
-    websocket_handler: WebSocketHandler,
-) -> bool:
+class OutgoingMessage(JsonifyableBaseDataClass):
     """
-    Send outgoing message. Return True on success and False otherwise
+    Serializable class containing outgoing message data and a method for sending
+    it
 
-    NOTE: This is a module method and not a class because conceptually,
-    outgoing messages are meant to be sent immediately and not checked/routed
-    through any components other that a WebSocketHandler. There is also a
-    practical reason: I can't for the life of me figure out how to check how
-    a constructor was called with the unittest library, so testing this as
-    e.g. a class with an argumentless send method was proving difficult. Note
-    that the method detailed e.g. at tinyurl.com/996jp3m, which uses the old
-    mock library, is no longer valid
-
-    Arguments:
+    Attributes:
 
         message_type: OutgoingMessageType - the type of the message
 
         data: Union[JsonifyableBase, JsonifyableBaseDataClass] - any object
         implementing the jsonifyable method
 
-        websocket_handler: WebSocketHandler - the vehicle by which to send
-        the message
+        websocket_handler: Optional[WebSocketHandler] - the vehicle by which to
+        send the message
+
+    Serialization note: the `websocket_handler` attribute is not included during
+    serialization and is thus not available for deserialization
     """
 
-    msg = json.dumps({"messageType": message_type.name, "data": data.jsonifyable()})
-    try:
-        await websocket_handler.write_message(msg)
-        logging.info(f"Sent a message of type {message_type}")
-        logging.debug(f"Message data: {msg}")
-        return True
-    except WebSocketClosedError as e:
-        # this is known to happen after a period of database inavailability and
-        # appears to be harmless, so only issue a warning
-        logging.warning(
-            f"Failed send a message of type {message_type} because of"
-            f" {e.__class__.__name__}"
-        )
-        return False
+    message_type: OutgoingMessageType
+    data: Union[JsonifyableBase, JsonifyableBaseDataClass]
+    websocket_handler: Optional[WebSocketHandler] = None
+
+    def jsonifyable(self) -> Dict:
+        return {"messageType": self.message_type.name, "data": self.data.jsonifyable()}
+
+    @classmethod
+    def _deserialize(cls, data: Dict) -> OutgoingMessage:
+        msg_type = OutgoingMessageType[data["messageType"]]
+        raw_data = data["data"]
+        if msg_type is OutgoingMessageType.new_game_response:
+            deserialized_data = NewGameResponseContainer.deserialize(raw_data)
+        elif msg_type is OutgoingMessageType.join_game_response:
+            deserialized_data = JoinGameResponseContainer.deserialize(raw_data)
+        elif msg_type is OutgoingMessageType.game_action_response:
+            deserialized_data = ActionResponseContainer.deserialize(raw_data)
+        elif msg_type is OutgoingMessageType.game_status:
+            deserialized_data = GameStatusContainer.deserialize(raw_data)
+        elif msg_type is OutgoingMessageType.chat:
+            deserialized_data = ChatThread.deserialize(raw_data)
+        elif msg_type is OutgoingMessageType.opponent_connected:
+            deserialized_data = OpponentConnectedContainer.deserialize(raw_data)
+        elif msg_type is OutgoingMessageType.error:
+            deserialized_data = ErrorContainer.deserialize(raw_data)
+        else:
+            raise TypeError(
+                f"Unrecognized outgoing message type {msg_type} encountered"
+            )
+        return OutgoingMessage(msg_type, deserialized_data)
+
+    async def send(self) -> bool:
+        """
+        Write `self.jsonifyable()` to `self.websocket_handler`. Return True on
+        success and False otherwise
+        """
+
+        assert (
+            self.websocket_handler is not None
+        ), "Cannot send outgoing messages without specifying a WebSocket"
+
+        msg = json.dumps(self.jsonifyable())
+        try:
+            await self.websocket_handler.write_message(msg)
+            logging.info(f"Sent a message of type {self.message_type}")
+            logging.debug(f"Message data: {msg}")
+            return True
+        except WebSocketClosedError as e:
+            # this is known to happen after a period of database inavailability and
+            # appears to be harmless, so only issue a warning
+            logging.warning(
+                f"Failed send a message of type {self.message_type} because of"
+                f" {e.__class__.__name__}"
+            )
+            return False
