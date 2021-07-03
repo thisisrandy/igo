@@ -55,6 +55,8 @@ server](https://github.com/thisisrandy/igo-frontend) running in order to play.
 - [tornado](https://github.com/tornadoweb/tornado) for highly scalable,
   asynchronous [WebSockets](http://en.wikipedia.org/wiki/WebSocket) to communicate
   with the [frontend](https://github.com/thisisrandy/igo-frontend)
+- [uvloop](https://github.com/MagicStack/uvloop) for improved `asyncio`
+  performance
 
 #### Development
 

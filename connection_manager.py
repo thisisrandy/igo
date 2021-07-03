@@ -8,6 +8,7 @@ import logging
 import tornado.web
 import tornado.websocket
 from tornado.options import define, options
+import uvloop
 
 # NOTE: tornado configures logging and provides some command line options by
 # default.  See --help for details
@@ -76,6 +77,7 @@ class Application(tornado.web.Application):
 
 
 def main():
+    uvloop.install()
     options.parse_command_line()
     app = Application()
     app.listen(options.port)
