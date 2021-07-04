@@ -1,15 +1,15 @@
 """
-Replays the sample game repeatedly from multiple processes to measure the
+Replays the sample game concurrently from multiple processes to measure the
 server's ability to scale
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from containers import (
     ActionResponseContainer,
     JoinGameResponseContainer,
     NewGameResponseContainer,
 )
-from typing import Dict
+from typing import Dict, List
 from messages import IncomingMessageType, OutgoingMessage, OutgoingMessageType
 import pickle
 from game import Action, Game, Color
@@ -17,6 +17,8 @@ from tornado.websocket import WebSocketClientConnection, websocket_connect
 import json
 from constants import ACTION_TYPE, COORDS, KEY, TYPE, VS, COLOR, SIZE, KOMI
 import asyncio
+import multiprocessing as mp
+import numpy as np
 
 SERVER_URL = "ws://localhost:8888/websocket"
 
@@ -24,10 +26,42 @@ with open("sample_game.bin", "rb") as reader:
     sample_game: Game = pickle.load(reader)
 
 
-async def play_once() -> None:
+def many_processes(num_processes: int = mp.cpu_count(), workers_per_process: int = 10):
+    with mp.Pool(num_processes) as pool:
+        res: List[List[float]] = pool.map(
+            play_many, [workers_per_process for _ in range(num_processes)]
+        )
+
+    res: np.ndarray = np.vectorize(timedelta.total_seconds)(np.array(res).flatten())
+    # + 2 is for create new game and join game
+    num_actions = len(sample_game.action_stack) + 2
+    num_plays = len(res)
+    print(f"Actions per play: {num_actions}")
+    print(f"Total plays: {num_plays}")
+    print(f"Total actions: {num_actions*num_plays}")
+    print(f"Min game time: {np.min(res):.04}s")
+    print(f"Max: {np.max(res):.04}s")
+    print(f"Std: {np.std(res):.04}s")
+    print(f"Mean: {np.mean(res):.04}s")
+    print(f"Median: {np.median(res):.04}s")
+    print(f"Mean action time: {np.mean(res)/num_actions:.04}s")
+
+
+def play_many(num_workers: int) -> List[float]:
     """
-    Play the game once through in a single thread and record the total time
-    taken
+    Spawn `num_workers` async tasks to play the sample game once each
+    """
+
+    async def tasks() -> List[float]:
+        return await asyncio.gather(*[play_once() for _ in range(num_workers)])
+
+    return asyncio.run(tasks())
+
+
+async def play_once() -> float:
+    """
+    Play the sample game once through in a single thread and return the total
+    time taken
     """
 
     start_time = datetime.now()
@@ -83,17 +117,12 @@ async def play_once() -> None:
     await black_consumer
     await white_consumer
 
-    # finally, close the connections and record the total time taken
+    # finally, close the connections and return the total time taken
 
     black.close()
     white.close()
 
-    time_taken = datetime.now() - start_time
-
-    print(
-        f"Took {time_taken} to play the sample game"
-        f" ({len(sample_game.action_stack)} actions taken)"
-    )
+    return datetime.now() - start_time
 
 
 async def play_consumer(
@@ -131,4 +160,4 @@ async def play_consumer(
         assert response.message_type is OutgoingMessageType.game_status
 
 
-asyncio.run(play_once())
+many_processes()
