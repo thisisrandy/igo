@@ -169,15 +169,20 @@ print(
 )
 print("This may take some time... ", end="")
 
+start_time = datetime.now()
 res: np.ndarray = np.vectorize(timedelta.total_seconds)(
     np.array(
         many_processes(options.num_processes, options.workers_per_process)
     ).flatten()
 )
+# this obviously includes perf_runner's overhead, so it's slightly overstating
+# the total time that any worker was playing, but I can live with the inaccuracy
+total_time = (datetime.now() - start_time).total_seconds()
 print("Finished!\n")
 # + 2 is for create new game and join game
 num_actions = len(sample_game.action_stack) + 2
 num_plays = len(res)
+print(f"Total time: {total_time:.04}s")
 print(f"Actions per play: {num_actions}")
 print(f"Total plays: {num_plays}")
 print(f"Total actions: {num_actions*num_plays}")
@@ -187,3 +192,4 @@ print(f"Std: {np.std(res):.04}s")
 print(f"Mean: {np.mean(res):.04}s")
 print(f"Median: {np.median(res):.04}s")
 print(f"Mean action time: {np.mean(res)/num_actions:.04}s")
+print(f"Mean actions/sec: {num_actions*num_plays/total_time:.04}")
