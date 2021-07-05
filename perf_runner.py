@@ -20,6 +20,16 @@ import asyncio
 import multiprocessing as mp
 import numpy as np
 
+# FIXME: this test revealed a problem:
+# [E 210704 15:47:18 asyncio:199] Exception in callback <bound method BaseAsyncIOLoop._handle_events of <tornado.platform.asyncio.AsyncIOMainLoop object at 0x7f67617b3790>>
+#     handle: <Handle BaseAsyncIOLoop._handle_events>
+#     Traceback (most recent call last):
+#       File "uvloop/cbhandles.pyx", line 63, in uvloop.loop.Handle._run
+#       File "/home/randy/git/igo-backend/.venv/lib/python3.8/site-packages/tornado/platform/asyncio.py", line 189, in _handle_events
+#       File "/home/randy/git/igo-backend/.venv/lib/python3.8/site-packages/tornado/netutil.py", line 266, in accept_handler
+#       File "/usr/lib/python3.8/socket.py", line 292, in accept
+#     OSError: [Errno 24] Too many open files
+
 SERVER_URL = "ws://localhost:8888/websocket"
 
 with open("sample_game.bin", "rb") as reader:
