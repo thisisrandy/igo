@@ -14,6 +14,7 @@ from messages import IncomingMessageType, OutgoingMessage, OutgoingMessageType
 import pickle
 from game import Action, Game, Color
 from tornado.websocket import WebSocketClientConnection, websocket_connect
+from tornado.options import define, options
 import json
 from constants import ACTION_TYPE, COORDS, KEY, TYPE, VS, COLOR, SIZE, KOMI
 import asyncio
@@ -30,31 +31,32 @@ import numpy as np
 #       File "/usr/lib/python3.8/socket.py", line 292, in accept
 #     OSError: [Errno 24] Too many open files
 
-SERVER_URL = "ws://localhost:8888/websocket"
+define("host", default="localhost", help="connect to the given host address", type=str)
+define("port", default=8888, help="connect on the given port", type=int)
+define(
+    "num_processes",
+    default=mp.cpu_count(),
+    help="run in the given number of distinct processes",
+    type=int,
+)
+define(
+    "workers_per_process",
+    default=10,
+    help="spawn the given number of workers per process",
+    type=int,
+)
+
+options.parse_command_line()
+
+SERVER_URL = f"ws://{options.host}:{options.port}/websocket"
 
 with open("sample_game.bin", "rb") as reader:
     sample_game: Game = pickle.load(reader)
 
 
-def many_processes(num_processes: int = mp.cpu_count(), workers_per_process: int = 10):
+def many_processes(num_processes: int, workers_per_process: int) -> List[List[float]]:
     with mp.Pool(num_processes) as pool:
-        res: List[List[float]] = pool.map(
-            play_many, [workers_per_process for _ in range(num_processes)]
-        )
-
-    res: np.ndarray = np.vectorize(timedelta.total_seconds)(np.array(res).flatten())
-    # + 2 is for create new game and join game
-    num_actions = len(sample_game.action_stack) + 2
-    num_plays = len(res)
-    print(f"Actions per play: {num_actions}")
-    print(f"Total plays: {num_plays}")
-    print(f"Total actions: {num_actions*num_plays}")
-    print(f"Min game time: {np.min(res):.04}s")
-    print(f"Max: {np.max(res):.04}s")
-    print(f"Std: {np.std(res):.04}s")
-    print(f"Mean: {np.mean(res):.04}s")
-    print(f"Median: {np.median(res):.04}s")
-    print(f"Mean action time: {np.mean(res)/num_actions:.04}s")
+        return pool.map(play_many, [workers_per_process for _ in range(num_processes)])
 
 
 def play_many(num_workers: int) -> List[float]:
@@ -170,4 +172,27 @@ async def play_consumer(
         assert response.message_type is OutgoingMessageType.game_status
 
 
-many_processes()
+print(
+    f"Starting run against {options.host}:{options.port} in {options.num_processes}"
+    f" process(es) with {options.workers_per_process} worker(s) per process."
+)
+print("This may take some time... ", end="")
+
+res: np.ndarray = np.vectorize(timedelta.total_seconds)(
+    np.array(
+        many_processes(options.num_processes, options.workers_per_process)
+    ).flatten()
+)
+print("Finished!\n")
+# + 2 is for create new game and join game
+num_actions = len(sample_game.action_stack) + 2
+num_plays = len(res)
+print(f"Actions per play: {num_actions}")
+print(f"Total plays: {num_plays}")
+print(f"Total actions: {num_actions*num_plays}")
+print(f"Min game time: {np.min(res):.04}s")
+print(f"Max: {np.max(res):.04}s")
+print(f"Std: {np.std(res):.04}s")
+print(f"Mean: {np.mean(res):.04}s")
+print(f"Median: {np.median(res):.04}s")
+print(f"Mean action time: {np.mean(res)/num_actions:.04}s")
