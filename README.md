@@ -18,6 +18,22 @@ can play [here](#). The frontend (user interface) code is
 6. In your chosen database, run all `.sql` files in the `sql/` directory,
    starting with `tables.sql`
 
+**NOTE**: If the server is handling a large number of simultaneous connections,
+it will be limited by the system open file limit, which may be set to a small
+value by default on your system. If you are exceeding the limit, you will see
+error messages like the following:
+
+```
+...
+OSError: [Errno 24] Too many open files
+```
+
+You can check the current value on linux with `ulimit -n` and set it for the
+current session with <code>ulimit -n <i>limit</i></code>, up to any limits
+described in `/etc/security/limits.conf`. See [this
+page](https://www.tecmint.com/increase-set-open-file-limits-in-linux/) for
+additional details.
+
 #### python version requirement
 
 ≥ 3.8
