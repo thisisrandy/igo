@@ -18,6 +18,18 @@ Mean: 123.1s
 Median: 123.7s
 Mean action time: 1.953s
 
+Total time: 158.7s
+Actions per play: 63
+Total plays: 400
+Total actions: 25200
+Min game time: 114.7s
+Max: 158.6s
+Std: 5.279s
+Mean: 134.5s
+Median: 135.5s
+Mean action time: 2.135s
+Mean actions/sec: 158.8
+
 Actions per play: 63
 Total plays: 800
 Total actions: 50400
@@ -37,6 +49,18 @@ Std: 30.68s
 Mean: 301.4s
 Median: 305.0s
 Mean action time: 4.784s
+
+Total time: 476.5s
+Actions per play: 63
+Total plays: 1200
+Total actions: 75600
+Min game time: 312.8s
+Max: 476.5s
+Std: 17.6s
+Mean: 380.4s
+Median: 382.8s
+Mean action time: 6.037s
+Mean actions/sec: 158.6
 
 Actions per play: 63
 Total plays: 2000
