@@ -1,3 +1,5 @@
+*** Laptop numbers:
+
 Actions per play: 63
 Total plays: 40
 Total actions: 2520
@@ -72,3 +74,46 @@ Mean: 650.0s
 Median: 651.0s
 Mean action time: 10.32s
 
+*** Local numbers re: Game copy speed
+
+Stubbed:
+------------------
+Total time: 64.89s
+Actions per play: 63
+Total plays: 400
+Total actions: 25200
+Min game time: 63.07s
+Max: 64.85s
+Std: 0.4484s
+Mean: 64.06s
+Median: 64.02s
+Mean action time: 1.017s
+Mean actions/sec: 388.4
+
+Naive deepcopy:
+------------------
+Total time: 105.0s
+Actions per play: 63
+Total plays: 400
+Total actions: 25200
+Min game time: 102.6s
+Max: 105.0s
+Std: 0.4445s
+Mean: 104.2s
+Median: 104.1s
+Mean action time: 1.653s
+Mean actions/sec: 240.0
+
+Custom deepcopy:
+------------------
+Total time: 77.66s
+Actions per play: 63
+Total plays: 400
+Total actions: 25200
+Min game time: 75.34s
+Max: 77.62s
+Std: 0.457s
+Mean: 76.83s
+Median: 76.79s
+Mean action time: 1.219s
+Mean actions/sec: 324.5
