@@ -14,9 +14,15 @@ can play [here](#). The frontend (user interface) code is
 3. Run `poetry install`
 4. If necessary, [install](https://www.postgresql.org/download/) PostgreSQL
 5. [Create](https://www.postgresql.org/docs/current/sql-createdatabase.html) a
-   new database or point the application to an existing one
+   new database. If desired, an existing database can also be used, provided there
+   are no name conflicts with this application, though this is not recommended
 6. In your chosen database, run all `.sql` files in the `sql/` directory,
    starting with `tables.sql`
+7. Wherever the environment for the desired user is configured, set the
+   `DATABASE_URL` variable to the [connection
+   URI](https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING)
+   for your database. Note that `DATABASE_URL` follows the variable used in [heroku
+   applications](https://devcenter.heroku.com/articles/heroku-postgresql#connecting-in-python)
 
 **NOTE**: If the server is handling a large number of simultaneous connections,
 it will be limited by the system open file limit, which may be set to a small

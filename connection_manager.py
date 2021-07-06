@@ -9,6 +9,7 @@ import tornado.web
 import tornado.websocket
 from tornado.options import define, options
 import uvloop
+import os
 
 # NOTE: tornado configures logging and provides some command line options by
 # default.  See --help for details
@@ -40,7 +41,7 @@ class IgoWebSocket(tornado.websocket.WebSocketHandler):
         preempted with the default logger settings
         """
 
-        cls.game_manager: GameManager = await GameManager()
+        cls.game_manager: GameManager = await GameManager(os.environ["DATABASE_URL"])
 
     def open(self):
         logging.info("New connection opened")
