@@ -24,7 +24,6 @@ value by default on your system. If you are exceeding the limit, you will see
 error messages like the following:
 
 ```
-...
 OSError: [Errno 24] Too many open files
 ```
 
