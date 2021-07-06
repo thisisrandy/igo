@@ -193,6 +193,9 @@ class Point(JsonifyableBaseDataClass):
             Color.from_short(data[3]),
         )
 
+    def __deepcopy__(self, memo: Dict) -> Point:
+        return Point(self.color, self.marked_dead, self.counted, self.counts_for)
+
 
 class Board(JsonifyableBase):
     """
@@ -226,6 +229,11 @@ class Board(JsonifyableBase):
 
             return [p.jsonifyable() for p in self._row]
 
+        def __deepcopy__(self, memo: Dict) -> Board._BoardRow:
+            dup: Board._BoardRow = self.__new__(self.__class__)
+            dup._row = [deepcopy(p, memo) for p in self._row]
+            return dup
+
         @classmethod
         def _deserialize(cls, data: List) -> Board._BoardRow:
             self: Board._BoardRow = cls.__new__(cls)
@@ -258,6 +266,19 @@ class Board(JsonifyableBase):
         """Return a representation which can be readily JSONified"""
 
         return {"size": self.size, "points": [r.jsonifyable() for r in self._rows]}
+
+    def __deepcopy__(self, memo: Dict) -> Board:
+        """
+        NOTE: a naive deepcopy of board was the single most expensive operation
+        the game server was undertaking in profiling runs. implementing
+        __deepcopy__ for Board and its attributes shaves this down by about a
+        factor of 10
+        """
+
+        dup: Board = self.__new__(self.__class__)
+        dup.size = self.size
+        dup._rows = [deepcopy(r, memo) for r in self._rows]
+        return dup
 
     @classmethod
     def _deserialize(cls, data: Dict) -> Board:
