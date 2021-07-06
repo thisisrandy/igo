@@ -77,6 +77,8 @@ server](https://github.com/thisisrandy/igo-frontend) running in order to play.
 
 - [black](https://github.com/psf/black) for formatting
 - [coverage](https://coverage.readthedocs.io/) for code coverage
+- [cProfile](https://docs.python.org/3/library/profile.html#module-cProfile) for
+  performance analysis
 - [numpy](https://numpy.org/) for performance test result munging
 - [poetry](https://python-poetry.org/) for dependency and [virtual
   environment](https://docs.python.org/3/tutorial/venv.html) management
