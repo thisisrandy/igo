@@ -228,7 +228,7 @@ class Board(JsonifyableBase):
 
         @classmethod
         def _deserialize(cls, data: List) -> Board._BoardRow:
-            self: Board._BoardRow = Board._BoardRow.__new__(Board._BoardRow)
+            self: Board._BoardRow = cls.__new__(cls)
             self._row = [Point.deserialize(p) for p in data]
             return self
 
@@ -261,7 +261,7 @@ class Board(JsonifyableBase):
 
     @classmethod
     def _deserialize(cls, data: Dict) -> Board:
-        self: Board = Board.__new__(Board)
+        self: Board = cls.__new__(cls)
         self.size = data["size"]
         self._rows = [Board._BoardRow.deserialize(row) for row in data["points"]]
         return self
