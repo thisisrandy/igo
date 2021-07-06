@@ -1,3 +1,43 @@
+General observations from profiling: The game server is has a small memory
+footprint and is CPU-bound. Processing time was initially dominated by
+out-of-the-box game.Board deepcopy, but a custom implementation brought that
+down considerably. Now, cycles are spread fairly evenly across board copying and
+the various (de)serialization methods. Possible optimizations include:
+
+- Doing away with deepcopying the board and instead tracking changes and
+unwinding them when need be. It isn't immediately obvious how to detect ko this
+way (maybe generate unique board hashes?)
+
+- Doing away with the board action stack. We don't really use it for anything in
+production, though it is super useful for programmatically replaying games. Game
+size gets reduced this way, which reduces pickling time
+
+- Using a ProcessPoolExecutor (see https://stackoverflow.com/a/28492261/12162258
+for an [outdated but instructive] asyncio example) to do the heavy lifting with
+Game actions. This would need to be handled carefully: if we store our games in
+the main process, they would get pickled for IPC, which would definitely squash
+any benefit. Instead, we'd need to load them up from the DB in child processes
+and write back out if needed, returning only the result. Alternately, Processes
+could be created guarded by a semaphore to limit the max concurrent number,
+which would give us initially shared memory thanks to forking on linux (reading
+the result back from the child would still require a pickle cycle). Some
+synchronization would be needed to make sure that actions are taken in the order
+received.
+
+It's worth noting that just running multiple instances of the single process
+server behind a load balancer is probably as or even more effective than this
+option
+
+- Sharing Game state between clients connected to the same game. This introduces
+a lot of complexity, but assuming a large client to server ratio, it does a lot
+reduce DB IO, which means less time spent pickling. The server memory footprint
+would also be reduced, though that doesn't seem to be a concern in the first
+place
+
+- Using diffs instead of snapshots for game storage and to update clients. This
+would reduce serialization time, but the added complexity is probably not worth
+it
+
 *** Laptop numbers:
 
 Actions per play: 63
