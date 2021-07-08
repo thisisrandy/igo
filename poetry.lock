@@ -118,7 +118,7 @@ python-versions = "*"
 name = "numpy"
 version = "1.21.0"
 description = "NumPy is the fundamental package for array computing with Python."
-category = "main"
+category = "dev"
 optional = false
 python-versions = ">=3.7"
 
@@ -218,7 +218,7 @@ test = ["aiohttp", "flake8 (>=3.8.4,<3.9.0)", "psutil", "pycodestyle (>=2.6.0,<2
 [metadata]
 lock-version = "1.1"
 python-versions = "3.9.6"
-content-hash = "c88aeb68147031a308a0f20c563d3822cdc95ab141b7dbc748f9da8299a37d57"
+content-hash = "32332f8d62065ea7670ee02664a468d9d5b22a3139fd1db82a74cfdbb3200829"
 
 [metadata.files]
 aiofiles = [
