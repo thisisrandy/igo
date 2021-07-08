@@ -1,3 +1,4 @@
+from datetime import datetime
 import re
 from containers import ErrorContainer
 from typing import Any
@@ -65,14 +66,23 @@ class IgoWebSocket(tornado.websocket.WebSocketHandler):
         logging.info("New connection opened")
 
     async def on_message(self, json: str):
+        start_time = datetime.now()
         logging.info(f"Received message: {json}")
+
         try:
             await self.game_manager.route_message(IncomingMessage(json, self))
+
         except Exception as e:
             logging.exception(f"Encountered exception while processing message {json}")
             await OutgoingMessage(
                 OutgoingMessageType.error, ErrorContainer(e), self
             ).send()
+
+        else:
+            logging.info(
+                f"Processed message {json} in"
+                f" {(datetime.now() - start_time).total_seconds()}s"
+            )
 
     def on_close(self):
         logging.info("Connection closed")
