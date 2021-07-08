@@ -1,3 +1,4 @@
+import re
 from containers import ErrorContainer
 from typing import Any
 from tornado import httputil
@@ -10,10 +11,22 @@ import tornado.websocket
 from tornado.options import define, options
 import uvloop
 import os
+import urllib
 
 # NOTE: tornado configures logging and provides some command line options by
 # default.  See --help for details
 define("port", default=8888, help="run on the given port", type=int)
+define(
+    "origin-suffix",
+    default="",
+    help=(
+        "only allow connections originating from a domain ending in this value, e.g."
+        " '.mydomain.com' to allow all subdomains of mydomain.com, or specify the"
+        " empty string to allow all requests. begin with ^ to specify an exact match."
+        " port number is not considered."
+    ),
+    type=str,
+)
 
 
 class IgoWebSocket(tornado.websocket.WebSocketHandler):
@@ -29,7 +42,7 @@ class IgoWebSocket(tornado.websocket.WebSocketHandler):
         super().__init__(application, request, **kwargs)
 
     @classmethod
-    async def init(cls):
+    async def init(cls, origin_suffix: str):
         """
         Must be called before use. We want tornado to have priority setting
         up, so this is best called immediately before starting the event loop
@@ -42,6 +55,11 @@ class IgoWebSocket(tornado.websocket.WebSocketHandler):
         """
 
         cls.game_manager: GameManager = await GameManager(os.environ["DATABASE_URL"])
+        match_expr = (
+            f"{'' if origin_suffix.startswith('^') else '.*'}{origin_suffix}(:\d+)?$"
+        )
+        cls.origin_matcher = re.compile(match_expr)
+        logging.info(f"Restricting to origins matching {match_expr}")
 
     def open(self):
         logging.info("New connection opened")
@@ -63,8 +81,13 @@ class IgoWebSocket(tornado.websocket.WebSocketHandler):
         )
 
     def check_origin(self, origin):
-        # TODO: some sort of check here
-        return True
+        parsed_origin = urllib.parse.urlparse(origin)
+        if self.origin_matcher.match(parsed_origin.netloc):
+            return True
+        else:
+            logging.warning(
+                f"Disallowed origin {parsed_origin.netloc} attempted to connect"
+            )
 
 
 class Application(tornado.web.Application):
@@ -83,7 +106,7 @@ def main():
     app = Application()
     app.listen(options.port)
     io_loop = tornado.ioloop.IOLoop.current()
-    io_loop.run_sync(IgoWebSocket.init)
+    io_loop.run_sync(lambda: IgoWebSocket.init(options.origin_suffix))
     logging.info(f"Listening on port {options.port}")
     io_loop.start()
 
