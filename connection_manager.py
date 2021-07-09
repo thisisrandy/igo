@@ -99,6 +99,9 @@ class IgoWebSocket(tornado.websocket.WebSocketHandler):
                 f"Disallowed origin {parsed_origin.netloc} attempted to connect"
             )
 
+    def on_pong(self, data: bytes) -> None:
+        logging.info(f"Received pong from {self}")
+
 
 class Application(tornado.web.Application):
     def __init__(self):
@@ -106,6 +109,10 @@ class Application(tornado.web.Application):
         settings = dict(
             cookie_secret=token_urlsafe(),
             xsrf_cookies=True,
+            # note per the tornado docs that websocket_ping_timeout is the max
+            # of 3 pings or 30 seconds by default, hence max(10*3, 30) = 30
+            # seconds here. note also that heroku's idle timeout is 55 seconds
+            websocket_ping_interval=10,
         )
         super().__init__(handlers, **settings)
 
