@@ -23,7 +23,15 @@ import numpy as np
 
 
 define("host", default="localhost", help="connect to the given host address", type=str)
-define("port", default=8888, help="connect on the given port", type=int)
+define(
+    "port",
+    default="8888",
+    help=(
+        "connect on the given port or comma-separated ports, splitting work evenly"
+        " between ports if more than one is provided"
+    ),
+    type=str,
+)
 define(
     "num_processes",
     default=mp.cpu_count(),
@@ -39,40 +47,55 @@ define(
 
 options.parse_command_line()
 
-SERVER_URL = f"ws://{options.host}:{options.port}/websocket"
+SERVER_URL_TEMPLATE = f"ws://{options.host}:%s/websocket"
+PORTS: List[int] = [int(p) for p in options.port.split(",")]
+NUM_PROCESSES: int = options.num_processes
+WORKERS_PER_PROCESS: int = options.workers_per_process
 
 with open("sample_game.bin", "rb") as reader:
     sample_game: Game = pickle.load(reader)
 
 
-def many_processes(num_processes: int, workers_per_process: int) -> List[List[float]]:
-    with mp.Pool(num_processes) as pool:
-        return pool.map(play_many, [workers_per_process for _ in range(num_processes)])
+def many_processes() -> List[List[timedelta]]:
+    with mp.Pool(NUM_PROCESSES) as pool:
+        return pool.map(
+            play_many,
+            [(pid) for pid in range(NUM_PROCESSES)],
+        )
 
 
-def play_many(num_workers: int) -> List[float]:
+def play_many(pid: int) -> List[timedelta]:
     """
-    Spawn `num_workers` async tasks to play the sample game once each
+    Spawn `WORKERS_PER_PROCESS` async tasks to play the sample game once each
     """
 
     async def tasks() -> List[float]:
-        return await asyncio.gather(*[play_once() for _ in range(num_workers)])
+        return await asyncio.gather(
+            *[
+                play_once(pid * WORKERS_PER_PROCESS + wid)
+                for wid in range(WORKERS_PER_PROCESS)
+            ]
+        )
 
     return asyncio.run(tasks())
 
 
-async def play_once() -> float:
+async def play_once(id: int) -> timedelta:
     """
     Play the sample game once through in a single thread and return the total
     time taken
     """
+
+    server_url = SERVER_URL_TEMPLATE % (
+        PORTS[int(id * len(PORTS) / (NUM_PROCESSES * WORKERS_PER_PROCESS))]
+    )
 
     start_time = datetime.now()
 
     # our first task is to open two connections, create a new game with one, and
     # join that game with the other
 
-    black: WebSocketClientConnection = await websocket_connect(SERVER_URL)
+    black: WebSocketClientConnection = await websocket_connect(server_url)
     await black.write_message(
         json.dumps(
             {
@@ -90,7 +113,7 @@ async def play_once() -> float:
     assert data.success
     keys: Dict[Color, str] = data.keys
 
-    white: WebSocketClientConnection = await websocket_connect(SERVER_URL)
+    white: WebSocketClientConnection = await websocket_connect(server_url)
     await white.write_message(
         json.dumps({TYPE: IncomingMessageType.join_game.name, KEY: keys[Color.white]})
     )
@@ -171,9 +194,7 @@ print("This may take some time... ", end="")
 
 start_time = datetime.now()
 res: np.ndarray = np.vectorize(timedelta.total_seconds)(
-    np.array(
-        many_processes(options.num_processes, options.workers_per_process)
-    ).flatten()
+    np.array(many_processes()).flatten()
 )
 # this obviously includes perf_runner's overhead, so it's slightly overstating
 # the total time that any worker was playing, but I can live with the inaccuracy
