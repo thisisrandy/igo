@@ -38,6 +38,12 @@ place
 would reduce serialization time, but the added complexity is probably not worth
 it
 
+UPDATE: Running just two or three server instances simultaneously quickly shifts
+them to being I/O-bound. Thus, any further optimization efforts should focus on
+reducing the number of I/O operations, e.g. sharing game state, the size of
+individual reads and writes, e.g. nixing the action stack or writing diffs, or
+the speed of the store, e.g. swapping out postgres for redis w/o durability
+
 *** Laptop numbers:
 
 Actions per play: 63
