@@ -1,19 +1,19 @@
-from constants import ACTION_TYPE, COLOR, COORDS, KEY, KOMI, MESSAGE, SIZE
+from .constants import ACTION_TYPE, COLOR, COORDS, KEY, KOMI, MESSAGE, SIZE
 import logging
-from chat import ChatMessage, ChatThread
+from .chat import ChatMessage, ChatThread
 from dataclassy import dataclass
-from game import Action, ActionType, Color, Game
+from .game import Action, ActionType, Color, Game
 from typing import Callable, Coroutine, Dict, Optional, Tuple
 from tornado.websocket import WebSocketHandler
-from messages import (
+from .messages import (
     IncomingMessage,
     IncomingMessageType,
     OutgoingMessage,
     OutgoingMessageType,
 )
 from asyncinit import asyncinit
-from db_manager import DbManager, JoinResult
-from containers import (
+from .db_manager import DbManager, JoinResult
+from .containers import (
     ActionResponseContainer,
     GameStatusContainer,
     JoinGameResponseContainer,

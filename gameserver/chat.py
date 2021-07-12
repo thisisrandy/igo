@@ -1,8 +1,8 @@
 from __future__ import annotations
 from bisect import bisect_right
 from typing import Dict, Iterator, List, Optional
-from game import Color
-from serialization import JsonifyableBaseDataClass
+from .game import Color
+from .serialization import JsonifyableBaseDataClass
 
 
 class ChatMessage(JsonifyableBaseDataClass):

@@ -4,19 +4,19 @@ server's ability to scale
 """
 
 from datetime import datetime, timedelta
-from containers import (
+from .containers import (
     ActionResponseContainer,
     JoinGameResponseContainer,
     NewGameResponseContainer,
 )
 from typing import Dict, List
-from messages import IncomingMessageType, OutgoingMessage, OutgoingMessageType
+from .messages import IncomingMessageType, OutgoingMessage, OutgoingMessageType
 import pickle
-from game import Action, Game, Color
+from .game import Action, Game, Color
 from tornado.websocket import WebSocketClientConnection, websocket_connect
 from tornado.options import define, options
 import json
-from constants import ACTION_TYPE, COORDS, KEY, TYPE, VS, COLOR, SIZE, KOMI
+from .constants import ACTION_TYPE, COORDS, KEY, TYPE, VS, COLOR, SIZE, KOMI
 import asyncio
 import multiprocessing as mp
 import numpy as np

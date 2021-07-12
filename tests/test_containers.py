@@ -1,12 +1,12 @@
 import unittest
-from containers import (
+from gameserver.containers import (
     NewGameResponseContainer,
     JoinGameResponseContainer,
     ActionResponseContainer,
     OpponentConnectedContainer,
     GameStatusContainer,
 )
-from game import Color, Game
+from gameserver.game import Color, Game
 
 
 class ResponseContainerTestCase(unittest.TestCase):

@@ -1,27 +1,37 @@
 import asyncio
-from chat import ChatThread
+from gameserver.chat import ChatThread
 from typing import Dict, Optional, Tuple
-from containers import (
+from gameserver.containers import (
     ActionResponseContainer,
     GameStatusContainer,
     JoinGameResponseContainer,
     NewGameResponseContainer,
     OpponentConnectedContainer,
 )
-from db_manager import DbManager
+from gameserver.db_manager import DbManager
 import unittest
 from unittest.mock import AsyncMock, patch, Mock, MagicMock
 from tornado.websocket import WebSocketHandler
-from game_manager import ClientData, GameStore, GameManager
+from gameserver.game_manager import ClientData, GameStore, GameManager
 import json
-from messages import (
+from gameserver.messages import (
     IncomingMessage,
     IncomingMessageType,
     OutgoingMessage,
     OutgoingMessageType,
 )
-from game import Color, ActionType, Game
-from constants import TYPE, VS, COLOR, SIZE, KOMI, KEY, ACTION_TYPE, COORDS, MESSAGE
+from gameserver.game import Color, ActionType, Game
+from gameserver.constants import (
+    TYPE,
+    VS,
+    COLOR,
+    SIZE,
+    KOMI,
+    KEY,
+    ACTION_TYPE,
+    COORDS,
+    MESSAGE,
+)
 import testing.postgresql
 
 

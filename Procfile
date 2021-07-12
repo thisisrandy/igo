@@ -1,1 +1,1 @@
-web: python connection_manager.py --port=$PORT --origin-suffix=^playigo.herokuapp.com
+web: python -m gameserver.connection_manager --port=$PORT --origin-suffix=^playigo.herokuapp.com

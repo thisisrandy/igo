@@ -1,8 +1,8 @@
 from copy import deepcopy
-from chat import ChatMessage, ChatThread
+from gameserver.chat import ChatMessage, ChatThread
 import unittest
 from datetime import datetime
-from game import Color
+from gameserver.game import Color
 from random import choice, uniform
 
 

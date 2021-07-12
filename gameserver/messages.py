@@ -1,6 +1,6 @@
 from __future__ import annotations
-from chat import ChatThread
-from containers import (
+from .chat import ChatThread
+from .containers import (
     ActionResponseContainer,
     ErrorContainer,
     GameStatusContainer,
@@ -8,14 +8,14 @@ from containers import (
     NewGameResponseContainer,
     OpponentConnectedContainer,
 )
-from constants import ACTION_TYPE, COLOR, MESSAGE, SIZE, VS, KOMI, KEY, TYPE
+from .constants import ACTION_TYPE, COLOR, MESSAGE, SIZE, VS, KOMI, KEY, TYPE
 from datetime import datetime
 from enum import Enum, auto
 import json
 from typing import Dict, List, Optional, Union
 import logging
 from tornado.websocket import WebSocketHandler, WebSocketClosedError
-from serialization import JsonifyableBase, JsonifyableBaseDataClass
+from .serialization import JsonifyableBase, JsonifyableBaseDataClass
 
 
 class IncomingMessageType(Enum):
