@@ -94,7 +94,7 @@ class NewGameResponseContainer(GameResponseContainer):
     """
 
     @classmethod
-    def _deserialize(cls, data: Dict) -> GameResponseContainer:
+    def _deserialize(cls, data: Dict) -> NewGameResponseContainer:
         return super(NewGameResponseContainer, cls)._deserialize(data)
 
 
@@ -117,7 +117,7 @@ class JoinGameResponseContainer(GameResponseContainer):
     """
 
     @classmethod
-    def _deserialize(cls, data: Dict) -> GameResponseContainer:
+    def _deserialize(cls, data: Dict) -> JoinGameResponseContainer:
         return super(JoinGameResponseContainer, cls)._deserialize(data)
 
 
@@ -134,7 +134,7 @@ class ActionResponseContainer(ResponseContainer):
     """
 
     @classmethod
-    def _deserialize(cls, data: Dict) -> GameResponseContainer:
+    def _deserialize(cls, data: Dict) -> ActionResponseContainer:
         return super(ActionResponseContainer, cls)._deserialize(data)
 
 
