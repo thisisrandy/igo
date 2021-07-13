@@ -760,12 +760,24 @@ class Game(JsonifyableBase):
 
         return len(self.action_stack)
 
+    def last_move(self) -> Optional[Tuple[int, int]]:
+        """Return the coords of the last successful stone placement, if
+        applicable"""
+
+        return (
+            self.action_stack[-1].coords
+            if self.action_stack
+            and self.action_stack[-1].action_type is ActionType.place_stone
+            else None
+        )
+
     def jsonifyable(self) -> Dict:
         """Return a representation which can be readily JSONified. In
         particular, return a dictionary with the board, game status, komi,
-        prisoner counts, whose turn it is, territory, any pending request,
-        and the game result, noting that some of these are meaningless or
-        unavailable depending on the game state"""
+        prisoner counts, whose turn it is, territory, any pending request, the
+        game result, and the coordinates of the last stone placed, noting that
+        some of these are meaningless or unavailable depending on the game
+        state"""
 
         return {
             "board": self.board.jsonifyable(),
@@ -784,13 +796,16 @@ class Game(JsonifyableBase):
             if self.pending_request
             else None,
             "result": self.result.jsonifyable() if self.result else None,
+            "lastMove": self.last_move(),
         }
 
     @classmethod
     def _deserialize(cls, data: Dict) -> Game:
         """Note that `Game.jsonifyable` strips out the action stack and previous
-        board. As such, they are not available in the deserialized verion
-        produced by this method"""
+        board. As such, they are not available in the deserialized version
+        produced by this method, with one exception: if `lastMove` is available,
+        a single action will be pushed onto the stack with the last move
+        coordinates and a fake timestamp"""
 
         self: Game = cls.__new__(cls)
         self.board = Board.deserialize(data["board"])
@@ -808,5 +823,14 @@ class Game(JsonifyableBase):
         result = data["result"]
         self.result = Result.deserialize(result) if result else None
         self.action_stack = []
+        if data["lastMove"]:
+            self.action_stack.append(
+                Action(
+                    ActionType.place_stone,
+                    self.turn.inverse(),
+                    0,
+                    tuple(data["lastMove"]),
+                )
+            )
         self._prev_board = None
         return self

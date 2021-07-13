@@ -13,6 +13,7 @@ from igo.game import (
     Result,
     ResultType,
 )
+
 import unittest
 
 
@@ -625,6 +626,29 @@ class GameTestCase(unittest.TestCase):
     def test_jsonifyable(self):
         g = Game(2)
         ts = datetime.now().timestamp()
+        g.take_action(Action(ActionType.place_stone, Color.black, ts, (0, 0)))
+        g.take_action(Action(ActionType.place_stone, Color.white, ts, (0, 1)))
+        self.assertEqual(
+            g.jsonifyable(),
+            {
+                "board": {
+                    "size": 2,
+                    "points": [
+                        [["b", False, False, ""], ["w", False, False, ""]],
+                        [["", False, False, ""], ["", False, False, ""]],
+                    ],
+                },
+                "status": "play",
+                "komi": 6.5,
+                "prisoners": {"white": 0, "black": 0},
+                "turn": "black",
+                "territory": {"white": 0, "black": 0},
+                "pendingRequest": None,
+                "result": None,
+                "lastMove": (0, 1),
+            },
+        )
+
         GameTestCase.goto_endgame(g, ts)
         g.take_action(Action(ActionType.request_tally_score, Color.white, ts))
         self.assertEqual(
@@ -633,7 +657,7 @@ class GameTestCase(unittest.TestCase):
                 "board": {
                     "size": 2,
                     "points": [
-                        [["", False, False, ""], ["", False, False, ""]],
+                        [["b", False, False, ""], ["w", False, False, ""]],
                         [["", False, False, ""], ["", False, False, ""]],
                     ],
                 },
@@ -644,6 +668,7 @@ class GameTestCase(unittest.TestCase):
                 "territory": {"white": 0, "black": 0},
                 "pendingRequest": {"requestType": "tally_score", "initiator": "white"},
                 "result": None,
+                "lastMove": None,
             },
         )
         g.take_action(Action(ActionType.accept, Color.black, ts))
@@ -653,7 +678,7 @@ class GameTestCase(unittest.TestCase):
                 "board": {
                     "size": 2,
                     "points": [
-                        [["", False, True, ""], ["", False, True, ""]],
+                        [["b", False, False, ""], ["w", False, False, ""]],
                         [["", False, True, ""], ["", False, True, ""]],
                     ],
                 },
@@ -664,6 +689,7 @@ class GameTestCase(unittest.TestCase):
                 "territory": {"white": 0, "black": 0},
                 "pendingRequest": None,
                 "result": {"resultType": "standard_win", "winner": "white"},
+                "lastMove": None,
             },
         )
 
