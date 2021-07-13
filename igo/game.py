@@ -317,6 +317,10 @@ class Game(JsonifyableBase):
         has been resolved
     """
 
+    # TODO: Add export to SGF (Smart Game Format). We ought to be able to export
+    # at this level, enrich with player info and send at the server level, and
+    # request export from the UI
+
     __slots__ = (
         "status",
         "turn",
