@@ -1,7 +1,7 @@
 from datetime import datetime
 import re
 from .containers import ErrorContainer
-from typing import Any
+from typing import Any, NoReturn
 from tornado import httputil
 from .messages import (
     IncomingMessage,
@@ -121,7 +121,7 @@ class Application(tornado.web.Application):
         super().__init__(handlers, **settings)
 
 
-def main():
+def start_server() -> NoReturn:
     uvloop.install()
     options.parse_command_line()
     app = Application()
@@ -130,7 +130,3 @@ def main():
     io_loop.run_sync(lambda: IgoWebSocket.init(options.origin_suffix))
     logging.info(f"Listening on port {options.port}")
     io_loop.start()
-
-
-if __name__ == "__main__":
-    main()
