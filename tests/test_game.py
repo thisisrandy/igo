@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Optional
-from gameserver.game import (
+from igo.game import (
     Action,
     ActionType,
     Board,

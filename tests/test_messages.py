@@ -1,7 +1,7 @@
-from gameserver.containers import GameStatusContainer
+from igo.gameserver.containers import GameStatusContainer
 from datetime import datetime
-from gameserver.game import ActionType, Color, Game
-from gameserver.messages import (
+from igo.game import ActionType, Color, Game
+from igo.gameserver.messages import (
     IncomingMessage,
     IncomingMessageType,
     OutgoingMessage,
@@ -10,7 +10,7 @@ from gameserver.messages import (
 import unittest
 from unittest.mock import AsyncMock, patch
 from tornado.websocket import WebSocketHandler
-from gameserver.constants import SIZE, TYPE, VS, COLOR, KOMI, KEY, ACTION_TYPE
+from igo.gameserver.constants import SIZE, TYPE, VS, COLOR, KOMI, KEY, ACTION_TYPE
 import json
 import asyncio
 

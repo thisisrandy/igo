@@ -1,7 +1,7 @@
 from __future__ import annotations
 from dataclassy import dataclass
 from enum import Enum, auto
-from .serialization import JsonifyableBase, JsonifyableBaseDataClass
+from igo.serialization import JsonifyableBase, JsonifyableBaseDataClass
 from typing import Dict, List, Optional, Set, Tuple
 from copy import deepcopy
 

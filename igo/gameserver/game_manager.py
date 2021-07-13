@@ -1,8 +1,16 @@
-from .constants import ACTION_TYPE, COLOR, COORDS, KEY, KOMI, MESSAGE, SIZE
+from .constants import (
+    ACTION_TYPE,
+    COLOR,
+    COORDS,
+    KEY,
+    KOMI,
+    MESSAGE,
+    SIZE,
+)
 import logging
 from .chat import ChatMessage, ChatThread
 from dataclassy import dataclass
-from .game import Action, ActionType, Color, Game
+from igo.game import Action, ActionType, Color, Game
 from typing import Callable, Coroutine, Dict, Optional, Tuple
 from tornado.websocket import WebSocketHandler
 from .messages import (

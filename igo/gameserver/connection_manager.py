@@ -3,7 +3,11 @@ import re
 from .containers import ErrorContainer
 from typing import Any
 from tornado import httputil
-from .messages import IncomingMessage, OutgoingMessage, OutgoingMessageType
+from .messages import (
+    IncomingMessage,
+    OutgoingMessage,
+    OutgoingMessageType,
+)
 from .game_manager import GameManager
 from secrets import token_urlsafe
 import logging

@@ -1,10 +1,10 @@
 import logging
 from datetime import datetime
-from gameserver.chat import ChatMessage, ChatThread
+from igo.gameserver.chat import ChatMessage, ChatThread
 import pickle
 from typing import Dict
-from gameserver.game import Color, Game
-from gameserver.db_manager import DbManager, JoinResult, _UpdateType
+from igo.game import Color, Game
+from igo.gameserver.db_manager import DbManager, JoinResult, _UpdateType
 import testing.postgresql
 import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -200,8 +200,8 @@ class DbManagerTestCase(unittest.IsolatedAsyncioTestCase):
         await manager._subscribe_to_updates(key)
         self.assertEqual(len(manager._listening_channels[key]), len(_UpdateType))
 
-    @patch("gameserver.db_manager.pickle.dumps", MagicMock(return_value=b"1"))
-    @patch("gameserver.db_manager.pickle.loads", MagicMock(return_value=b"1"))
+    @patch("igo.gameserver.db_manager.pickle.dumps", MagicMock(return_value=b"1"))
+    @patch("igo.gameserver.db_manager.pickle.loads", MagicMock(return_value=b"1"))
     async def test_write_game(self):
         """
         NOTE: pickling methods need to be mocked because of an error like

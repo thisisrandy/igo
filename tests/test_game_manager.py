@@ -1,27 +1,27 @@
 import asyncio
-from gameserver.chat import ChatThread
+from igo.gameserver.chat import ChatThread
 from typing import Dict, Optional, Tuple
-from gameserver.containers import (
+from igo.gameserver.containers import (
     ActionResponseContainer,
     GameStatusContainer,
     JoinGameResponseContainer,
     NewGameResponseContainer,
     OpponentConnectedContainer,
 )
-from gameserver.db_manager import DbManager
+from igo.gameserver.db_manager import DbManager
 import unittest
 from unittest.mock import AsyncMock, patch, Mock, MagicMock
 from tornado.websocket import WebSocketHandler
-from gameserver.game_manager import ClientData, GameStore, GameManager
+from igo.gameserver.game_manager import ClientData, GameStore, GameManager
 import json
-from gameserver.messages import (
+from igo.gameserver.messages import (
     IncomingMessage,
     IncomingMessageType,
     OutgoingMessage,
     OutgoingMessageType,
 )
-from gameserver.game import Color, ActionType, Game
-from gameserver.constants import (
+from igo.game import Color, ActionType, Game
+from igo.gameserver.constants import (
     TYPE,
     VS,
     COLOR,

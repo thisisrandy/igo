@@ -1,12 +1,12 @@
 import unittest
-from gameserver.containers import (
+from igo.gameserver.containers import (
     NewGameResponseContainer,
     JoinGameResponseContainer,
     ActionResponseContainer,
     OpponentConnectedContainer,
     GameStatusContainer,
 )
-from gameserver.game import Color, Game
+from igo.game import Color, Game
 
 
 class ResponseContainerTestCase(unittest.TestCase):
