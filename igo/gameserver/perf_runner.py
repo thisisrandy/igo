@@ -57,6 +57,12 @@ define(
     help="spawn the given number of workers per process",
     type=int,
 )
+define(
+    "sample_game_path",
+    default="sample_game.bin",
+    help="the path to a custom sample game to play repeatedly",
+    type=str,
+)
 
 options.parse_command_line()
 
@@ -65,7 +71,7 @@ PORTS: List[int] = [int(p) for p in options.port.split(",")]
 NUM_PROCESSES: int = options.num_processes
 WORKERS_PER_PROCESS: int = options.workers_per_process
 
-with open("sample_game.bin", "rb") as reader:
+with open(options.sample_game_path, "rb") as reader:
     sample_game: Game = pickle.load(reader)
 
 
