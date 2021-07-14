@@ -1,4 +1,5 @@
 from datetime import datetime
+from functools import cached_property
 import re
 from .containers import ErrorContainer
 from typing import Any, NoReturn
@@ -66,12 +67,27 @@ class IgoWebSocket(tornado.websocket.WebSocketHandler):
         cls.origin_matcher = re.compile(match_expr)
         logging.info(f"Restricting to origins matching {match_expr}")
 
+    @cached_property
+    def id(self):
+        """
+        Generates an id for this connection using our best guess of the client
+        IP address + a truncated version of their websocket key
+        """
+
+        return (
+            self.request.headers["X-Real-Ip"]
+            if "X-Real-Ip" in self.request.headers
+            else self.request.headers["X-Forwarded-For"]
+            if "X-Forwarded-For" in self.request.headers
+            else self.request.remote_ip
+        ) + f" ({self.request.headers['Sec-Websocket-Key'][:7]})"
+
     def open(self):
-        logging.info("New connection opened")
+        logging.info(f"New connection opened from {self.id}")
 
     async def on_message(self, json: str):
         start_time = datetime.now()
-        logging.info(f"Received message: {json}")
+        logging.info(f"Received message from {self.id}: {json}")
 
         try:
             await self.game_manager.route_message(IncomingMessage(json, self))
@@ -89,7 +105,7 @@ class IgoWebSocket(tornado.websocket.WebSocketHandler):
             )
 
     def on_close(self):
-        logging.info("Connection closed")
+        logging.info(f"Connection to {self.id} closed")
         tornado.ioloop.IOLoop.current().spawn_callback(
             lambda: self.game_manager.unsubscribe(self)
         )
@@ -104,7 +120,7 @@ class IgoWebSocket(tornado.websocket.WebSocketHandler):
             )
 
     def on_pong(self, data: bytes) -> None:
-        logging.info(f"Received pong from {self}")
+        logging.info(f"Received pong from {self.id}")
 
 
 class Application(tornado.web.Application):

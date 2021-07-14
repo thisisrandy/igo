@@ -126,6 +126,7 @@ class IncomingMessageTestCase(unittest.TestCase):
 class OutgoingMessageTestCase(unittest.TestCase):
     def test_send(self):
         WebSocketHandler.write_message = AsyncMock(autospec=True)
+        WebSocketHandler.id = "bob"
         g = GameStatusContainer(Game(1), 12.3)
         msg = OutgoingMessage(OutgoingMessageType.game_status, g, WebSocketHandler())
         asyncio.run(msg.send())

@@ -185,7 +185,19 @@ class OutgoingMessage(JsonifyableBaseDataClass):
         msg = json.dumps(self.jsonifyable())
         try:
             await self.websocket_handler.write_message(msg)
-            logging.info(f"Sent a message of type {self.message_type}")
+            logging.info(
+                f"Sent a message of type {self.message_type}"
+                # this is kind of a fudge. it's actually IgoWebSocket that has
+                # an id property, not WebSocketHandler, but importing
+                # connection_manager would create a circular dependency. I
+                # should probably reorganize so I can use the proper type hint,
+                # but it would actually be kind of sticky (game_manager also
+                # uses messages, but is imported in connect_manager, so another
+                # circular dep if I stick this file's contents in
+                # connection_manager, etc...), and it's so easy to just be lazy
+                # instead
+                f" to {self.websocket_handler.id}"
+            )
             logging.debug(f"Message data: {msg}")
             return True
         except WebSocketClosedError as e:
