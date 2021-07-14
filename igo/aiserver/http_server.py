@@ -23,3 +23,45 @@ reconnects later to resume play.
 Play policies (in `igo.aiserver.policy`) follow an `ABC` interface and are
 therefore pluggable.
 """
+
+import tornado.web
+import tornado.ioloop
+from tornado.options import define, options
+from secrets import token_urlsafe
+import uvloop
+import logging
+
+# NOTE: tornado configures logging and provides some command line options by
+# default.  See --help for details
+define("port", default=1918, help="run on the given port", type=int)
+
+
+class AIServer(tornado.web.RequestHandler):
+    def post(self):
+        try:
+            player_key: str = self.get_argument("player_key")
+            ai_secret: str = self.get_argument("ai_secret")
+            # STUB: create a task to join the game and such
+        except tornado.web.MissingArgumentError:
+            logging.warning(
+                f"A request without all of the required arguments was received. Ignoring"
+            )
+
+
+class Application(tornado.web.Application):
+    def __init__(self):
+        handlers = [(r"/start", AIServer)]
+        settings = dict(
+            cookie_secret=token_urlsafe(),
+            xsrf_cookies=True,
+        )
+        super().__init__(handlers, **settings)
+
+
+def start_server():
+    uvloop.install()
+    options.parse_command_line()
+    app = Application()
+    app.listen(options.port)
+    logging.info(f"Listening on port {options.port}")
+    tornado.ioloop.IOLoop.current().start()
