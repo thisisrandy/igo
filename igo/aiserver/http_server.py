@@ -24,6 +24,8 @@ Play policies (in `igo.aiserver.policy`) follow an `ABC` interface and are
 therefore pluggable.
 """
 
+import asyncio
+from .websocket_client import Client
 import tornado.web
 import tornado.ioloop
 from tornado.options import define, options
@@ -61,7 +63,7 @@ class AIServer(tornado.web.RequestHandler):
         try:
             player_key: str = self.get_argument("player_key")
             ai_secret: str = self.get_argument("ai_secret")
-            # STUB: create a task to join the game and such
+            asyncio.create_task(Client(player_key, ai_secret).start())
         except tornado.web.MissingArgumentError:
             logging.warning(
                 f"A request without all of the required arguments was received. Ignoring"
