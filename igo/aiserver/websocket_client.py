@@ -4,6 +4,7 @@ via `await Client(...).start()`. See notes there for details
 """
 
 import asyncio
+from asyncinit import asyncinit
 import logging
 from igo.gameserver.containers import (
     ActionResponseContainer,
@@ -32,8 +33,9 @@ define(
 ERROR_SLEEP_PERIOD = 2
 
 
+@asyncinit
 class Client:
-    def __init__(self, player_key: str, ai_secret: str) -> None:
+    async def __init__(self, player_key: str, ai_secret: str) -> None:
         self.player_key = player_key
         self.ai_secret = ai_secret
         # for synchronization. if we need to resend a message due to game server

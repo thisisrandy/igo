@@ -46,7 +46,7 @@ class AIServer(tornado.web.RequestHandler):
 
         self.xsrf_token
 
-    def post(self):
+    async def post(self):
         """
         Note that POST requests must have been preceeded by a GET in order to
         set the XSRF token on the server and consume it on the client as a
@@ -63,7 +63,7 @@ class AIServer(tornado.web.RequestHandler):
         try:
             player_key: str = self.get_argument("player_key")
             ai_secret: str = self.get_argument("ai_secret")
-            asyncio.create_task(Client(player_key, ai_secret).start())
+            asyncio.create_task((await Client(player_key, ai_secret)).start())
         except tornado.web.MissingArgumentError:
             logging.warning(
                 f"A request without all of the required arguments was received. Ignoring"
