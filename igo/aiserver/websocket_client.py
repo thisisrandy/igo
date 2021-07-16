@@ -3,6 +3,7 @@ This module is the client entrypoint, which should be triggered by `http_server`
 via `await Client(...).start()`. See notes there for details
 """
 
+import asyncio
 import logging
 from igo.gameserver.containers import (
     ActionResponseContainer,
@@ -28,11 +29,18 @@ define(
     type=str,
 )
 
+ERROR_SLEEP_PERIOD = 2
+
 
 class Client:
     def __init__(self, player_key: str, ai_secret: str) -> None:
         self.player_key = player_key
         self.ai_secret = ai_secret
+        # for synchronization. if we need to resend a message due to game server
+        # error, keep track of an id for the last message. if the id is
+        # incremented before the last message can be resent, don't attempt to
+        # resend
+        self.last_message_id = 0
 
     async def start(self) -> None:
         self.connection = con = await websocket_connect(options.game_server_url)
@@ -99,7 +107,17 @@ class Client:
                     break
             elif message.message_type is OutgoingMessageType.error:
                 error: ErrorContainer = message.data
-                logging.warn(f"Received error: '{error.exception}'")
-                # TODO: this should trigger some sort of sleep/retry of the
-                # unsuccessful action that triggered the error message on the
-                # server side
+                logging.warning(
+                    f"Received error: '{error.exception}'. Sleeping for"
+                    f" {ERROR_SLEEP_PERIOD} and resending last message"
+                )
+                last_message_id = self.last_message_id
+                await asyncio.sleep(ERROR_SLEEP_PERIOD)
+                if last_message_id == self.last_message_id:
+                    logging.info("Resending last message")
+                    await self.connection.write_message(self.last_message)
+                else:
+                    logging.info(
+                        "In error handling, another action was taken before the last"
+                        " could be resent. Discarding"
+                    )
