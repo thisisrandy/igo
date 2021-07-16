@@ -37,7 +37,27 @@ define("port", default=1918, help="run on the given port", type=int)
 
 
 class AIServer(tornado.web.RequestHandler):
+    def get(self):
+        """
+        Sets and transmits the XSRF token in a cookie. See `post` for details
+        """
+
+        self.xsrf_token
+
     def post(self):
+        """
+        Note that POST requests must have been preceeded by a GET in order to
+        set the XSRF token on the server and consume it on the client as a
+        cookie. POSTs thereafter must specify the token in their request as well
+        as in their cookie. The security of this method relies on the fact that,
+        due to the browser security policy, a cross-site attacker should not be
+        able to access cookies from a different domain, and therefore should not
+        be able to read the correct token from the cookie.
+
+        The preferred way of transmitting this information is via headers,
+        namely X-XsrfToken: token and Cookie: _xsrf=token.
+        """
+
         try:
             player_key: str = self.get_argument("player_key")
             ai_secret: str = self.get_argument("ai_secret")
