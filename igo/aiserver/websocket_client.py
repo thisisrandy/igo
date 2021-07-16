@@ -5,6 +5,9 @@ via `await Client(...).start()`. See notes there for details
 
 import asyncio
 from asyncinit import asyncinit
+from .policy.random import RandomPolicy
+from .policy.base import PlayPolicyBase
+from igo.game import Action, GameStatus
 import logging
 from igo.gameserver.containers import (
     ActionResponseContainer,
@@ -18,7 +21,7 @@ from igo.gameserver.messages import (
     OutgoingMessage,
     OutgoingMessageType,
 )
-from igo.gameserver.constants import KEY, TYPE, AI_SECRET
+from igo.gameserver.constants import ACTION_TYPE, COORDS, KEY, TYPE, AI_SECRET
 import json
 from tornado.options import define, options
 from tornado.websocket import websocket_connect
@@ -35,9 +38,12 @@ ERROR_SLEEP_PERIOD = 2
 
 @asyncinit
 class Client:
-    async def __init__(self, player_key: str, ai_secret: str) -> None:
+    async def __init__(
+        self, player_key: str, ai_secret: str, play_policy=RandomPolicy
+    ) -> None:
         self.player_key = player_key
         self.ai_secret = ai_secret
+        self.play_policy: PlayPolicyBase = await play_policy()
         # for synchronization. if we need to resend a message due to game server
         # error, keep track of an id for the last message. if the id is
         # incremented before the last message can be resent, don't attempt to
@@ -66,6 +72,7 @@ class Client:
                 f" '{data.explanation}'"
             )
             return
+        self.color = data.your_color
 
         await self._message_consumer()
 
@@ -95,9 +102,27 @@ class Client:
                     )
             elif message.message_type is OutgoingMessageType.game_status:
                 game_status: GameStatusContainer = message.data
-                self.game = game_status.game
-                # TODO: if its our turn or we're in the endgame, do stuff. if
-                # the game is over, disconnect
+                game = game_status.game
+                if game.status is GameStatus.complete:
+                    break
+                action: Action = await self.play_policy.play(game, self.color)
+                if action:
+                    logging.info(
+                        f"Taking action {action} for player key {self.player_key}"
+                    )
+                    self.last_message = json.dumps(
+                        {
+                            TYPE: IncomingMessageType.game_action.name,
+                            KEY: self.player_key,
+                            ACTION_TYPE: action.action_type.name,
+                            COORDS: action.coords,
+                        }
+                    )
+                    self.last_message_id = self.last_message_id + 1
+                    await self.connection.write_message(self.last_message)
+                else:
+                    logging.info(f"Taking no action for player key {self.player_key}")
+
             elif message.message_type is OutgoingMessageType.chat:
                 logging.info("Received chat thread. Ignoring")
             elif message.message_type is OutgoingMessageType.opponent_connected:
