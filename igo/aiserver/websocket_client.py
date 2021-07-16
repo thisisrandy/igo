@@ -86,6 +86,7 @@ class Client:
             )
             logging.info(f"Received message of type {message.message_type}")
 
+            # action response
             if message.message_type is OutgoingMessageType.game_action_response:
                 action_response: ActionResponseContainer = message.data
                 if action_response.success:
@@ -100,6 +101,8 @@ class Client:
                         f"Action for player key {self.player_key} was unsuccessful"
                         f" because '{action_response.explanation}'"
                     )
+
+            # game status
             elif message.message_type is OutgoingMessageType.game_status:
                 game_status: GameStatusContainer = message.data
                 game = game_status.game
@@ -123,8 +126,11 @@ class Client:
                 else:
                     logging.info(f"Taking no action for player key {self.player_key}")
 
+            # chat
             elif message.message_type is OutgoingMessageType.chat:
                 logging.info("Received chat thread. Ignoring")
+
+            # opponent connected
             elif message.message_type is OutgoingMessageType.opponent_connected:
                 opp_conned: OpponentConnectedContainer = message.data
                 logging.info(
@@ -134,6 +140,8 @@ class Client:
                 )
                 if not opp_conned.opponent_connected:
                     break
+
+            # error
             elif message.message_type is OutgoingMessageType.error:
                 error: ErrorContainer = message.data
                 logging.warning(
