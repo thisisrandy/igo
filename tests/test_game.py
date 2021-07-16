@@ -699,3 +699,25 @@ class GameTestCase(unittest.TestCase):
         # otherwise fail for the reasons mentioned in the Game.deserialize
         # docstring
         self.assertEqual(Game.deserialize(g.jsonifyable()), g)
+
+    def test_legal_moves(self):
+        g = Game(3)
+        g.board[0][1].color = Color.white
+        g.board[1][0].color = Color.white
+        self.assertSetEqual(
+            {(2, 0), (1, 1), (0, 2), (2, 1), (1, 2), (2, 2)},
+            set(g.legal_moves(Color.black)),
+        )
+        g.board[2][0].color = Color.black
+        g.board[1][1].color = Color.black
+        g.board[0][2].color = Color.black
+        self.assertSetEqual(
+            {(0, 0), (2, 1), (1, 2), (2, 2)},
+            set(g.legal_moves(Color.black)),
+        )
+        g = Game(3)
+        g.board[0][1].color = Color.white
+        g.board[1][0].color = Color.white
+        g.board[1][2].color = Color.white
+        g.board[2][1].color = Color.white
+        self.assertEqual(len(g.legal_moves(Color.black)), 0)

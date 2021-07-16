@@ -413,12 +413,24 @@ class Game(JsonifyableBase):
         assert self.status is GameStatus.play
         assert action.coords
 
-        if action.color is not self.turn:
-            return (False, f"It isn't {action.color.name}'s turn")
+        return self._place_stone_base(action.color, action.coords)
 
-        i, j = action.coords
+    def _place_stone_base(
+        self, color: Color, coords: Tuple[int, int], dry_run: bool = False
+    ) -> Tuple[bool, str]:
+        """
+        The actual meat of placing a stone. `_place_stone`'s `action` has been
+        deconstructed to allow reuse for non-action-related cases, e.g.
+        computing legal moves. If `dry_run`, don't record any changes to the
+        board, score, etc.
+        """
+
+        if color is not self.turn:
+            return (False, f"It isn't {color.name}'s turn")
+
+        i, j = coords
         if self.board[i][j].color:
-            return (False, f"Point {action.coords} is occupied")
+            return (False, f"Point {coords} is occupied")
 
         # we will proceed by copying the board and then placing this stone.
         # first, we remove any captured stones. if we don't remove anything in
@@ -430,8 +442,8 @@ class Game(JsonifyableBase):
         # attribute
 
         new_board: Board = deepcopy(self.board)
-        new_board[i][j].color = action.color
-        opponent = action.color.inverse()
+        new_board[i][j].color = color
+        opponent = color.inverse()
         captured = 0
 
         for ii, jj in self._adjacencies(i, j):
@@ -443,19 +455,32 @@ class Game(JsonifyableBase):
                     captured += len(group)
 
         if not captured and not self._gather(i, j, new_board)[1]:
-            return (False, f"Playing at {action.coords} is suicide")
+            return (False, f"Playing at {coords} is suicide")
 
         if new_board == self._prev_board:
-            return (False, f"Playing at {action.coords} violates the simple ko rule")
+            return (False, f"Playing at {coords} violates the simple ko rule")
 
-        self._prev_board, self.board = self.board, new_board
-        self.prisoners[action.color] += captured
-        self.turn = self.turn.inverse()
+        if not dry_run:
+            self._prev_board, self.board = self.board, new_board
+            self.prisoners[color] += captured
+            self.turn = self.turn.inverse()
 
         return (
             True,
-            f"Successfully placed a {action.color.name} stone at {action.coords}",
+            f"Successfully placed a {color.name} stone at {coords}",
         )
+
+    def legal_moves(self, color: Color) -> List[Tuple[int, int]]:
+        """
+        Return a list of all legal moves for `color`
+        """
+
+        return [
+            (i, j)
+            for i in range(self.board.size)
+            for j in range(self.board.size)
+            if self._place_stone_base(color, (i, j), True)[0]
+        ]
 
     def _pass_turn(self, action: Action) -> Tuple[bool, str]:
         assert action.action_type is ActionType.pass_turn
