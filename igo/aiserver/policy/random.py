@@ -26,4 +26,7 @@ class RandomPolicy(PlayPolicyBase):
             if not choices:
                 logging.info("No legal moves found. Passing instead")
                 return Action(ActionType.pass_turn, color, ts)
-            return Action(ActionType.place_stone, color, ts, choice(choices))
+
+            move = choice(choices)
+            logging.info(f"Placing stone at {move}")
+            return Action(ActionType.place_stone, color, ts, move)
