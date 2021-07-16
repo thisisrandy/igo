@@ -75,6 +75,8 @@ class Client:
             message: OutgoingMessage = OutgoingMessage.deserialize(
                 await self.connection.read_message()
             )
+            logging.info(f"Received message of type {message.message_type}")
+
             if message.message_type is OutgoingMessageType.game_action_response:
                 action_response: ActionResponseContainer = message.data
                 if action_response.success:
