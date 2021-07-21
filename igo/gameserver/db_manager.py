@@ -1,3 +1,4 @@
+from .containers import KeyContainer
 import string
 from collections import defaultdict
 from enum import Enum, auto
@@ -8,8 +9,8 @@ from typing import (
     Callable,
     Coroutine,
     DefaultDict,
-    Dict,
     List,
+    Set,
     Tuple,
     Optional,
 )
@@ -27,11 +28,13 @@ class JoinResult(Enum):
     """
     dne - the player key requested does not exist
     in_use - someone was already connected to the requested player key
+    ai_only - this key is managed by an AI and cannot be joined by a human
     success - successfully joined using the requested player key
     """
 
     dne = auto()
     in_use = auto()
+    ai_only = auto()
     success = auto()
 
 
@@ -271,17 +274,25 @@ class DbManager:
         game: Game,
         player_color: Optional[Color] = None,
         key_to_unsubscribe: Optional[str] = None,
-    ) -> Dict[Color, str]:
+        ai_colors: Optional[Set[Color]] = None,
+    ) -> KeyContainer:
         """
         Attempt to write `game` to the database as a new game. Return a
-        dictionary of Color: key pairs on success or raise an Exception
-        otherwise. Optionally specify `player_color` to start managing that
-        color, and optionally specify `key_to_unsubscribe` to transactionally
-        unsubscribe from another key
+        `KeyContainer` on success or raise an Exception otherwise. Optionally
+        specify `player_color` to start managing that color, optionally specify
+        `key_to_unsubscribe` to transactionally unsubscribe from another key,
+        and optionally specify one or both `ai_colors` to generate AI secrets
+        for those keys
         """
 
         key_w, key_b = [alphanum_uuid() for _ in range(2)]
-        keys = {Color.white: key_w, Color.black: key_b}
+        ai_secret_w = (
+            alphanum_uuid() if ai_colors and Color.white in ai_colors else None
+        )
+        ai_secret_b = (
+            alphanum_uuid() if ai_colors and Color.black in ai_colors else None
+        )
+        keys = KeyContainer(key_w, key_b, ai_secret_w, ai_secret_b)
 
         try:
             conn: asyncpg.Connection
@@ -289,7 +300,7 @@ class DbManager:
                 async with conn.transaction():
                     await conn.execute(
                         """
-                        CALL new_game($1, $2, $3, $4, $5, $6);
+                        CALL new_game($1, $2, $3, $4, $5, $6, $7, $8);
                         """,
                         pickle.dumps(game),
                         key_w,
@@ -297,6 +308,8 @@ class DbManager:
                         player_color.name if player_color else None,
                         self._machine_id,
                         key_to_unsubscribe,
+                        ai_secret_w,
+                        ai_secret_b,
                     )
 
                     # there's a miniscule chance, but one we could artificially
@@ -318,7 +331,7 @@ class DbManager:
                     # game_manager state will not contain the relevant player
                     # keys
                     if player_color:
-                        await self._subscribe_to_updates(keys[player_color])
+                        await self._subscribe_to_updates(keys[player_color].player_key)
 
         except Exception as e:
             raise Exception("Failed to write new game") from e
@@ -331,13 +344,15 @@ class DbManager:
         self,
         player_key: str,
         key_to_unsubscribe: Optional[str] = None,
-    ) -> Tuple[JoinResult, Optional[Dict[Color, str]]]:
+        ai_secret: Optional[str] = None,
+    ) -> Tuple[JoinResult, Optional[KeyContainer]]:
         """
         Attempt to join a game using `player_key` and return the result of the
         operation or raise an Exception otherwise. If the result is
-        `JoinResult.success`, also return a dictionary of { Color: player key,
-        ... } for the joined game. Optionally specify `key_to_unsubscribe` to
-        transactionally unsubscribe from another key.
+        `JoinResult.success`, also return a `KeyContainer` for the joined game.
+        Optionally specify `key_to_unsubscribe` to transactionally unsubscribe
+        from another key, and optionally specify `ai_secret` if the player
+        joining is an AI.
 
         Note that a successful call to this method should always be followed by
         `trigger_update_all`. They are separated in order to allow the caller to
@@ -348,13 +363,14 @@ class DbManager:
             conn: asyncpg.Connection
             async with self._connection_pool.acquire() as conn:
                 async with conn.transaction():
-                    res, key_w, key_b = await conn.fetchrow(
+                    res, key_w, ai_secret_w, key_b, ai_secret_b = await conn.fetchrow(
                         """
-                        SELECT * FROM join_game($1, $2, $3);
+                        SELECT * FROM join_game($1, $2, $3, $4);
                         """,
                         player_key,
                         self._machine_id,
                         key_to_unsubscribe,
+                        ai_secret,
                     )
 
                     # similar to new game, while we should ideally be doing a
@@ -369,7 +385,7 @@ class DbManager:
                     # actually joined to and all attendant problems
                     res = JoinResult[res]
                     if res is JoinResult.success:
-                        keys = {Color.white: key_w, Color.black: key_b}
+                        keys = KeyContainer(key_w, key_b, ai_secret_w, ai_secret_b)
                         await self._subscribe_to_updates(player_key)
                     else:
                         keys = None

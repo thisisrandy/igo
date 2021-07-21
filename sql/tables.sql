@@ -27,7 +27,8 @@ CREATE TABLE player_key (
     -- inside transactions
     DEFERRABLE INITIALLY DEFERRED
     NOT NULL,
-  managed_by char(64)
+  managed_by char(64),
+  ai_secret char(10)
 );
 
 CREATE TABLE chat (

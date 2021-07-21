@@ -5,14 +5,29 @@ from igo.gameserver.containers import (
     ActionResponseContainer,
     OpponentConnectedContainer,
     GameStatusContainer,
+    KeyContainer,
 )
 from igo.game import Color, Game
+
+
+class KeyContainerTestCase(unittest.TestCase):
+    def test_jsonify(self):
+        pk_w = "0123456789"
+        pk_b = "9876543210"
+        kc = KeyContainer(pk_w, pk_b, "234098342", "asfdWERU43")
+        self.assertEqual(
+            kc.jsonifyable(), {Color.white.name: pk_w, Color.black.name: pk_b}
+        )
+        self.assertNotEqual(kc, KeyContainer.deserialize(kc.jsonifyable()))
+        self.assertEqual(
+            KeyContainer(pk_w, pk_b), KeyContainer.deserialize(kc.jsonifyable())
+        )
 
 
 class ResponseContainerTestCase(unittest.TestCase):
     def test_new_game(self):
         new_game = NewGameResponseContainer(
-            True, "Success", {Color.white: "1234", Color.black: "5678"}, Color.white
+            True, "Success", KeyContainer("1234", "5678"), Color.white
         )
         self.assertEqual(
             new_game.jsonifyable(),
@@ -29,7 +44,7 @@ class ResponseContainerTestCase(unittest.TestCase):
 
     def test_join_game(self):
         join_game = JoinGameResponseContainer(
-            True, "because", {Color.white: "1234", Color.black: "5678"}, Color.white
+            True, "because", KeyContainer("1234", "5678"), Color.white
         )
         self.assertEqual(
             join_game.jsonifyable(),

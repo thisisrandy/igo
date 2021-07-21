@@ -5,6 +5,7 @@ from igo.gameserver.containers import (
     ActionResponseContainer,
     GameStatusContainer,
     JoinGameResponseContainer,
+    KeyContainer,
     NewGameResponseContainer,
     OpponentConnectedContainer,
 )
@@ -217,7 +218,7 @@ class GameManagerIntegrationTestCase(unittest.IsolatedAsyncioTestCase):
             1
         ]
         self.assertIsInstance(new_game_response, NewGameResponseContainer)
-        keys: Dict[Color, str] = new_game_response.keys
+        keys: KeyContainer = new_game_response.keys
 
         # reset ahead of all incoming messages
         send_mock.call_count = 0
@@ -225,7 +226,10 @@ class GameManagerIntegrationTestCase(unittest.IsolatedAsyncioTestCase):
         await self.gm.route_message(
             IncomingMessage(
                 json.dumps(
-                    {TYPE: IncomingMessageType.join_game.name, KEY: keys[Color.white]}
+                    {
+                        TYPE: IncomingMessageType.join_game.name,
+                        KEY: keys[Color.white].player_key,
+                    }
                 ),
                 player,
             )
@@ -257,7 +261,10 @@ class GameManagerIntegrationTestCase(unittest.IsolatedAsyncioTestCase):
         await self.gm.route_message(
             IncomingMessage(
                 json.dumps(
-                    {TYPE: IncomingMessageType.join_game.name, KEY: keys[Color.white]}
+                    {
+                        TYPE: IncomingMessageType.join_game.name,
+                        KEY: keys[Color.white].player_key,
+                    }
                 ),
                 WebSocketHandler(),
             )
@@ -273,7 +280,10 @@ class GameManagerIntegrationTestCase(unittest.IsolatedAsyncioTestCase):
         await self.gm.route_message(
             IncomingMessage(
                 json.dumps(
-                    {TYPE: IncomingMessageType.join_game.name, KEY: keys[Color.black]}
+                    {
+                        TYPE: IncomingMessageType.join_game.name,
+                        KEY: keys[Color.black].player_key,
+                    }
                 ),
                 player,
             )
@@ -328,12 +338,15 @@ class GameManagerIntegrationTestCase(unittest.IsolatedAsyncioTestCase):
             1
         ]
         self.assertIsInstance(new_game_response, NewGameResponseContainer)
-        keys: Dict[Color, str] = new_game_response.keys
+        keys: KeyContainer = new_game_response.keys
         p2 = WebSocketHandler()
         await self.gm.route_message(
             IncomingMessage(
                 json.dumps(
-                    {TYPE: IncomingMessageType.join_game.name, KEY: keys[Color.black]}
+                    {
+                        TYPE: IncomingMessageType.join_game.name,
+                        KEY: keys[Color.black].player_key,
+                    }
                 ),
                 p2,
             )
@@ -350,7 +363,7 @@ class GameManagerIntegrationTestCase(unittest.IsolatedAsyncioTestCase):
                 json.dumps(
                     {
                         TYPE: IncomingMessageType.game_action.name,
-                        KEY: keys[Color.white],
+                        KEY: keys[Color.white].player_key,
                         ACTION_TYPE: ActionType.place_stone.name,
                         COORDS: [0, 0],
                     }
@@ -376,7 +389,7 @@ class GameManagerIntegrationTestCase(unittest.IsolatedAsyncioTestCase):
                 json.dumps(
                     {
                         TYPE: IncomingMessageType.game_action.name,
-                        KEY: keys[Color.black],
+                        KEY: keys[Color.black].player_key,
                         ACTION_TYPE: ActionType.place_stone.name,
                         COORDS: [0, 0],
                     }
@@ -409,7 +422,7 @@ class GameManagerIntegrationTestCase(unittest.IsolatedAsyncioTestCase):
                 json.dumps(
                     {
                         TYPE: IncomingMessageType.chat_message.name,
-                        KEY: keys[Color.black],
+                        KEY: keys[Color.black].player_key,
                         MESSAGE: "hi bob",
                     }
                 ),
@@ -446,7 +459,7 @@ class GameManagerIntegrationTestCase(unittest.IsolatedAsyncioTestCase):
                     json.dumps(
                         {
                             TYPE: IncomingMessageType.game_action.name,
-                            KEY: keys[Color.black],
+                            KEY: keys[Color.black].player_key,
                             ACTION_TYPE: ActionType.place_stone.name,
                             COORDS: [0, 0],
                         }
@@ -460,7 +473,7 @@ class GameManagerIntegrationTestCase(unittest.IsolatedAsyncioTestCase):
                     json.dumps(
                         {
                             TYPE: IncomingMessageType.game_action.name,
-                            KEY: keys[Color.black],
+                            KEY: keys[Color.black].player_key,
                             ACTION_TYPE: ActionType.place_stone.name,
                             COORDS: [0, 0],
                         }

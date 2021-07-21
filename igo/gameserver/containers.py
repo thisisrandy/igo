@@ -1,7 +1,63 @@
 from __future__ import annotations
 from typing import Dict, Optional
+from dataclassy import dataclass
 from igo.game import Color, Game
-from igo.serialization import JsonifyableBaseDataClass
+from igo.serialization import JsonifyableBase, JsonifyableBaseDataClass
+
+
+@dataclass(slots=True)
+class KeyPair:
+    player_key: str
+    ai_secret: Optional[str] = None
+
+
+class KeyContainer(JsonifyableBase):
+    """
+    A container for player keys and AI secrets. When serialized, AI secrets are
+    dropped, they being secrets and all. The preferred method of accessing the
+    contained `KeyPair` objects is via indexing
+    """
+
+    _keys_w: KeyPair
+    _keys_b: KeyPair
+
+    def __init__(
+        self,
+        key_w: str,
+        key_b: str,
+        ai_secret_w: Optional[str] = None,
+        ai_secret_b: Optional[str] = None,
+    ) -> None:
+        self._keys_w = KeyPair(key_w, ai_secret_w)
+        self._keys_b = KeyPair(key_b, ai_secret_b)
+
+    def __repr__(self) -> str:
+        return (
+            f"{self.__class__.__name__}("
+            f"{Color.white.name}={self._keys_w}"
+            f", {Color.black.name}={self._keys_b})"
+        )
+
+    def __eq__(self, o: object) -> bool:
+        if not isinstance(o, self.__class__):
+            return False
+        return self._keys_w == o._keys_w and self._keys_b == o._keys_b
+
+    def jsonifyable(self) -> Dict[str, str]:
+        return {
+            Color.white.name: self._keys_w.player_key,
+            Color.black.name: self._keys_b.player_key,
+        }
+
+    @classmethod
+    def _deserialize(cls, data: Dict) -> KeyContainer:
+        res: KeyContainer = cls.__new__(cls)
+        res._keys_w = KeyPair(data[Color.white.name])
+        res._keys_b = KeyPair(data[Color.black.name])
+        return res
+
+    def __getitem__(self, color: Color) -> KeyPair:
+        return self._keys_w if color is Color.white else self._keys_b
 
 
 class ResponseContainer(JsonifyableBaseDataClass):
@@ -40,22 +96,20 @@ class GameResponseContainer(ResponseContainer):
 
         explanation: str - an explanatory string
 
-        keys: Optional[Dict[Color, str]] = None - if success, a color to key
-        mapping, and None otherwise
+        keys: Optional[KeyContainer] = None - if success, KeyContainer, and None
+        otherwise
 
         your_color: Optional[Color] = None - if success, the color that the
         user is subscribed to, and None otherwise
     """
 
-    keys: Optional[Dict[Color, str]] = None
+    keys: Optional[KeyContainer] = None
     your_color: Optional[Color] = None
 
     def jsonifyable(self):
         return {
             **{
-                "keys": {k.name: v for k, v in self.keys.items()}
-                if self.keys
-                else None,
+                "keys": self.keys.jsonifyable() if self.keys else None,
                 "yourColor": self.your_color.name if self.your_color else None,
             },
             **super().jsonifyable(),
@@ -66,11 +120,7 @@ class GameResponseContainer(ResponseContainer):
         res: GameResponseContainer = super(GameResponseContainer, cls)._deserialize(
             data
         )
-        res.keys = (
-            {color: data["keys"][color.name] for color in Color}
-            if res.success
-            else None
-        )
+        res.keys = KeyContainer.deserialize(data["keys"]) if res.success else None
         res.your_color = Color[data["yourColor"]] if res.success else None
         return res
 
@@ -86,8 +136,8 @@ class NewGameResponseContainer(GameResponseContainer):
 
         explanation: str - explanation of success
 
-        keys: Optional[Dict[Color, str]] = None - if success, a color to key
-        mapping, and None otherwise
+        keys: Optional[KeyContainer] = None - if success, KeyContainer, and None
+        otherwise
 
         your_color: Optional[Color] = None - if success, the color that the
         user is subscribed to, and None otherwise
@@ -109,8 +159,8 @@ class JoinGameResponseContainer(GameResponseContainer):
 
         explanation: str - an explanatory string
 
-        keys: Optional[Dict[Color, str]] = None - if success, a color to key
-        mapping, and None otherwise
+        keys: Optional[KeyContainer] = None - if success, KeyContainer, and None
+        otherwise
 
         your_color: Optional[Color] = None - if success, the color that the
         user is subscribed to, and None otherwise

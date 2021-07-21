@@ -11,7 +11,7 @@ import logging
 from .chat import ChatMessage, ChatThread
 from dataclassy import dataclass
 from igo.game import Action, ActionType, Color, Game
-from typing import Callable, Coroutine, Dict, Optional, Tuple
+from typing import Callable, Coroutine, Dict, Optional
 from tornado.websocket import WebSocketHandler
 from .messages import (
     IncomingMessage,
@@ -25,6 +25,7 @@ from .containers import (
     ActionResponseContainer,
     GameStatusContainer,
     JoinGameResponseContainer,
+    KeyContainer,
     NewGameResponseContainer,
     OpponentConnectedContainer,
 )
@@ -106,14 +107,14 @@ class GameStore:
         opponent_connected = False
         requested_color = Color[msg.data[COLOR]]
 
-        keys: Dict[Color, str] = await self._db_manager.write_new_game(
+        keys: KeyContainer = await self._db_manager.write_new_game(
             game, requested_color, old_key
         )
         if old_key:
             logging.info(f"Client requesting new game already subscribed to {old_key}")
             await self.unsubscribe(client, True)
 
-        client_key = keys[requested_color]
+        client_key = keys[requested_color].player_key
         self._clients[client] = ClientData(
             client_key,
             requested_color,
@@ -131,12 +132,14 @@ class GameStore:
             NewGameResponseContainer(
                 True,
                 (
+                    # TODO: update this for when the opponent is an AI
                     f"Successfully created new game. Make sure to give the"
                     f" {requested_color.inverse().name} player key"
-                    f" ({keys[requested_color.inverse()]}) to your opponent so that"
-                    f" they can join the game. Your key is {keys[requested_color]}."
-                    f" Make sure to write it down in case you want to pause the game"
-                    f" and resume it later, or if you want to view it once complete"
+                    f" ({keys[requested_color.inverse()].player_key}) to your opponent"
+                    f" so that they can join the game. Your key is "
+                    f"{keys[requested_color].player_key}. Make sure to write it down in"
+                    f" case you want to pause the game and resume it later, or if you"
+                    f" want to view it once complete"
                 ),
                 keys,
                 requested_color,
@@ -246,7 +249,7 @@ class GameStore:
 
             old_key = self._clients[client].key if client in self._clients else None
             res: JoinResult
-            keys: Optional[Dict[Color, str]]
+            keys: Optional[KeyContainer]
             res, keys = await self._db_manager.join_game(key, old_key)
 
             if res is JoinResult.dne:
@@ -277,7 +280,9 @@ class GameStore:
                     )
                     await self.unsubscribe(client, True)
 
-                color = Color.white if keys[Color.white] == key else Color.black
+                color = (
+                    Color.white if keys[Color.white].player_key == key else Color.black
+                )
                 self._clients[client] = ClientData(key, color)
                 self._keys[key] = client
 

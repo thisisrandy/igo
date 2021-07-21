@@ -1,8 +1,8 @@
+from igo.gameserver.containers import KeyContainer
 import logging
 from datetime import datetime
 from igo.gameserver.chat import ChatMessage, ChatThread
 import pickle
-from typing import Dict
 from igo.game import Color, Game
 from igo.gameserver.db_manager import DbManager, JoinResult, _UpdateType
 import testing.postgresql
@@ -56,9 +56,9 @@ class DbManagerTestCase(unittest.IsolatedAsyncioTestCase):
 
     async def test_startup_cleans_orphaned_rows(self):
         manager = self.manager
-        keys: Dict[Color, str] = await manager.write_new_game(Game(), Color.white)
+        keys: KeyContainer = await manager.write_new_game(Game(), Color.white)
         self.assertEqual(
-            keys[Color.white],
+            keys[Color.white].player_key,
             await manager._listener_connection.fetchval(
                 """
             SELECT key
@@ -106,7 +106,7 @@ class DbManagerTestCase(unittest.IsolatedAsyncioTestCase):
             FROM player_key
             WHERE key = $1
             """,
-            keys[Color.white],
+            keys[Color.white].player_key,
         )
         self.assertIsNone(row.get("managed_by"))
         (
@@ -123,7 +123,7 @@ class DbManagerTestCase(unittest.IsolatedAsyncioTestCase):
                 WHERE key = $1
             )
             """,
-            keys[Color.white],
+            keys[Color.white].player_key,
         )
         self.assertEqual(players_connected, 0)
         self.assertIsNone(write_load_timestamp)
@@ -131,7 +131,7 @@ class DbManagerTestCase(unittest.IsolatedAsyncioTestCase):
     async def test_write_new_game(self):
         manager = self.manager
         game = Game()
-        keys: Dict[Color, str] = await manager.write_new_game(game, Color.white)
+        keys: KeyContainer = await manager.write_new_game(game, Color.white)
 
         row = await manager._listener_connection.fetchrow(
             """
@@ -142,9 +142,9 @@ class DbManagerTestCase(unittest.IsolatedAsyncioTestCase):
             manager._machine_id,
         )
         game_id = row.get("game_id")
-        self.assertEqual(keys[Color.white], row.get("key"))
+        self.assertEqual(keys[Color.white].player_key, row.get("key"))
         self.assertEqual(Color.white.name, row.get("color"))
-        self.assertEqual(keys[Color.black], row.get("opponent_key"))
+        self.assertEqual(keys[Color.black].player_key, row.get("opponent_key"))
 
         row = await manager._listener_connection.fetchrow(
             """
@@ -152,9 +152,9 @@ class DbManagerTestCase(unittest.IsolatedAsyncioTestCase):
             FROM player_key
             WHERE opponent_key = $1
             """,
-            keys[Color.white],
+            keys[Color.white].player_key,
         )
-        self.assertEqual(keys[Color.black], row.get("key"))
+        self.assertEqual(keys[Color.black].player_key, row.get("key"))
         self.assertEqual(game_id, row.get("game_id"))
         self.assertEqual(Color.black.name, row.get("color"))
         self.assertIsNone(row.get("managed_by"))
@@ -168,7 +168,7 @@ class DbManagerTestCase(unittest.IsolatedAsyncioTestCase):
             SELECT *
             FROM get_game_status($1);
             """,
-            keys[Color.white],
+            keys[Color.white].player_key,
         )
         self.assertEqual(pickle.loads(game_data), game)
         self.assertEqual(game.version(), version)
@@ -176,23 +176,58 @@ class DbManagerTestCase(unittest.IsolatedAsyncioTestCase):
 
     async def test_join_game(self):
         manager = self.manager
-        new_game_keys: Dict[Color, str] = await manager.write_new_game(
-            Game(), Color.white
-        )
+        new_game_keys: KeyContainer = await manager.write_new_game(Game(), Color.white)
         res: JoinResult
         res, keys = await manager.join_game("0000000000")
         self.assertEqual(res, JoinResult.dne)
         self.assertIsNone(keys)
-        res, keys = await manager.join_game(new_game_keys[Color.white])
+        res, keys = await manager.join_game(new_game_keys[Color.white].player_key)
         self.assertEqual(res, JoinResult.in_use)
         self.assertIsNone(keys)
-        res, keys = await manager.join_game(new_game_keys[Color.black])
+        res, keys = await manager.join_game(new_game_keys[Color.black].player_key)
         self.assertEqual(res, JoinResult.success)
         self.assertIsNotNone(keys)
 
         # see note on the suite class about timing-dependent tests
         await asyncio.sleep(0.1)
         self.opponent_connected_callback.assert_awaited_once()
+
+    async def test_ai_secret(self):
+        manager = self.manager
+
+        # shouldn't be able to create and join a game when the specified color
+        # is also an ai color
+        with self.assertRaises(Exception):
+            await manager.write_new_game(Game(), Color.white, ai_colors={Color.white})
+        with self.assertRaises(Exception):
+            await manager.write_new_game(
+                Game(), Color.black, ai_colors={c for c in Color}
+            )
+
+        keys: KeyContainer = await manager.write_new_game(
+            Game(), ai_colors={Color.white}
+        )
+        # shouldn't be able to join with the wrong ai secret
+        with self.assertRaises(Exception):
+            await manager.join_game(
+                keys[Color.white].player_key, ai_secret="0000000000"
+            )
+        # or using an ai secret when one isn't needed
+        with self.assertRaises(Exception):
+            await manager.join_game(
+                keys[Color.black].player_key, ai_secret=keys[Color.white].ai_secret
+            )
+        # or without the required secret
+        res, _ = await manager.join_game(keys[Color.white].player_key)
+        self.assertIs(res, JoinResult.ai_only)
+
+        # should be able to join using correct secret
+        res, _ = await manager.join_game(
+            keys[Color.white].player_key, ai_secret=keys[Color.white].ai_secret
+        )
+        self.assertIs(res, JoinResult.success)
+        # and unsub should work the same as always
+        self.assertTrue(await manager.unsubscribe(keys[Color.white].player_key))
 
     async def test_subscribe_to_updates(self):
         manager = self.manager
@@ -217,20 +252,24 @@ class DbManagerTestCase(unittest.IsolatedAsyncioTestCase):
 
         manager = self.manager
         game = Game()
-        keys: Dict[Color, str] = await manager.write_new_game(game, Color.white)
+        keys: KeyContainer = await manager.write_new_game(game, Color.white)
 
         # this should not work because the game version is still 0
-        self.assertIsNone(await manager.write_game(keys[Color.white], game))
+        self.assertIsNone(await manager.write_game(keys[Color.white].player_key, game))
 
         # neither should this, because the version is too high
         with patch.object(Game, "version", return_value=2):
-            self.assertIsNone(await manager.write_game(keys[Color.white], game))
+            self.assertIsNone(
+                await manager.write_game(keys[Color.white].player_key, game)
+            )
 
         # this is just right. we also want to make sure game status was fired,
         # so subscribe to the opponent key
-        await manager._subscribe_to_updates(keys[Color.black])
+        await manager._subscribe_to_updates(keys[Color.black].player_key)
         with patch.object(Game, "version", return_value=1):
-            self.assertGreater(await manager.write_game(keys[Color.white], game), 0)
+            self.assertGreater(
+                await manager.write_game(keys[Color.white].player_key, game), 0
+            )
         # see note on the suite class about timing-dependent tests
         await asyncio.sleep(0.1)
         self.game_status_callback.assert_awaited_once()
@@ -239,19 +278,21 @@ class DbManagerTestCase(unittest.IsolatedAsyncioTestCase):
         manager = self.manager
         timestamp = datetime.now().timestamp()
         msg_text = "hi bob"
-        keys: Dict[Color, str] = await manager.write_new_game(Game(), Color.white)
+        keys: KeyContainer = await manager.write_new_game(Game(), Color.white)
         message = ChatMessage(timestamp, Color.white, msg_text)
 
-        self.assertTrue(await manager.write_chat(keys[Color.white], message))
+        self.assertTrue(await manager.write_chat(keys[Color.white].player_key, message))
         message.id = 1
         thread = ChatThread([message])
         # see note on the suite class about timing-dependent tests
         await asyncio.sleep(0.1)
-        self.chat_callback.assert_awaited_once_with(keys[Color.white], thread)
+        self.chat_callback.assert_awaited_once_with(
+            keys[Color.white].player_key, thread
+        )
 
         # make sure that both players receive updates
-        await manager._subscribe_to_updates(keys[Color.black])
-        self.assertTrue(await manager.write_chat(keys[Color.black], message))
+        await manager._subscribe_to_updates(keys[Color.black].player_key)
+        self.assertTrue(await manager.write_chat(keys[Color.black].player_key, message))
         await asyncio.sleep(0.1)
         # once for the first message, twice for the second after having subbed
         # to the other player's updates
@@ -259,31 +300,37 @@ class DbManagerTestCase(unittest.IsolatedAsyncioTestCase):
 
     async def test_unsubscribe(self):
         manager = self.manager
-        keys: Dict[Color, str] = await manager.write_new_game(Game(), Color.white)
-        self.assertEqual(len(manager._listening_channels[keys[Color.white]]), 3)
-        self.assertFalse(await manager.unsubscribe(keys[Color.black]))
-        self.assertTrue(await manager.unsubscribe(keys[Color.white]))
-        self.assertEqual(len(manager._listening_channels[keys[Color.white]]), 0)
+        keys: KeyContainer = await manager.write_new_game(Game(), Color.white)
+        self.assertEqual(
+            len(manager._listening_channels[keys[Color.white].player_key]), 3
+        )
+        self.assertFalse(await manager.unsubscribe(keys[Color.black].player_key))
+        self.assertTrue(await manager.unsubscribe(keys[Color.white].player_key))
+        self.assertEqual(
+            len(manager._listening_channels[keys[Color.white].player_key]), 0
+        )
 
     async def test_trigger_update_all(self):
         manager = self.manager
         game = Game(1)
-        keys: Dict[Color, str] = await manager.write_new_game(game, Color.white)
-        await manager.trigger_update_all(keys[Color.white])
+        keys: KeyContainer = await manager.write_new_game(game, Color.white)
+        await manager.trigger_update_all(keys[Color.white].player_key)
         # see note on the suite class about timing-dependent tests
         await asyncio.sleep(0.1)
-        self.game_status_callback.assert_awaited_once_with(keys[Color.white], game, 0.0)
+        self.game_status_callback.assert_awaited_once_with(
+            keys[Color.white].player_key, game, 0.0
+        )
         self.chat_callback.assert_awaited_once_with(
-            keys[Color.white], ChatThread(is_complete=True)
+            keys[Color.white].player_key, ChatThread(is_complete=True)
         )
         self.opponent_connected_callback.assert_awaited_once_with(
-            keys[Color.white], False
+            keys[Color.white].player_key, False
         )
 
     @patch.object(DbManager, "trigger_update_all")
     async def test_db_reconnect(self, trigger_update_all_mock: AsyncMock):
         manager = self.manager
-        keys: Dict[Color, str] = await manager.write_new_game(Game(), Color.white)
+        keys: KeyContainer = await manager.write_new_game(Game(), Color.white)
         # losing the db connection logs a bunch of errors, which just clutters
         # the test output. note that 50 is CRITICAL per
         # https://docs.python.org/3/howto/logging.html#logging-levels, so this
@@ -301,4 +348,4 @@ class DbManagerTestCase(unittest.IsolatedAsyncioTestCase):
         # see note on the suite class about timing-dependent tests
         await asyncio.sleep(0.1)
         self.assertFalse(manager._listener_connection.is_closed())
-        trigger_update_all_mock.assert_awaited_once_with(keys[Color.white])
+        trigger_update_all_mock.assert_awaited_once_with(keys[Color.white].player_key)

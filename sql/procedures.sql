@@ -35,7 +35,10 @@ CREATE OR REPLACE PROCEDURE new_game(
   player_color char(5) DEFAULT null,
   manager_id char(64) DEFAULT null,
   -- optionally unsubscribe before creating new game
-  key_to_unsubscribe char(10) DEFAULT null
+  key_to_unsubscribe char(10) DEFAULT null,
+  -- optionally provide an AI secret for one or both keys
+  ai_secret_w char(10) DEFAULT null,
+  ai_secret_b char(10) DEFAULT null
 )
   LANGUAGE plpgsql
 AS
@@ -43,6 +46,13 @@ $$
 DECLARE
   new_id game.id%TYPE;
 BEGIN
+  if player_color is not null then
+    if player_color = 'white' and ai_secret_w is not null or
+      player_color = 'black' and ai_secret_b is not null then
+        raise 'Cannot assign an AI secret to the specified player color (%)', player_color;
+    end if;
+  end if;
+
   if key_to_unsubscribe is not null then
     if not (SELECT * FROM unsubscribe(key_to_unsubscribe, manager_id)) then
       raise 'Prior to create new game, failed to unsubscribe from % managed by %',
@@ -61,11 +71,11 @@ BEGIN
 
   INSERT INTO player_key
   VALUES (key_w, new_id, 'white', key_b,
-    CASE WHEN player_color = 'white' THEN manager_id ELSE null END);
+    CASE WHEN player_color = 'white' THEN manager_id ELSE null END, ai_secret_w);
 
   INSERT INTO player_key
   VALUES (key_b, new_id, 'black', key_w,
-    CASE WHEN player_color = 'black' THEN manager_id ELSE null END);
+    CASE WHEN player_color = 'black' THEN manager_id ELSE null END, ai_secret_b);
 END $$;
 
 CREATE OR REPLACE PROCEDURE trigger_update_all(

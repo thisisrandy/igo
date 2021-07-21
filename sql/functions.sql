@@ -2,21 +2,26 @@ CREATE OR REPLACE FUNCTION join_game(
   key_to_join char(10),
   manager_id char(64),
   -- optionally unsubscribe on success
-  key_to_unsubscribe char(10) DEFAULT null
+  key_to_unsubscribe char(10) DEFAULT null,
+  -- optionally provide an AI secret, required to join keys which have one
+  ai_secret_to_join char(10) DEFAULT null
 )
   RETURNS TABLE (
     result text,
     white_key char(10),
-    black_key char(10)
+    white_ai_secret char(10),
+    black_key char(10),
+    black_ai_secret char(10)
   )
   LANGUAGE plpgsql
 AS
 $$
 DECLARE
   other_connected boolean;
+  associated_ai_secret char(10);
 BEGIN
-  SELECT managed_by IS NOT NULL
-  INTO other_connected
+  SELECT managed_by IS NOT NULL, ai_secret
+  INTO other_connected, associated_ai_secret
   FROM player_key
   WHERE key = key_to_join
   FOR UPDATE;
@@ -25,10 +30,38 @@ BEGIN
     -- NOTE: null apparently registers as type text without an explicit cast,
     -- which then causes an error about the return type not matching the
     -- declared type, hence the casts here and below
-    RETURN QUERY SELECT 'dne', null::char(10), null::char(10);
+    RETURN QUERY SELECT 'dne'
+      , null::char(10)
+      , null::char(10)
+      , null::char(10)
+      , null::char(10)
+    ;
   elsif other_connected then
-    RETURN QUERY SELECT 'in_use', null::char(10), null::char(10);
+    RETURN QUERY SELECT 'in_use'
+      , null::char(10)
+      , null::char(10)
+      , null::char(10)
+      , null::char(10)
+    ;
   else
+    if associated_ai_secret is not null then
+      if ai_secret_to_join is null then
+        RETURN QUERY SELECT 'ai_only'
+          , null::char(10)
+          , null::char(10)
+          , null::char(10)
+          , null::char(10)
+        ;
+        RETURN;
+      end if;
+      if associated_ai_secret != ai_secret_to_join then
+        raise 'The provided AI secret doesn''t match for key %', key_to_join;
+      end if;
+    elsif ai_secret_to_join is not null then
+      raise 'When attempting to join using key %, an AI secret was provided, but the'
+            ' key does not have one associated with it', key_to_join;
+    end if;
+
     if key_to_unsubscribe is not null then
       if not (SELECT * FROM unsubscribe(key_to_unsubscribe, manager_id)) then
         raise 'Prior to join, failed to unsubscribe from % managed by %',
@@ -62,10 +95,14 @@ BEGIN
     RETURN QUERY
       SELECT
         'success'
-        , CASE WHEN color = 'white' THEN key ELSE opponent_key END
-        , CASE WHEN color = 'black' THEN key ELSE opponent_key END
-      FROM player_key
-      WHERE key = key_to_join;
+        , CASE WHEN pk.color = 'white' THEN pk.key ELSE ok.key END
+        , CASE WHEN pk.color = 'white' THEN pk.ai_secret ELSE ok.ai_secret END
+        , CASE WHEN pk.color = 'black' THEN pk.key ELSE ok.key END
+        , CASE WHEN pk.color = 'black' THEN pk.ai_secret ELSE ok.ai_secret END
+      FROM player_key pk, player_key ok
+      WHERE pk.key = key_to_join
+        AND ok.key = pk.opponent_key
+      ;
   end if;
 
   RETURN;
