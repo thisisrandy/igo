@@ -54,8 +54,8 @@ additional details.
 
 ### Running locally
 
-Run `poetry run python connection_manager.py` from the root directory. You will
-also need an instance of the [frontend
+Run `poetry run python -m igo.gameserver` from the root directory. You will also
+need an instance of the [frontend
 server](https://github.com/thisisrandy/igo-frontend) running in order to play.
 
 ### Technologies used
