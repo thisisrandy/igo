@@ -26,8 +26,13 @@ sleep again. The frontend (user interface) code is
 7. Wherever the environment for the desired user is configured, set the
    `DATABASE_URL` variable to the [connection
    URI](https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING)
-   for your database. Note that `DATABASE_URL` follows the variable used in [heroku
+   for your database. Note that `DATABASE_URL` follows the variable used in
+   [heroku
    applications](https://devcenter.heroku.com/articles/heroku-postgresql#connecting-in-python)
+8. If running the AI server on another machine, set `AI_SERVER_URL` to the
+   correct host and port. A local default will be used otherwise. Note that the AI
+   server also requires `DATABASE_URL`, though it needn't point to the same
+   database as the game server
 
 **NOTE**: If the server is handling a large number of simultaneous connections,
 it will be limited by the system open file limit, which may be set to a small
@@ -67,7 +72,8 @@ If you don't know the location of `pg_hba.conf`, connect to the database and run
 
 ### Running locally
 
-Run `poetry run python -m igo.gameserver` from the root directory. You will also
+Run `poetry run python -m igo.gameserver` from the root directory. If running
+the AI server, separately run `poetry run python -m igo.aiserver`. You will also
 need an instance of the [frontend
 server](https://github.com/thisisrandy/igo-frontend) running in order to play.
 
@@ -92,8 +98,9 @@ server](https://github.com/thisisrandy/igo-frontend) running in order to play.
   asynchronous [pub/sub](https://www.postgresql.org/docs/current/sql-notify.html)
   capabilities for message passing
 - [tornado](https://github.com/tornadoweb/tornado) for highly scalable,
-  asynchronous [WebSockets](http://en.wikipedia.org/wiki/WebSocket) to communicate
-  with the [frontend](https://github.com/thisisrandy/igo-frontend)
+  asynchronous [WebSockets](http://en.wikipedia.org/wiki/WebSocket) to
+  communicate with the [frontend](https://github.com/thisisrandy/igo-frontend)
+  and between the game and AI servers
 - [uvloop](https://github.com/MagicStack/uvloop) for improved `asyncio`
   performance
 
