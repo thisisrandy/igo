@@ -44,6 +44,19 @@ described in `/etc/security/limits.conf`. See [this
 page](https://www.tecmint.com/increase-set-open-file-limits-in-linux/) for
 additional details.
 
+**NOTE**: As database connections are made via TCP/IP, a password is
+required for all users by default. If you intend to connect without a password,
+you must edit `pg_hba.conf` to trust the desired user on the loopback address by
+adding a line like
+
+```
+# TYPE  DATABASE        USER            ADDRESS                 METHOD
+host    my_db           postgres        127.0.0.1/32            trust
+```
+
+If you don't know the location of `pg_hba.conf`, connect to the database and run
+`show hba_file;`
+
 #### python version requirement
 
 ≥ 3.8
