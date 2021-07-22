@@ -65,9 +65,9 @@ class AIServer(tornado.web.RequestHandler):
             ai_secret: str = self.get_argument("ai_secret")
             asyncio.create_task((await Client(player_key, ai_secret)).start())
         except tornado.web.MissingArgumentError:
-            logging.warning(
-                f"A request without all of the required arguments was received. Ignoring"
-            )
+            err = "One or more required arguments was missing from the request"
+            logging.warning(f"{err}. Ignoring")
+            self.set_status(400, err)
 
 
 class Application(tornado.web.Application):
