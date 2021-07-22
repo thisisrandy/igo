@@ -13,7 +13,7 @@ class RandomPolicy(PlayPolicyBase):
     """
 
     async def play(self, game: Game, color: Color) -> Optional[Action]:
-        ts = datetime.now().timestamp
+        ts = datetime.now().timestamp()
         if game.pending_request:
             if game.pending_request.initiator is not color:
                 logging.info(
