@@ -1,15 +1,21 @@
 import asyncio
 import logging
+from tornado.options import define, options
 from igo.gameserver.containers import KeyPair
 from tornado.httpclient import AsyncHTTPClient, HTTPResponse
-import os
 import re
 from typing import Optional, Dict
 from asyncio import Lock
 
+define(
+    "ai_server_url",
+    default="http://localhost:1918",
+    help="the url of the AI server",
+    type=str,
+)
+
 SLEEP_FOR = 2
 _client = AsyncHTTPClient()
-_endpoint = f"{os.getenv('AI_SERVER_URL', 'http://localhost:1918')}/start"
 _xsrf_headers: Optional[Dict[str, str]] = None
 _xsrf_lock: Lock = Lock()
 
@@ -26,19 +32,20 @@ async def start_ai_player(keys: KeyPair, just_once: bool = False) -> None:
     global _xsrf_headers
     assert keys.ai_secret, "Cannot start an AI player without their secret"
 
+    endpoint = f"{options.ai_server_url}/start"
     res: HTTPResponse
     while True:
         try:
             if not _xsrf_headers:
                 async with _xsrf_lock:
                     if not _xsrf_headers:
-                        res = await _client.fetch(_endpoint)
+                        res = await _client.fetch(endpoint)
                         xsrf = re.search(r"_xsrf=(.*?);", res.headers["Set-Cookie"])[1]
                         _xsrf_headers = {"X-XSRFToken": xsrf, "Cookie": f"_xsrf={xsrf}"}
 
             await _client.fetch(
                 (
-                    f"{_endpoint}?"
+                    f"{endpoint}?"
                     f"player_key={keys.player_key}"
                     f"&ai_secret={keys.ai_secret}"
                 ),

@@ -2,7 +2,7 @@
 
 <p align="center"><img alt="igo screenshot" src="https://github.com/thisisrandy/igo-frontend/blob/main/screenshot.png" /></p>
 
-This is the backend (game server) code for a browser-based
+This is the backend (game and AI servers) code for a browser-based
 [igo](<https://en.wikipedia.org/wiki/Go_(game)>) (囲碁, go) application, which you
 can play [here](https://playigo.herokuapp.com). Note that hosting is on the
 [heroku](heroku.com) [free
@@ -29,10 +29,6 @@ sleep again. The frontend (user interface) code is
    for your database. Note that `DATABASE_URL` follows the variable used in
    [heroku
    applications](https://devcenter.heroku.com/articles/heroku-postgresql#connecting-in-python)
-8. If running the AI server on another machine, set `AI_SERVER_URL` to the
-   correct host and port. A local default will be used otherwise. Note that the AI
-   server also requires `DATABASE_URL`, though it needn't point to the same
-   database as the game server
 
 **NOTE**: If the server is handling a large number of simultaneous connections,
 it will be limited by the system open file limit, which may be set to a small
@@ -73,9 +69,10 @@ If you don't know the location of `pg_hba.conf`, connect to the database and run
 ### Running locally
 
 Run `poetry run python -m igo.gameserver` from the root directory. If running
-the AI server, separately run `poetry run python -m igo.aiserver`. You will also
-need an instance of the [frontend
-server](https://github.com/thisisrandy/igo-frontend) running in order to play.
+the AI server, separately run `poetry run python -m igo.aiserver`. Use the
+`--help` option on either for additional options. You will also need an instance
+of the [frontend server](https://github.com/thisisrandy/igo-frontend) running in
+order to play.
 
 ### Technologies used
 
