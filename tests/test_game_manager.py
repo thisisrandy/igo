@@ -1,6 +1,6 @@
 import asyncio
 from igo.gameserver.chat import ChatThread
-from typing import Dict, Optional, Tuple
+from typing import Optional, Tuple
 from igo.gameserver.containers import (
     ActionResponseContainer,
     GameStatusContainer,
@@ -13,7 +13,12 @@ from igo.gameserver.db_manager import DbManager
 import unittest
 from unittest.mock import AsyncMock, patch, Mock, MagicMock
 from tornado.websocket import WebSocketHandler
-from igo.gameserver.game_manager import ClientData, GameStore, GameManager
+from igo.gameserver.game_manager import (
+    ClientData,
+    GameStore,
+    GameManager,
+    OppponentType,
+)
 import json
 from igo.gameserver.messages import (
     IncomingMessage,
@@ -23,6 +28,7 @@ from igo.gameserver.messages import (
 )
 from igo.game import Color, ActionType, Game
 from igo.gameserver.constants import (
+    AI_SECRET,
     TYPE,
     VS,
     COLOR,
@@ -148,11 +154,14 @@ class GameManagerIntegrationTestCase(unittest.IsolatedAsyncioTestCase):
         await self.gm.store._db_manager._connection_pool.close()
 
     async def createNewGame(
-        self, player: Optional[WebSocketHandler] = None
+        self,
+        player: Optional[WebSocketHandler] = None,
+        opponent_type: OppponentType = OppponentType.human,
     ) -> Tuple[WebSocketHandler, ClientData]:
         """
-        Create new game and join as white. Optionally provider the client
-        handler and return the client handler and internal data from the store
+        Create new game and join as white. Optionally provide the client handler
+        and/or opponent type and return the client handler and internal data
+        from the store
         """
 
         if player is None:
@@ -161,7 +170,7 @@ class GameManagerIntegrationTestCase(unittest.IsolatedAsyncioTestCase):
             json.dumps(
                 {
                     TYPE: IncomingMessageType.new_game.name,
-                    VS: "human",
+                    VS: opponent_type.name,
                     COLOR: Color.white.name,
                     SIZE: 19,
                     KOMI: 6.5,
@@ -481,3 +490,73 @@ class GameManagerIntegrationTestCase(unittest.IsolatedAsyncioTestCase):
                     p1,
                 )
             )
+
+    @patch.object(OutgoingMessage, "__init__")
+    @patch.object(OutgoingMessage, "send")
+    @patch("igo.gameserver.game_manager.start_ai_player")
+    async def test_ai_opponent(
+        self, start_ai_player_mock: AsyncMock, _, init_mock: Mock
+    ):
+        init_mock.return_value = None
+        player: WebSocketHandler
+        player, _ = await self.createNewGame(opponent_type=OppponentType.computer)
+        ng_res: NewGameResponseContainer
+        _, ng_res, _ = init_mock.call_args_list[-4].args
+        keys = ng_res.keys
+        self.assertIsNone(keys[Color.white].ai_secret)
+        self.assertIsNotNone(keys[Color.black].ai_secret)
+        start_ai_player_mock.assert_awaited_once_with(keys[Color.black])
+
+        # try to join AI key w/o secret
+        await self.gm.route_message(
+            IncomingMessage(
+                json.dumps(
+                    {
+                        TYPE: IncomingMessageType.join_game.name,
+                        KEY: keys[Color.black].player_key,
+                    }
+                ),
+                player,
+            )
+        )
+        # see notes elsewhere about timing-dependent tests
+        await asyncio.sleep(0.1)
+        join_res: JoinGameResponseContainer
+        _, join_res, _ = init_mock.call_args_list[-1].args
+        self.assertFalse(join_res.success)
+        self.assertRegex(join_res.explanation, "designated as a computer player")
+
+        # join w/secret
+        await self.gm.route_message(
+            IncomingMessage(
+                json.dumps(
+                    {
+                        TYPE: IncomingMessageType.join_game.name,
+                        KEY: keys[Color.black].player_key,
+                        AI_SECRET: keys[Color.black].ai_secret,
+                    }
+                ),
+                player,
+            )
+        )
+        await asyncio.sleep(0.1)
+        _, join_res, _ = init_mock.call_args_list[-4].args
+        self.assertTrue(join_res.success)
+
+        # re-join as white and test that ai player would be started
+        await self.gm.route_message(
+            IncomingMessage(
+                json.dumps(
+                    {
+                        TYPE: IncomingMessageType.join_game.name,
+                        KEY: keys[Color.white].player_key,
+                    }
+                ),
+                player,
+            )
+        )
+        await asyncio.sleep(0.1)
+        _, join_res, _ = init_mock.call_args_list[-4].args
+        self.assertTrue(join_res.success)
+        # already awaited once for new game
+        self.assertEqual(start_ai_player_mock.await_count, 2)

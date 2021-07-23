@@ -1,11 +1,15 @@
+from enum import Enum, auto
+from igo.aiserver import start_ai_player
 from .constants import (
     ACTION_TYPE,
+    AI_SECRET,
     COLOR,
     COORDS,
     KEY,
     KOMI,
     MESSAGE,
     SIZE,
+    VS,
 )
 import logging
 from .chat import ChatMessage, ChatThread
@@ -29,6 +33,11 @@ from .containers import (
     NewGameResponseContainer,
     OpponentConnectedContainer,
 )
+
+
+class OppponentType(Enum):
+    human = auto()
+    computer = auto()
 
 
 @dataclass(slots=True)
@@ -106,9 +115,15 @@ class GameStore:
         chat_thread = ChatThread(is_complete=True)
         opponent_connected = False
         requested_color = Color[msg.data[COLOR]]
+        opponent_type = OppponentType[msg.data[VS]]
 
         keys: KeyContainer = await self._db_manager.write_new_game(
-            game, requested_color, old_key
+            game,
+            requested_color,
+            old_key,
+            {requested_color.inverse()}
+            if opponent_type is OppponentType.computer
+            else None,
         )
         if old_key:
             logging.info(f"Client requesting new game already subscribed to {old_key}")
@@ -124,22 +139,31 @@ class GameStore:
             opponent_connected,
         )
         self._keys[client_key] = client
-
-        # TODO: If msg.data[VS] is "computer", set up computer as second player
+        ai_will_oppose = keys[requested_color.inverse()].ai_secret is not None
 
         await OutgoingMessage(
             OutgoingMessageType.new_game_response,
             NewGameResponseContainer(
                 True,
-                (
-                    # TODO: update this for when the opponent is an AI
-                    f"Successfully created new game. Make sure to give the"
-                    f" {requested_color.inverse().name} player key"
-                    f" ({keys[requested_color.inverse()].player_key}) to your opponent"
-                    f" so that they can join the game. Your key is "
-                    f"{keys[requested_color].player_key}. Make sure to write it down in"
-                    f" case you want to pause the game and resume it later, or if you"
-                    f" want to view it once complete"
+                f"Successfully created new game."
+                + (
+                    (
+                        f" Make sure to give the {requested_color.inverse().name} player key"
+                        f" ({keys[requested_color.inverse()].player_key}) to your opponent"
+                        f" so that they can join the game. "
+                    )
+                    if not ai_will_oppose
+                    else ""
+                )
+                + (
+                    f" Your key is {keys[requested_color].player_key}. Make sure to"
+                    " write it down in case you want to pause the game and resume it"
+                    " later, or if you want to view it once complete"
+                )
+                + (
+                    ". The AI player will join the game shortly"
+                    if ai_will_oppose
+                    else ""
                 ),
                 keys,
                 requested_color,
@@ -158,6 +182,9 @@ class GameStore:
             OpponentConnectedContainer(opponent_connected),
             client,
         ).send()
+
+        if ai_will_oppose:
+            await start_ai_player(keys[requested_color.inverse()])
 
     def _get_game_updater(self) -> Callable[[str, Game, float], Coroutine]:
         """
@@ -250,7 +277,9 @@ class GameStore:
             old_key = self._clients[client].key if client in self._clients else None
             res: JoinResult
             keys: Optional[KeyContainer]
-            res, keys = await self._db_manager.join_game(key, old_key)
+            res, keys = await self._db_manager.join_game(
+                key, old_key, msg.data.get(AI_SECRET, None)
+            )
 
             if res is JoinResult.dne:
                 await OutgoingMessage(
@@ -273,6 +302,16 @@ class GameStore:
                     ),
                     client,
                 ).send()
+            elif res is JoinResult.ai_only:
+                await OutgoingMessage(
+                    OutgoingMessageType.join_game_response,
+                    JoinGameResponseContainer(
+                        False,
+                        f"Key {key} is designated as a computer player and cannot be"
+                        " joined without the correct secret",
+                    ),
+                    client,
+                ).send()
             elif res is JoinResult.success:
                 if old_key:
                     logging.info(
@@ -285,12 +324,18 @@ class GameStore:
                 )
                 self._clients[client] = ClientData(key, color)
                 self._keys[key] = client
+                ai_will_oppose = keys[color.inverse()].ai_secret is not None
 
                 await OutgoingMessage(
                     OutgoingMessageType.join_game_response,
                     JoinGameResponseContainer(
                         True,
-                        f"Successfully (re)joined the game as {color.name}",
+                        f"Successfully (re)joined the game as {color.name}"
+                        + (
+                            ". The computer player will join shortly"
+                            if ai_will_oppose
+                            else ""
+                        ),
                         keys,
                         color,
                     ),
@@ -298,6 +343,9 @@ class GameStore:
                 ).send()
 
                 await self._db_manager.trigger_update_all(key)
+
+                if ai_will_oppose:
+                    await start_ai_player(keys[color.inverse()])
             else:
                 raise TypeError(f"Unknown JoinResult {res} encountered")
 
