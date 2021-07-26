@@ -52,7 +52,7 @@ class Client:
 
     async def start(self) -> None:
         self.connection = con = await websocket_connect(options.game_server_url)
-        con.write_message(
+        await con.write_message(
             json.dumps(
                 {
                     TYPE: IncomingMessageType.join_game.name,
