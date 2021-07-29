@@ -1,4 +1,6 @@
+from __future__ import annotations
 from enum import Enum, auto
+from igo.aiserver.policy.random import RandomPolicy
 from igo.game import Color, Game, GameStatus
 from igo.gameserver.containers import (
     GameStatusContainer,
@@ -20,22 +22,25 @@ from igo.gameserver.messages import (
 
 
 class TestWebSocketClient(unittest.IsolatedAsyncioTestCase):
-    @patch("igo.aiserver.websocket_client.websocket_connect", new_callable=AsyncMock)
-    async def test_start(self, connect_mock: AsyncMock):
-        player_key = "0123456789"
-        ai_secret = "9876543210"
+    def setUp(self) -> None:
+        # see https://tinyurl.com/2acdhnhy
+        patcher = patch(
+            "igo.aiserver.websocket_client.websocket_connect", new_callable=AsyncMock
+        )
+        self.addCleanup(patcher.stop)
+        self.connect_mock = patcher.start()
 
-        game = Game()
-        game.status = GameStatus.complete
-        connect_mock.return_value = MockWebsocketConnection(
+        self.player_key = "0123456789"
+        self.ai_secret = "9876543210"
+        self.test_mock = MockWebsocketConnection(
             self,
             [
                 ConnectionAction(
                     ConnectionActionType.write,
                     {
                         TYPE: IncomingMessageType.join_game.name,
-                        KEY: player_key,
-                        AI_SECRET: ai_secret,
+                        KEY: self.player_key,
+                        AI_SECRET: self.ai_secret,
                     },
                 ),
                 ConnectionAction(
@@ -45,22 +50,34 @@ class TestWebSocketClient(unittest.IsolatedAsyncioTestCase):
                         JoinGameResponseContainer(
                             True,
                             "success",
-                            KeyContainer("1234554321", player_key, None, ai_secret),
+                            KeyContainer(
+                                "1234554321", self.player_key, None, self.ai_secret
+                            ),
                             Color.black,
                         ),
                     ),
                 ),
-                ConnectionAction(
-                    ConnectionActionType.read,
-                    return_val=OutgoingMessage(
-                        OutgoingMessageType.game_status,
-                        GameStatusContainer(game, 1.0),
-                    ),
-                ),
             ],
         )
-        client: Client = await Client(player_key, ai_secret)
+        self.connect_mock.return_value = self.test_mock
+
+    async def run_client(self):
+        client: Client = await Client(self.player_key, self.ai_secret, RandomPolicy)
         await client.start()
+
+    async def test_exit_on_complete(self):
+        game = Game()
+        game.status = GameStatus.complete
+        self.test_mock.append(
+            ConnectionAction(
+                ConnectionActionType.read,
+                return_val=OutgoingMessage(
+                    OutgoingMessageType.game_status,
+                    GameStatusContainer(game, 1.0),
+                ),
+            )
+        )
+        await self.run_client()
 
 
 class ConnectionActionType(Enum):
@@ -92,6 +109,12 @@ class MockWebsocketConnection:
         self.test_case = test_case
         self.actions = actions
         self.action_idx = 0
+
+    def append(self, action: ConnectionAction) -> None:
+        self.actions.append(action)
+
+    def extend(self, actions: List[ConnectionAction]) -> None:
+        self.actions.extend(actions)
 
     async def read_message(self) -> str:
         action = self.actions[self.action_idx]
