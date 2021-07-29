@@ -21,6 +21,62 @@ from igo.gameserver.messages import (
 )
 
 
+class ConnectionActionType(Enum):
+    read = auto()
+    write = auto()
+
+
+@dataclass
+class ConnectionAction:
+    action_type: ConnectionActionType
+    expected_in: Optional[Dict] = None
+    return_val: Optional[OutgoingMessage] = None
+
+
+class MockWebsocketConnection:
+    """
+    An instance of this class is intended to be used as the return value of a
+    mock of `tornado.websocket.websocket_connect`. The idea is to have an
+    expected queue of actions that the object is initialized with. Then, as its
+    read and write methods are called, it verifies that the next action in the
+    queue is what is being requested and returns an appropriate response, if any.
+    This allows us to simulate a remote game server that the AI server can talk
+    back and forth to, allowing us to verify its read/response pattern
+    """
+
+    def __init__(
+        self, test_case: unittest.TestCase, actions: List[ConnectionAction]
+    ) -> None:
+        self.test_case = test_case
+        self.actions = actions
+        self.action_idx = 0
+
+    def append(self, action: ConnectionAction) -> None:
+        self.actions.append(action)
+
+    def extend(self, actions: List[ConnectionAction]) -> None:
+        self.actions.extend(actions)
+
+    async def read_message(self) -> str:
+        action = self.actions[self.action_idx]
+        self.action_idx += 1
+        tc = self.test_case
+        tc.assertIs(action.action_type, ConnectionActionType.read)
+        tc.assertIsNotNone(action.return_val)
+        return json.dumps(action.return_val.jsonifyable())
+
+    async def write_message(self, message: str) -> None:
+        action = self.actions[self.action_idx]
+        self.action_idx += 1
+        tc = self.test_case
+        tc.assertIs(action.action_type, ConnectionActionType.write)
+        tc.assertIsNotNone(action.expected_in)
+        tc.assertEqual(json.dumps(action.expected_in), message)
+
+    def close(self) -> None:
+        pass
+
+
 class TestWebSocketClient(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
         # see https://tinyurl.com/2acdhnhy
@@ -78,59 +134,3 @@ class TestWebSocketClient(unittest.IsolatedAsyncioTestCase):
             )
         )
         await self.run_client()
-
-
-class ConnectionActionType(Enum):
-    read = auto()
-    write = auto()
-
-
-@dataclass
-class ConnectionAction:
-    action_type: ConnectionActionType
-    expected_in: Optional[Dict] = None
-    return_val: Optional[OutgoingMessage] = None
-
-
-class MockWebsocketConnection:
-    """
-    An instance of this class is intended to be used as the return value of a
-    mock of `tornado.websocket.websocket_connect`. The idea is to have an
-    expected queue of actions that the object is initialized with. Then, as its
-    read and write methods are called, it verifies that the next action in the
-    queue is what is being requested and returns an appropriate response, if any.
-    This allows us to simulate a remote game server that the AI server can talk
-    back and forth to, allowing us to verify its read/response pattern
-    """
-
-    def __init__(
-        self, test_case: unittest.TestCase, actions: List[ConnectionAction]
-    ) -> None:
-        self.test_case = test_case
-        self.actions = actions
-        self.action_idx = 0
-
-    def append(self, action: ConnectionAction) -> None:
-        self.actions.append(action)
-
-    def extend(self, actions: List[ConnectionAction]) -> None:
-        self.actions.extend(actions)
-
-    async def read_message(self) -> str:
-        action = self.actions[self.action_idx]
-        self.action_idx += 1
-        tc = self.test_case
-        tc.assertIs(action.action_type, ConnectionActionType.read)
-        tc.assertIsNotNone(action.return_val)
-        return json.dumps(action.return_val.jsonifyable())
-
-    async def write_message(self, message: str) -> None:
-        action = self.actions[self.action_idx]
-        self.action_idx += 1
-        tc = self.test_case
-        tc.assertIs(action.action_type, ConnectionActionType.write)
-        tc.assertIsNotNone(action.expected_in)
-        tc.assertEqual(json.dumps(action.expected_in), message)
-
-    def close(self) -> None:
-        pass
