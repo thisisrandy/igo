@@ -86,6 +86,10 @@ class MockWebsocketConnection:
     def close(self) -> None:
         pass
 
+    @property
+    def finished(self) -> bool:
+        return len(self.actions) == self.action_idx
+
 
 class TestWebSocketClient(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
@@ -135,6 +139,8 @@ class TestWebSocketClient(unittest.IsolatedAsyncioTestCase):
         )
         self.connect_mock.return_value = self.test_mock
 
+    def tearDown(self) -> None:
+        self.assertTrue(self.test_mock.finished)
 
     async def run_client(self, append_opponent_disconnected: bool = True):
         """
