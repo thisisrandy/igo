@@ -241,4 +241,4 @@ class ErrorContainer(JsonifyableBaseDataClass):
 
     @staticmethod
     def _deserialize(data: Dict) -> ErrorContainer:
-        return ErrorContainer(Exception(data["exception"]))
+        return ErrorContainer(Exception(data["errorMessage"]))
