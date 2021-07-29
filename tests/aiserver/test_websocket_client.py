@@ -21,6 +21,9 @@ from igo.gameserver.messages import (
     OutgoingMessageType,
 )
 
+# use this to ignore the value of incoming message keys
+WILDCARD = "__WILDCARD__"
+
 
 class ConnectionActionType(Enum):
     read = auto()
@@ -81,7 +84,12 @@ class MockWebsocketConnection:
         tc = self.test_case
         tc.assertIs(action.action_type, ConnectionActionType.write)
         tc.assertIsNotNone(action.expected_in)
-        tc.assertEqual(json.dumps(action.expected_in), message)
+        msg_deserialized: Dict = json.loads(message)
+        for key in action.expected_in.keys() | msg_deserialized.keys():
+            tc.assertIn(key, action.expected_in)
+            tc.assertIn(key, msg_deserialized)
+            if action.expected_in[key] is not WILDCARD:
+                tc.assertEqual(action.expected_in[key], msg_deserialized[key])
 
     def close(self) -> None:
         pass
