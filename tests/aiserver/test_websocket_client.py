@@ -6,6 +6,7 @@ from igo.gameserver.containers import (
     GameStatusContainer,
     JoinGameResponseContainer,
     KeyContainer,
+    OpponentConnectedContainer,
 )
 import json
 from dataclasses import dataclass
@@ -134,11 +135,29 @@ class TestWebSocketClient(unittest.IsolatedAsyncioTestCase):
         )
         self.connect_mock.return_value = self.test_mock
 
-    async def run_client(self):
+
+    async def run_client(self, append_opponent_disconnected: bool = True):
         """
         Create and start a client. This should be the last action that every
-        test function takes
+        test function takes. If `append_opponent_disconnected`, append an
+        opponent disconnected message to the end of `self.test_mock`, which
+        should always shut down a well-behaved client. If it is set to False, it
+        is assumed that some other method, e.g. setting the game status to
+        complete, has been employed to cause the client to exit. When neither of
+        these is true, the client will wait forever and the test will as such
+        not complete
         """
+
+        if append_opponent_disconnected:
+            self.test_mock.append(
+                ConnectionAction(
+                    ConnectionActionType.read,
+                    return_val=OutgoingMessage(
+                        OutgoingMessageType.opponent_connected,
+                        OpponentConnectedContainer(False),
+                    ),
+                )
+            )
 
         client: Client = await Client(self.player_key, self.ai_secret, RandomPolicy)
         await client.start()
@@ -155,4 +174,4 @@ class TestWebSocketClient(unittest.IsolatedAsyncioTestCase):
                 ),
             )
         )
-        await self.run_client()
+        await self.run_client(False)
