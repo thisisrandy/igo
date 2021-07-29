@@ -79,6 +79,14 @@ class MockWebsocketConnection:
 
 class TestWebSocketClient(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
+        """
+        Patches `websocket_connect` and sets it up to return a mock connection
+        with join game boilerplate defined. Tests should proceed by adding
+        appropriate actions to `self.test_mock` and then running
+        `self.run_client` as their final action. Note that the client is joined
+        as the black player
+        """
+
         # see https://tinyurl.com/2acdhnhy
         patcher = patch(
             "igo.aiserver.websocket_client.websocket_connect", new_callable=AsyncMock
@@ -118,6 +126,11 @@ class TestWebSocketClient(unittest.IsolatedAsyncioTestCase):
         self.connect_mock.return_value = self.test_mock
 
     async def run_client(self):
+        """
+        Create and start a client. This should be the last action that every
+        test function takes
+        """
+
         client: Client = await Client(self.player_key, self.ai_secret, RandomPolicy)
         await client.start()
 
