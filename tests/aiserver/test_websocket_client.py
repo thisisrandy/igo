@@ -57,7 +57,15 @@ class MockWebsocketConnection:
     def extend(self, actions: List[ConnectionAction]) -> None:
         self.actions.extend(actions)
 
+    def _assert_actions_left(self) -> None:
+        self.test_case.assertGreater(
+            len(self.actions),
+            self.action_idx,
+            "Tried to take more actions than were specified in the test",
+        )
+
     async def read_message(self) -> str:
+        self._assert_actions_left()
         action = self.actions[self.action_idx]
         self.action_idx += 1
         tc = self.test_case
@@ -66,6 +74,7 @@ class MockWebsocketConnection:
         return json.dumps(action.return_val.jsonifyable())
 
     async def write_message(self, message: str) -> None:
+        self._assert_actions_left()
         action = self.actions[self.action_idx]
         self.action_idx += 1
         tc = self.test_case
