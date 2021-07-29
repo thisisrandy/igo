@@ -1,8 +1,11 @@
 from __future__ import annotations
 from enum import Enum, auto
+from igo.gameserver.chat import ChatThread
 from igo.aiserver.policy.random import RandomPolicy
-from igo.game import Color, Game, GameStatus
+from igo.game import Action, ActionType, Color, Game, GameStatus
 from igo.gameserver.containers import (
+    ActionResponseContainer,
+    ErrorContainer,
     GameStatusContainer,
     JoinGameResponseContainer,
     KeyContainer,
@@ -14,7 +17,7 @@ from typing import Dict, List, Optional
 from igo.aiserver.websocket_client import Client
 import unittest
 from unittest.mock import AsyncMock, patch
-from igo.gameserver.constants import KEY, TYPE, AI_SECRET
+from igo.gameserver.constants import ACTION_TYPE, COORDS, KEY, TYPE, AI_SECRET
 from igo.gameserver.messages import (
     IncomingMessageType,
     OutgoingMessage,
@@ -176,7 +179,70 @@ class TestWebSocketClient(unittest.IsolatedAsyncioTestCase):
         client: Client = await Client(self.player_key, self.ai_secret, RandomPolicy)
         await client.start()
 
-    async def test_exit_on_complete(self):
+    async def test_game_action_response(self):
+        # test that actions are ignored (logged but otherwise ignored) on both
+        # success and failure
+        self.test_mock.extend(
+            [
+                ConnectionAction(
+                    ConnectionActionType.read,
+                    return_val=OutgoingMessage(
+                        OutgoingMessageType.game_action_response,
+                        ActionResponseContainer(True, "success"),
+                    ),
+                ),
+                ConnectionAction(
+                    ConnectionActionType.read,
+                    return_val=OutgoingMessage(
+                        OutgoingMessageType.game_action_response,
+                        ActionResponseContainer(False, "failure"),
+                    ),
+                ),
+            ]
+        )
+        await self.run_client()
+
+    async def test_game_status(self):
+        # test takes one action on turn, does nothing on opponent's turn, and
+        # exits when game complete
+
+        # client's turn
+        game = Game()
+        self.test_mock.extend(
+            [
+                ConnectionAction(
+                    ConnectionActionType.read,
+                    return_val=OutgoingMessage(
+                        OutgoingMessageType.game_status,
+                        GameStatusContainer(game, 1.0),
+                    ),
+                ),
+                ConnectionAction(
+                    ConnectionActionType.write,
+                    {
+                        TYPE: IncomingMessageType.game_action.name,
+                        KEY: self.player_key,
+                        ACTION_TYPE: ActionType.place_stone.name,
+                        COORDS: WILDCARD,
+                    },
+                ),
+            ]
+        )
+
+        # opponent's turn
+        game = Game()
+        game.turn = Color.white
+        self.test_mock.append(
+            ConnectionAction(
+                ConnectionActionType.read,
+                return_val=OutgoingMessage(
+                    OutgoingMessageType.game_status,
+                    GameStatusContainer(game, 1.0),
+                ),
+            )
+        )
+
+        # game complete
         game = Game()
         game.status = GameStatus.complete
         self.test_mock.append(
@@ -189,3 +255,70 @@ class TestWebSocketClient(unittest.IsolatedAsyncioTestCase):
             )
         )
         await self.run_client(False)
+
+    async def test_chat(self):
+        # test that chat is ignored
+        self.test_mock.append(
+            ConnectionAction(
+                ConnectionActionType.read,
+                return_val=OutgoingMessage(OutgoingMessageType.chat, ChatThread()),
+            )
+        )
+        await self.run_client()
+
+    async def test_opponent_connected(self):
+        # test accepts opponent is connected and shuts down when disconnected
+        self.test_mock.append(
+            ConnectionAction(
+                ConnectionActionType.read,
+                return_val=OutgoingMessage(
+                    OutgoingMessageType.opponent_connected,
+                    OpponentConnectedContainer(True),
+                ),
+            )
+        )
+        await self.run_client(True)
+
+    @patch("igo.aiserver.websocket_client.ERROR_SLEEP_PERIOD", 0.0)
+    async def test_error(self):
+        game = Game()
+        self.test_mock.extend(
+            [
+                # induce the client to take an action
+                ConnectionAction(
+                    ConnectionActionType.read,
+                    return_val=OutgoingMessage(
+                        OutgoingMessageType.game_status,
+                        GameStatusContainer(game, 1.0),
+                    ),
+                ),
+                # confirm the action was taken
+                ConnectionAction(
+                    ConnectionActionType.write,
+                    {
+                        TYPE: IncomingMessageType.game_action.name,
+                        KEY: self.player_key,
+                        ACTION_TYPE: ActionType.place_stone.name,
+                        COORDS: WILDCARD,
+                    },
+                ),
+                # send back an error
+                ConnectionAction(
+                    ConnectionActionType.read,
+                    return_val=OutgoingMessage(
+                        OutgoingMessageType.error, ErrorContainer(Exception("error"))
+                    ),
+                ),
+                # confirm the action was resent
+                ConnectionAction(
+                    ConnectionActionType.write,
+                    {
+                        TYPE: IncomingMessageType.game_action.name,
+                        KEY: self.player_key,
+                        ACTION_TYPE: ActionType.place_stone.name,
+                        COORDS: WILDCARD,
+                    },
+                ),
+            ]
+        )
+        await self.run_client()
