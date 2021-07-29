@@ -35,6 +35,13 @@ define(
 
 ERROR_SLEEP_PERIOD = 2
 
+# TODO: add reconnect logic. we should attempt to reconnect and rejoin if our
+# connection is severed. if the human client's connection was also severed, it
+# may be that when they rejoin, another ai client is spawned to play against
+# them, in which case we simply shut down. however, if just our end goes sour,
+# there needs to be logic on this side to rejoin, since there is no external
+# trigger
+
 
 @asyncinit
 class Client:
