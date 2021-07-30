@@ -161,8 +161,9 @@ class TestWebSocketClient(unittest.IsolatedAsyncioTestCase):
         should always shut down a well-behaved client. If it is set to False, it
         is assumed that some other method, e.g. setting the game status to
         complete, has been employed to cause the client to exit. When neither of
-        these is true, the client will wait forever and the test will as such
-        not complete
+        these is true, the client will continue trying to read messages from
+        `self.test_mock`, causing the test to fail, as there will be no more
+        actions left on the mock
         """
 
         if append_opponent_disconnected:
