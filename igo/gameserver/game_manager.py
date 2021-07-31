@@ -30,6 +30,7 @@ from .containers import (
     GameStatusContainer,
     JoinGameResponseContainer,
     KeyContainer,
+    KeyPair,
     NewGameResponseContainer,
     OpponentConnectedContainer,
 )
@@ -48,7 +49,7 @@ class ClientData:
 
     Attributes:
 
-        key: str - the client's player key
+        keys: KeyPair - the client's player key and AI secret, if relevant
 
         color: Color - the client's color
 
@@ -64,7 +65,7 @@ class ClientData:
         opponent in the current game is connected to a game server
     """
 
-    key: str
+    keys: KeyPair
     color: Color
     game: Optional[Game] = None
     time_played: Optional[float] = None
@@ -87,13 +88,13 @@ class GameStore:
     level.
     """
 
-    __slots__ = ("_clients", "_keys", "_db_manager")
+    __slots__ = ("_clients", "_player_keys", "_db_manager")
 
     async def __init__(
         self, store_dsn: str, run_db_setup_scripts: bool = False
     ) -> None:
         self._clients: Dict[WebSocketHandler, ClientData] = {}
-        self._keys: Dict[str, WebSocketHandler] = {}
+        self._player_keys: Dict[str, WebSocketHandler] = {}
         self._db_manager: DbManager = await DbManager(
             self._get_game_updater(),
             self._get_chat_updater(),
@@ -108,7 +109,9 @@ class GameStore:
         """
 
         client = msg.websocket_handler
-        old_key = self._clients[client].key if client in self._clients else None
+        old_key = (
+            self._clients[client].keys.player_key if client in self._clients else None
+        )
 
         game = Game(msg.data[SIZE], msg.data[KOMI])
         time_played = 0.0
@@ -129,16 +132,16 @@ class GameStore:
             logging.info(f"Client requesting new game already subscribed to {old_key}")
             await self.unsubscribe(client, True)
 
-        client_key = keys[requested_color].player_key
+        client_keys = keys[requested_color]
         self._clients[client] = ClientData(
-            client_key,
+            client_keys,
             requested_color,
             game,
             time_played,
             chat_thread,
             opponent_connected,
         )
-        self._keys[client_key] = client
+        self._player_keys[client_keys.player_key] = client
         ai_will_oppose = keys[requested_color.inverse()].ai_secret is not None
 
         await OutgoingMessage(
@@ -156,7 +159,7 @@ class GameStore:
                     else ""
                 )
                 + (
-                    f" Your key is {keys[requested_color].player_key}. Make sure to"
+                    f" Your key is {client_keys.player_key}. Make sure to"
                     " write it down in case you want to pause the game and resume it"
                     " later, or if you want to view it once complete"
                 )
@@ -260,14 +263,14 @@ class GameStore:
         """
 
         assert (
-            player_key in self._keys
+            player_key in self._player_keys
         ), f"Player key {player_key} is not being managed by this store"
-        return self._keys[player_key]
+        return self._player_keys[player_key]
 
     async def join_game(self, msg: IncomingMessage) -> None:
         key: str = msg.data[KEY]
         client: WebSocketHandler = msg.websocket_handler
-        if client in self._clients and self._clients[client].key == key:
+        if client in self._clients and self._clients[client].keys.player_key == key:
             await OutgoingMessage(
                 OutgoingMessageType.join_game_response,
                 JoinGameResponseContainer(
@@ -278,7 +281,11 @@ class GameStore:
             ).send()
         else:
 
-            old_key = self._clients[client].key if client in self._clients else None
+            old_key = (
+                self._clients[client].keys.player_key
+                if client in self._clients
+                else None
+            )
             res: JoinResult
             keys: Optional[KeyContainer]
             res, keys = await self._db_manager.join_game(
@@ -326,8 +333,8 @@ class GameStore:
                 color = (
                     Color.white if keys[Color.white].player_key == key else Color.black
                 )
-                self._clients[client] = ClientData(key, color)
-                self._keys[key] = client
+                self._clients[client] = ClientData(keys[color], color)
+                self._player_keys[key] = client
                 ai_will_oppose = keys[color.inverse()].ai_secret is not None
 
                 await OutgoingMessage(
@@ -357,11 +364,11 @@ class GameStore:
         key = msg.data[KEY]
         client = msg.websocket_handler
 
-        assert key in self._keys, f"Received message with unknown key {key}"
+        assert key in self._player_keys, f"Received message with unknown key {key}"
         assert (
             client in self._clients
         ), f"Received message from a client who isn't subscribed to anything"
-        assert self._clients[client].key == key, (
+        assert self._clients[client].keys.player_key == key, (
             f"Received message with key {key} from a client who isn't subscribed to"
             " that key"
         )
@@ -386,7 +393,7 @@ class GameStore:
 
             if success:
                 time_played: Optional[float] = await self._db_manager.write_game(
-                    client_data.key, client_data.game
+                    client_data.keys.player_key, client_data.game
                 )
                 if time_played is None:
                     success = False
@@ -409,7 +416,8 @@ class GameStore:
         elif msg.message_type is IncomingMessageType.chat_message:
             message_text = msg.data[MESSAGE]
             await self._db_manager.write_chat(
-                client_data.key, ChatMessage(msg.timestamp, color, message_text)
+                client_data.keys.player_key,
+                ChatMessage(msg.timestamp, color, message_text),
             )
         else:
             raise TypeError(f"Cannot handle messages of type {msg.message_type}")
@@ -424,10 +432,10 @@ class GameStore:
         """
 
         if socket in self._clients:
-            key = self._clients[socket].key
+            key = self._clients[socket].keys.player_key
             await self._db_manager.unsubscribe(key, listeners_only)
             del self._clients[socket]
-            del self._keys[key]
+            del self._player_keys[key]
             logging.info(f"Unsubscribed client from key {key}")
         else:
             logging.info("Client with no active subscriptions dropped")
