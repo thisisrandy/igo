@@ -151,10 +151,6 @@ class GameStore:
         ).send()
 
         if ai_will_oppose:
-            # TODO: if an AI player drops while the game is ongoing and the
-            # human opponent is connected (AI server crash or network problems),
-            # it needs to be reconnected, and the human client should be somehow
-            # informed
             await start_ai_player(keys[requested_color.inverse()])
 
     def _get_game_updater(self) -> Callable[[str, Game, float], Coroutine]:
@@ -396,11 +392,15 @@ class GameStore:
         """
 
         if socket in self._clients:
-            key = self._clients[socket].keys.player_key
-            await self._db_manager.unsubscribe(key, listeners_only)
+            subscription = self._clients[socket]
+            keys = subscription.keys
+            player_key = keys.player_key
+            await self._db_manager.unsubscribe(player_key, listeners_only)
             del self._clients[socket]
-            del self._player_keys[key]
-            logging.info(f"Unsubscribed client from key {key}")
+            del self._player_keys[player_key]
+            logging.info(f"Unsubscribed client from key {player_key}")
+            if keys.ai_secret is not None:
+                await start_ai_player(keys, previous_subscription=subscription)
         else:
             logging.info("Client with no active subscriptions dropped")
 

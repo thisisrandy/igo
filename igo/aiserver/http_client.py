@@ -1,7 +1,8 @@
 import asyncio
+from igo.game import GameStatus
 import logging
 from tornado.options import define, options
-from igo.gameserver.containers import KeyPair
+from igo.gameserver.containers import ClientData, KeyPair
 from tornado.httpclient import AsyncHTTPClient, HTTPResponse
 import re
 from typing import Optional, Dict
@@ -22,15 +23,36 @@ _xsrf_lock: Lock = Lock()
 __all__ = ("start_ai_player",)
 
 
-async def start_ai_player(keys: KeyPair, just_once: bool = False) -> None:
+async def start_ai_player(
+    keys: KeyPair,
+    just_once: bool = False,
+    previous_subscription: Optional[ClientData] = None,
+) -> None:
     """
     This is the client's method to initiate communication with the AI server. It
     will try continuously to successfully POST to the AI server's http listener
-    unless `just_once`, in which case it will re-raise any exceptions on failure
+    unless `just_once`, in which case it will re-raise any exceptions on
+    failure. If `previous_subscription` is provided, check whether the previous
+    subscription should really have been ended. If so, we do nothing, and
+    otherwise (as would be the case if an AI server failed or network problems
+    were encountered) attempt to reconnect
     """
 
     global _xsrf_headers
     assert keys.ai_secret, "Cannot start an AI player without their secret"
+
+    if previous_subscription:
+        if (
+            previous_subscription.opponent_connected
+            and previous_subscription.game.status is not GameStatus.complete
+        ):
+            logging.warning(
+                f"An AI player using key {keys.player_key} disconnected while their"
+                " opponent was still playing. Reconnecting..."
+            )
+        else:
+            logging.info("No need to reconnect previously unsubscribed AI player")
+            return
 
     endpoint = f"{options.ai_server_url}/start"
     res: HTTPResponse
