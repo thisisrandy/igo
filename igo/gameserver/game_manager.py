@@ -13,7 +13,6 @@ from .constants import (
 )
 import logging
 from .chat import ChatMessage, ChatThread
-from dataclassy import dataclass
 from igo.game import Action, ActionType, Color, Game
 from typing import Callable, Coroutine, Dict, Optional
 from tornado.websocket import WebSocketHandler
@@ -30,7 +29,7 @@ from .containers import (
     GameStatusContainer,
     JoinGameResponseContainer,
     KeyContainer,
-    KeyPair,
+    ClientData,
     NewGameResponseContainer,
     OpponentConnectedContainer,
 )
@@ -39,41 +38,6 @@ from .containers import (
 class OppponentType(Enum):
     human = auto()
     computer = auto()
-
-
-@dataclass(slots=True)
-class ClientData:
-    """
-    ClientData is a container for all of the various data that a single client
-    is concerned with.
-
-    Attributes:
-
-        keys: KeyPair - the client's player key and AI secret, if relevant
-
-        color: Color - the client's color
-
-        game: Optional[Game] = None - the current game
-
-        time_played: Optional[float] = None - the time in seconds that the game
-        has been actively played thus far
-
-        chat_thread: Optional[ChatThread] = None - the chat thread associated
-        with the current game
-
-        opponent_connected: Optional[bool] = None - whether or not the client's
-        opponent in the current game is connected to a game server
-    """
-
-    keys: KeyPair
-    color: Color
-    game: Optional[Game] = None
-    time_played: Optional[float] = None
-    chat_thread: Optional[ChatThread] = None
-    opponent_connected: Optional[bool] = None
-
-    def __post_init__(self) -> None:
-        self.chat_thread = ChatThread(is_complete=True)
 
 
 @asyncinit
