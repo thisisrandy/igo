@@ -184,6 +184,10 @@ class GameStore:
         ).send()
 
         if ai_will_oppose:
+            # TODO: if an AI player drops while the game is ongoing and the
+            # human opponent is connected (AI server crash or network problems),
+            # it needs to be reconnected, and the human client should be somehow
+            # informed
             await start_ai_player(keys[requested_color.inverse()])
 
     def _get_game_updater(self) -> Callable[[str, Game, float], Coroutine]:
