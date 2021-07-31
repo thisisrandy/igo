@@ -4,6 +4,7 @@ via `await Client(...).start()`. See notes there for details
 """
 
 import asyncio
+from typing import Dict, Optional
 from asyncinit import asyncinit
 from .policy.random import RandomPolicy
 from .policy.base import PlayPolicyBase
@@ -24,7 +25,10 @@ from igo.gameserver.messages import (
 from igo.gameserver.constants import ACTION_TYPE, COORDS, KEY, TYPE, AI_SECRET
 import json
 from tornado.options import define, options
-from tornado.websocket import websocket_connect
+from tornado.websocket import (
+    WebSocketClientConnection,
+    websocket_connect,
+)
 
 define(
     "game_server_url",
@@ -34,13 +38,6 @@ define(
 )
 
 ERROR_SLEEP_PERIOD = 2
-
-# TODO: add reconnect logic. we should attempt to reconnect and rejoin if our
-# connection is severed. if the human client's connection was also severed, it
-# may be that when they rejoin, another ai client is spawned to play against
-# them, in which case we simply shut down. however, if just our end goes sour,
-# there needs to be logic on this side to rejoin, since there is no external
-# trigger
 
 
 @asyncinit
@@ -56,21 +53,69 @@ class Client:
         # incremented before the last message can be resent, don't attempt to
         # resend
         self.last_message_id = 0
+        self.connection: Optional[WebSocketClientConnection] = None
+
+    async def _connect(self) -> None:
+        url: str = options.game_server_url
+        while True:
+            try:
+                self.connection = await websocket_connect(url)
+            except:
+                logging.exception(
+                    "Something went wrong while attempting to (re)connect to"
+                    f" {url}. Sleeping for {ERROR_SLEEP_PERIOD}s and trying again"
+                )
+                await asyncio.sleep(ERROR_SLEEP_PERIOD)
+            else:
+                logging.info(f"Successfully connected to {url}")
+                break
+
+    async def _read(self) -> OutgoingMessage:
+        if not self.connection:
+            await self._connect()
+
+        while True:
+            msg: Optional[str] = await self.connection.read_message()
+            # per the docs, the read_message Future returns None if the
+            # connection is closed. we always assume that the connection being
+            # closed is an error and attempt to reconnect
+            if msg is not None:
+                res: OutgoingMessage = OutgoingMessage.deserialize(msg)
+                return res
+            else:
+                logging.error(
+                    "Something went wrong while attempting to read a message off"
+                    " the socket"
+                )
+                await self._connect()
+
+    async def _write(self, message: Dict) -> None:
+        if not self.connection:
+            await self._connect()
+
+        jsonified: str = json.dumps(message)
+        while True:
+            try:
+                await self.connection.write_message(jsonified)
+            except:
+                logging.exception(
+                    f"Something went wrong while attempting to write {jsonified}"
+                    " to the socket"
+                )
+                await self._connect()
+            else:
+                logging.info("Successfully wrote a message to the socket")
+                break
 
     async def start(self) -> None:
-        self.connection = con = await websocket_connect(options.game_server_url)
-        await con.write_message(
-            json.dumps(
-                {
-                    TYPE: IncomingMessageType.join_game.name,
-                    KEY: self.player_key,
-                    AI_SECRET: self.ai_secret,
-                }
-            )
+        await self._write(
+            {
+                TYPE: IncomingMessageType.join_game.name,
+                KEY: self.player_key,
+                AI_SECRET: self.ai_secret,
+            }
         )
-        response: OutgoingMessage = OutgoingMessage.deserialize(
-            await con.read_message()
-        )
+        response = await self._read()
         assert response.message_type is OutgoingMessageType.join_game_response
         data: JoinGameResponseContainer = response.data
         if not data.success:
@@ -88,9 +133,7 @@ class Client:
 
     async def _message_consumer(self) -> None:
         while True:
-            message: OutgoingMessage = OutgoingMessage.deserialize(
-                await self.connection.read_message()
-            )
+            message = await self._read()
             logging.info(f"Received message of type {message.message_type}")
 
             # action response
@@ -120,16 +163,15 @@ class Client:
                     logging.info(
                         f"Taking action {action} for player key {self.player_key}"
                     )
-                    self.last_message = json.dumps(
-                        {
-                            TYPE: IncomingMessageType.game_action.name,
-                            KEY: self.player_key,
-                            ACTION_TYPE: action.action_type.name,
-                            COORDS: action.coords,
-                        }
-                    )
+                    self.last_message = {
+                        TYPE: IncomingMessageType.game_action.name,
+                        KEY: self.player_key,
+                        ACTION_TYPE: action.action_type.name,
+                        COORDS: action.coords,
+                    }
+
                     self.last_message_id = self.last_message_id + 1
-                    await self.connection.write_message(self.last_message)
+                    await self._write(self.last_message)
                 else:
                     logging.info(f"Taking no action for player key {self.player_key}")
 
@@ -159,7 +201,7 @@ class Client:
                 await asyncio.sleep(ERROR_SLEEP_PERIOD)
                 if last_message_id == self.last_message_id:
                     logging.info("Resending last message")
-                    await self.connection.write_message(self.last_message)
+                    await self._write(self.last_message)
                 else:
                     logging.info(
                         "In error handling, another action was taken before the last"
