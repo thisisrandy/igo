@@ -1,1 +1,0 @@
-web: python -m igo.gameserver --port=$PORT --origin-suffix=^playigo.herokuapp.com
