@@ -43,7 +43,10 @@ ERROR_SLEEP_PERIOD = 2
 @asyncinit
 class Client:
     async def __init__(
-        self, player_key: str, ai_secret: str, play_policy=RandomPolicy
+        self,
+        player_key: str,
+        ai_secret: str,
+        play_policy: type[PlayPolicyBase] = RandomPolicy,
     ) -> None:
         self.player_key = player_key
         self.ai_secret = ai_secret
