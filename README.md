@@ -60,7 +60,7 @@ If you don't know the location of `pg_hba.conf`, connect to the database and run
 
 #### python version requirement
 
-≥ 3.8
+≥ 3.9
 
 #### PostgreSQL version requirement
 
