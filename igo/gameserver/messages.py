@@ -33,17 +33,15 @@ class IncomingMessageType(Enum):
     game_action = auto()
     chat_message = auto()
 
-    @staticmethod
-    def required_keys() -> Dict[IncomingMessageType, List[str]]:
-        """Return a dictionary of IncomingMessageType: list of required keys
-        in the data attribute of an IncomingMessage with that message_type"""
 
-        return {
-            IncomingMessageType.new_game: [VS, COLOR, SIZE, KOMI],
-            IncomingMessageType.join_game: [KEY],
-            IncomingMessageType.game_action: [KEY, ACTION_TYPE],
-            IncomingMessageType.chat_message: [KEY, MESSAGE],
-        }
+"""Dictionary of keys required to be in the data attribute of an IncomingMessage
+with the specified message_type"""
+INCOMING_REQUIRED_KEYS: Dict[IncomingMessageType, List[str]] = {
+    IncomingMessageType.new_game: [VS, COLOR, SIZE, KOMI],
+    IncomingMessageType.join_game: [KEY],
+    IncomingMessageType.game_action: [KEY, ACTION_TYPE],
+    IncomingMessageType.chat_message: [KEY, MESSAGE],
+}
 
 
 class OutgoingMessageType(Enum):
@@ -100,7 +98,7 @@ class IncomingMessage(Message):
         self.data: Dict[str, object] = json.loads(json_str)
         self.message_type: IncomingMessageType = IncomingMessageType[self.data[TYPE]]
         del self.data[TYPE]
-        for rk in IncomingMessageType.required_keys()[self.message_type]:
+        for rk in INCOMING_REQUIRED_KEYS[self.message_type]:
             assert (
                 rk in self.data
             ), f"Required key {rk} not found in incoming message {self.data}"
