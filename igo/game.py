@@ -665,8 +665,10 @@ class Game(JsonifyableBase):
                 ),
             )
             self.status = GameStatus.complete
-        else:  # ActionType.reject
+        elif action.action_type is ActionType.reject:
             self.status = GameStatus.endgame
+        else:
+            raise ValueError(f"Unknown action type {action.action_type} encountered")
 
         return "request to tally the score"
 
