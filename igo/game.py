@@ -798,6 +798,29 @@ class Game(JsonifyableBase):
             else None
         )
 
+    def auto_remove_dead(self) -> None:
+        """Automatically remove all dead groups according to the following
+        approximation. A group is considered alive if any of the following hold:
+
+        1. It contains at least two distinct secured internal liberty groups
+        2. It contains at least one secured internal liberty group containing at
+        least three liberties (technically unsettled)
+        3. It has at least two external liberties from which another
+        like-colored group or board border can be reached
+        4. It has at least one of (1) and one of (3)
+
+        All groups which do not meet one or more of these criteria will be
+        removed from the board.
+
+        This is a GROSS approximation of an actual endgame, and will be very
+        innaccurate in some cases. As such, it should only be used to assist in
+        predicting the outcome of a game, not to make an ultimate determination
+        of the outcome.
+
+        See e.g. https://www.oipaz.net/Carta.pdf for something better"""
+
+        # TODO: stub
+
     def jsonifyable(self) -> Dict:
         """Return a representation which can be readily JSONified. In
         particular, return a dictionary with the board, game status, komi,
