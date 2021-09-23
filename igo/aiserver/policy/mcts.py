@@ -3,7 +3,7 @@ from copy import deepcopy
 from typing import Optional
 from random import randrange
 from dataclassy import dataclass
-from igo.game import Action, ActionType, Color, Game
+from igo.game import Action, ActionType, Color, Game, GameStatus
 from igo.aiserver.policy.base import PlayPolicyBase
 from math import sqrt, log
 
@@ -100,12 +100,30 @@ class TreeNode:
         # on groups, which is probably good enough
 
         if not self.has_unsimulated_children:
-            res = self.best_child.run_simulation()
+            res = (
+                self.best_child.run_simulation()
+                if self.has_children
+                else self.game.result.winner is self.player_color
+            )
         else:
             advanced_game: Game = deepcopy(self.game)
-            advanced_game.take_action(
-                Action(ActionType.place_stone, self.game.turn, 0.0, self.select_move())
-            )
+            if self.game.status is GameStatus.play:
+                # TODO: handle passing
+                advanced_game.take_action(
+                    Action(
+                        ActionType.place_stone, self.game.turn, 0.0, self.select_move()
+                    )
+                )
+            elif self.game.status is GameStatus.endgame:
+                # TODO: invoke procedure for auto-removing dead stones
+                # TODO: assumes tally is never rejected. may need to rethink later
+                advanced_game.take_action(
+                    Action(ActionType.request_tally_score, self.game.turn, 0.0)
+                )
+                advanced_game.take_action(
+                    Action(ActionType.accept, self.game.turn, 0.0)
+                )
+            # TODO: not handling requests
             child = TreeNode(advanced_game, self.player_color, self)
             self._children.append(child)
             res = child.run_simulation()
