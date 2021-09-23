@@ -475,6 +475,10 @@ class Game(JsonifyableBase):
         Return a list of all legal moves for `color`
         """
 
+        # TODO: have this be game status-aware, and possibly include passing. it
+        # may actually be better for it to return a list of valid *Actions*
+        # instead of points
+
         return [
             (i, j)
             for i in range(self.board.size)
