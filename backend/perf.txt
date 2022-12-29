@@ -1,0 +1,165 @@
+General observations from profiling: The game server is has a small memory
+footprint and is CPU-bound. Processing time was initially dominated by
+out-of-the-box game.Board deepcopy, but a custom implementation brought that
+down considerably. Now, cycles are spread fairly evenly across board copying and
+the various (de)serialization methods. Possible optimizations include:
+
+- Doing away with deepcopying the board and instead tracking changes and
+unwinding them when need be. It isn't immediately obvious how to detect ko this
+way (maybe generate unique board hashes?)
+
+- Doing away with the board action stack. We don't really use it for anything in
+production, though it is super useful for programmatically replaying games. Game
+size gets reduced this way, which reduces pickling time
+
+- Using a ProcessPoolExecutor (see https://stackoverflow.com/a/28492261/12162258
+for an [outdated but instructive] asyncio example) to do the heavy lifting with
+Game actions. This would need to be handled carefully: if we store our games in
+the main process, they would get pickled for IPC, which would definitely squash
+any benefit. Instead, we'd need to load them up from the DB in child processes
+and write back out if needed, returning only the result. Alternately, Processes
+could be created guarded by a semaphore to limit the max concurrent number,
+which would give us initially shared memory thanks to forking on linux (reading
+the result back from the child would still require a pickle cycle). Some
+synchronization would be needed to make sure that actions are taken in the order
+received.
+
+It's worth noting that just running multiple instances of the single process
+server behind a load balancer is probably as or even more effective than this
+option
+
+- Sharing Game state between clients connected to the same game. This introduces
+a lot of complexity, but assuming a large client to server ratio, it does a lot
+reduce DB IO, which means less time spent pickling. The server memory footprint
+would also be reduced, though that doesn't seem to be a concern in the first
+place
+
+- Using diffs instead of snapshots for game storage and to update clients. This
+would reduce serialization time, but the added complexity is probably not worth
+it
+
+UPDATE: Running just two or three server instances simultaneously quickly shifts
+them to being I/O-bound. Thus, any further optimization efforts should focus on
+reducing the number of I/O operations, e.g. sharing game state, the size of
+individual reads and writes, e.g. nixing the action stack or writing diffs, or
+the speed of the store, e.g. swapping out postgres for redis w/o durability
+
+*** Laptop numbers:
+
+Actions per play: 63
+Total plays: 40
+Total actions: 2520
+Min game time: 15.65s
+Max: 16.56s
+Std: 0.245s
+Mean: 16.2s
+Median: 16.23s
+Mean action time: 0.2571s
+
+Actions per play: 63
+Total plays: 400
+Total actions: 25200
+Min game time: 117.4s
+Max: 125.0s
+Std: 1.638s
+Mean: 123.1s
+Median: 123.7s
+Mean action time: 1.953s
+
+Total time: 158.7s
+Actions per play: 63
+Total plays: 400
+Total actions: 25200
+Min game time: 114.7s
+Max: 158.6s
+Std: 5.279s
+Mean: 134.5s
+Median: 135.5s
+Mean action time: 2.135s
+Mean actions/sec: 158.8
+
+Actions per play: 63
+Total plays: 800
+Total actions: 50400
+Min game time: 245.0s
+Max: 287.5s
+Std: 4.733s
+Mean: 261.2s
+Median: 261.3s
+Mean action time: 4.145s
+
+Actions per play: 63
+Total plays: 800
+Total actions: 50400
+Min game time: 226.4s
+Max: 443.3s
+Std: 30.68s
+Mean: 301.4s
+Median: 305.0s
+Mean action time: 4.784s
+
+Total time: 476.5s
+Actions per play: 63
+Total plays: 1200
+Total actions: 75600
+Min game time: 312.8s
+Max: 476.5s
+Std: 17.6s
+Mean: 380.4s
+Median: 382.8s
+Mean action time: 6.037s
+Mean actions/sec: 158.6
+
+Actions per play: 63
+Total plays: 2000
+Total actions: 126000
+Min game time: 509.7s
+Max: 825.3s
+Std: 37.48s
+Mean: 650.0s
+Median: 651.0s
+Mean action time: 10.32s
+
+*** Local numbers re: Game copy speed
+
+Stubbed:
+------------------
+Total time: 64.89s
+Actions per play: 63
+Total plays: 400
+Total actions: 25200
+Min game time: 63.07s
+Max: 64.85s
+Std: 0.4484s
+Mean: 64.06s
+Median: 64.02s
+Mean action time: 1.017s
+Mean actions/sec: 388.4
+
+Naive deepcopy:
+------------------
+Total time: 105.0s
+Actions per play: 63
+Total plays: 400
+Total actions: 25200
+Min game time: 102.6s
+Max: 105.0s
+Std: 0.4445s
+Mean: 104.2s
+Median: 104.1s
+Mean action time: 1.653s
+Mean actions/sec: 240.0
+
+Custom deepcopy:
+------------------
+Total time: 77.66s
+Actions per play: 63
+Total plays: 400
+Total actions: 25200
+Min game time: 75.34s
+Max: 77.62s
+Std: 0.457s
+Mean: 76.83s
+Median: 76.79s
+Mean action time: 1.219s
+Mean actions/sec: 324.5

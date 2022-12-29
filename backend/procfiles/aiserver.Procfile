@@ -1,0 +1,1 @@
+web: python -m igo.aiserver --port=$PORT --game-server-url=wss://igobackend.herokuapp.com/websocket
