@@ -15,12 +15,13 @@ law](https://en.wikipedia.org/wiki/Hofstadter%27s_law).
 
 Years later, I decided to finish the job as a hobby project. The fruits of this
 effort as undertaken by a mature engineer can be played
-[here](https://playigo.herokuapp.com). Note that hosting is on the
+~~[here](https://playigo.herokuapp.com). Note that hosting is on the
 [heroku](heroku.com) [free
 tier](https://devcenter.heroku.com/articles/free-dyno-hours), so the web server
 may take a few moments to come up if it has been sleeping. It should thereafter
 be responsive until there is no activity for 30 minutes, at which point it will
-sleep again.
+sleep again.~~ **Heroku has discontinued their free tier. This project is not
+currently deployed anywhere, though it be again in the future.**
 
 For code details and installation, check out the [frontend](frontend/README.md)
 and [backend](backend/README.md).
