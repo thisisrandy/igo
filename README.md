@@ -23,4 +23,5 @@ be responsive until there is no activity for 30 minutes, at which point it will
 sleep again. The frontend (user interface) code is
 [here](https://github.com/thisisrandy/igo-frontend).
 
-For code details, check out the [frontend](frontend/) and [backend](backend/).
+For code details and installation, check out the [frontend](frontend/) and
+[backend](backend/).
