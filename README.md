@@ -10,7 +10,7 @@ finished in time, so all we had working by the end was an unnetworked command
 line application instead of the shiny-graphic'ed, fully-networked, AI-capable
 program we had designed. We still got a good grade, probably because we had
 done a good job in the design phase (which was really the point of the class)
-and learned a healthy lesson about [Hhofstadter's
+and learned a healthy lesson about [Hofstadter's
 law](https://en.wikipedia.org/wiki/Hofstadter%27s_law).
 
 Years later, I decided to finish the job as a hobby project. The fruits of this
