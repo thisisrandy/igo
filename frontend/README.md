@@ -2,7 +2,7 @@
 
 ### Installation
 
-Clone the repository and run `yarn install` from the root directory.
+Clone the repository and run `yarn install` in the `frontend` directory.
 
 ### Running locally
 

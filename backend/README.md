@@ -4,7 +4,7 @@
 
 1. Clone the repository
 2. Install [poetry](https://python-poetry.org/docs/)
-3. Run `poetry install`
+3. Run `poetry install` in the `backend` directory
 4. If necessary, [install](https://www.postgresql.org/download/) PostgreSQL
 5. [Create](https://www.postgresql.org/docs/current/sql-createdatabase.html) a
    new database. If desired, an existing database can also be used, provided there
