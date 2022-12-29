@@ -1,0 +1,2 @@
+export const RECONNECT_INTERVAL_MS = 2000;
+export const CONNECTION_ALERT_DELAY_MS = 200;
