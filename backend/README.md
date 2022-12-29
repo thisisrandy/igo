@@ -59,8 +59,7 @@ If you don't know the location of `pg_hba.conf`, connect to the database and run
 Run `poetry run python -m igo.gameserver` from the root directory. If running
 the AI server, separately run `poetry run python -m igo.aiserver`. Use the
 `--help` option on either for additional options. You will also need an instance
-of the [frontend server](https://github.com/thisisrandy/igo-frontend) running in
-order to play.
+of the [frontend server](../frontend/README.md) running in order to play.
 
 ### Technologies used
 
