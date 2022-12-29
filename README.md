@@ -20,8 +20,7 @@ effort as undertaken by a mature engineer can be played
 tier](https://devcenter.heroku.com/articles/free-dyno-hours), so the web server
 may take a few moments to come up if it has been sleeping. It should thereafter
 be responsive until there is no activity for 30 minutes, at which point it will
-sleep again. The frontend (user interface) code is
-[here](https://github.com/thisisrandy/igo-frontend).
+sleep again.
 
 For code details and installation, check out the [frontend](frontend/README.md)
 and [backend](backend/README.md).
