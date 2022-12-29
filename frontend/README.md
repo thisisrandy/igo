@@ -1,16 +1,6 @@
-## igo-frontend
+## frontend
 
-<p align="center"><img alt="igo screenshot" src="screenshot.png" /></p>
-
-This is the frontend (user interface) code for a browser-based
-[igo](<https://en.wikipedia.org/wiki/Go_(game)>) (囲碁, go) application, which you
-can play [here](https://playigo.herokuapp.com/). Note that hosting is on the
-[heroku](https://heroku.com) [free
-tier](https://devcenter.heroku.com/articles/free-dyno-hours), so the web server
-may take a few moments to come up if it has been sleeping. It should thereafter
-be responsive until there is no activity for 30 minutes, at which point it will
-sleep again. The backend (game server) code is
-[here](https://github.com/thisisrandy/igo-backend).
+<p align="center"><img alt="igo screenshot" src="../screenshot.png" /></p>
 
 ### Installation
 
