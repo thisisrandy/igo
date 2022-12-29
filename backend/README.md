@@ -1,7 +1,5 @@
 ## backend
 
-<p align="center"><img alt="igo screenshot" src="../screenshot.png" /></p>
-
 ### Installation
 
 1. Clone the repository

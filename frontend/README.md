@@ -1,7 +1,5 @@
 ## frontend
 
-<p align="center"><img alt="igo screenshot" src="../screenshot.png" /></p>
-
 ### Installation
 
 Clone the repository and run `yarn install` from the root directory.
