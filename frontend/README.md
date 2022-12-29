@@ -8,10 +8,10 @@ Clone the repository and run `yarn install` in the `frontend` directory.
 
 Run `yarn start` for the [react](https://reactjs.org/) development server and
 `yarn build` for the production server. You will need an instance of the [game
-server](https://github.com/thisisrandy/igo-backend) to be running, and
-`REACT_APP_GAME_SERVER_URI` in [.env](.env) must be pointing to it. If you want
-to play with other machines on the local network, change the address in
-[.env](.env) to your local IP address instead of `localhost`.
+server](../backend/README.md) to be running, and `REACT_APP_GAME_SERVER_URI` in
+[.env](.env) must be pointing to it. If you want to play with other machines on
+the local network, change the address in [.env](.env) to your local IP address
+instead of `localhost`.
 
 ### Technologies used
 
