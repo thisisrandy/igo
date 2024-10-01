@@ -130,3 +130,6 @@ dmypy.json
 
 # game store
 store/
+
+# vim
+.vim
